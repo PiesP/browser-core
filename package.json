@@ -1,8 +1,18 @@
 {
   "name": "@piesp/browser-core",
   "version": "0.1.0",
+  "description": "Shared TypeScript utilities for PiesP browser-based projects",
   "private": true,
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PiesP/browser-core.git"
+  },
+  "bugs": {
+    "url": "https://github.com/PiesP/browser-core/issues"
+  },
+  "homepage": "https://github.com/PiesP/browser-core#readme",
+  "license": "MIT",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
