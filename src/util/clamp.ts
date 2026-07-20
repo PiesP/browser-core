@@ -9,3 +9,18 @@
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
+
+/**
+ * Safely clamp an index to valid array bounds.
+ * Handles non-finite values and invalid lengths.
+ *
+ * @param index - Index to validate
+ * @param length - Array length
+ * @returns Valid index in [0, length-1] or 0 on invalid input
+ */
+export function clampIndex(index: number, length: number): number {
+  if (!Number.isFinite(index) || length <= 0) {
+    return 0;
+  }
+  return clamp(Math.floor(index), 0, length - 1);
+}
