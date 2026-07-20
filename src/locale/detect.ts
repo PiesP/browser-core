@@ -28,6 +28,8 @@ export interface DetectOptions {
   readonly singleLanguage?: string;
   /** Override for chrome.i18n.getUILanguage (extension context, for testing) */
   readonly platformUILanguage?: string | undefined;
+  /** Override for the default fallback locale (default: DEFAULT_LOCALE) */
+  readonly defaultLocale?: Locale;
 }
 
 /**
@@ -107,9 +109,8 @@ export function detectLocale(options: DetectOptions = {}): Locale {
         if (normalized) return normalized;
       }
 
-      const browserLangs =
-        (navigator.languages as readonly string[] | undefined) ??
-        (navigator.language ? [navigator.language] : []);
+      const navLangs = navigator.languages as readonly string[] | undefined;
+      const browserLangs = navLangs ?? (navigator.language ? [navigator.language] : []);
       if (browserLangs.length > 0) {
         for (const lang of browserLangs) {
           if (!lang) continue;
@@ -117,10 +118,16 @@ export function detectLocale(options: DetectOptions = {}): Locale {
           if (normalized) return normalized;
         }
       }
+      // If navigator.languages was an empty array, fall back to navigator.language
+      if (navLangs && navLangs.length === 0 && navigator.language) {
+        const normalized = normalizeLocale(navigator.language);
+        if (normalized) return normalized;
+      }
     } catch {
       // navigator or chrome may be unavailable (SSR, Workers)
     }
   }
 
-  return DEFAULT_LOCALE;
+  const fallbackLocale = options.defaultLocale ?? DEFAULT_LOCALE;
+  return fallbackLocale;
 }
