@@ -1,0 +1,96 @@
+/**
+ * Locale-aware formatting — file sizes and durations.
+ *
+ * MIT License
+ * Copyright (c) 2025-2026 PiesP
+ */
+
+import type { Locale } from './types';
+
+/** Bytes per kilobyte */
+const BYTES_PER_KB = 1024;
+
+// ── File size unit labels per locale ──────────────────────────────────────
+
+const FILE_SIZE_LABELS: Record<string, readonly string[]> = {
+  en: ['B', 'KB', 'MB', 'GB'],
+  ko: ['바이트', 'KB', 'MB', 'GB'],
+  /** For locales without localized labels, English SI abbreviations are used. */
+};
+
+function getFileSizeUnits(locale: Locale): readonly string[] {
+  const units = FILE_SIZE_LABELS[locale];
+  if (units) return units;
+  // Fall back to English SI units
+  return FILE_SIZE_LABELS.en!;
+}
+
+/**
+ * Format file size with locale-aware separators and units.
+ *
+ * @param bytes - Number of bytes (must be non-negative)
+ * @param locale - BCP 47 locale identifier
+ */
+export function formatFileSize(bytes: number, locale: Locale): string {
+  if (bytes === 0) {
+    const units = getFileSizeUnits(locale);
+    return `${new Intl.NumberFormat(locale).format(0)} ${units[0]!}`;
+  }
+
+  const k = BYTES_PER_KB;
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), 3);
+  const value = bytes / k ** i;
+  const units = getFileSizeUnits(locale);
+
+  const formatted = new Intl.NumberFormat(locale, {
+    maximumFractionDigits: i === 0 ? 0 : 2,
+  }).format(value);
+
+  return `${formatted} ${units[i]!}`;
+}
+
+// ── Duration unit labels per locale ───────────────────────────────────────
+
+interface DurationUnits {
+  readonly ms: string;
+  readonly sec: string;
+  readonly min: string;
+}
+
+const DURATION_LABELS: Record<string, DurationUnits> = {
+  en: { ms: 'ms', sec: 's', min: 'm' },
+  ko: { ms: 'ms', sec: '초', min: '분' },
+  ja: { ms: 'ms', sec: '秒', min: '分' },
+  'zh-CN': { ms: 'ms', sec: '秒', min: '分' },
+  es: { ms: 'ms', sec: 's', min: 'm' },
+  ar: { ms: 'مللي', sec: 'ث', min: 'د' },
+};
+
+function getDurationUnits(locale: Locale): DurationUnits {
+  return DURATION_LABELS[locale] ?? DURATION_LABELS.en!;
+}
+
+/**
+ * Format duration with locale-aware units.
+ *
+ * @param ms - Duration in milliseconds
+ * @param locale - BCP 47 locale identifier
+ */
+export function formatDuration(ms: number, locale: Locale): string {
+  const units = getDurationUnits(locale);
+  const numFormat = new Intl.NumberFormat(locale);
+
+  if (ms < 1000) {
+    return `${numFormat.format(Math.round(ms))}${units.ms}`;
+  }
+
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  if (minutes > 0) {
+    return `${minutes}${units.min} ${seconds}${units.sec}`;
+  }
+
+  return `${(ms / 1000).toFixed(1)}${units.sec}`;
+}
