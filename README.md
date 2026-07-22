@@ -29,6 +29,22 @@ pnpm test       # run tests
 pnpm test:watch # watch mode
 ```
 
+## Consumer updates
+
+The browser-based consumer repositories track this repository as the
+`packages/core` git submodule. Their update workflow checks for a newer
+`master` commit daily and can also be started manually.
+
+For immediate update PRs after a push, configure a repository secret named
+`CONSUMER_UPDATE_TOKEN` with a GitHub App or fine-grained token that can create
+repository dispatch events in:
+
+- `PiesP/wasm-motion-converter`
+- `PiesP/xcom-enhanced-gallery`
+- `PiesP/yt-live-chat-overlay`
+
+Without that secret, the daily polling workflow remains the fallback.
+
 ## License
 
 MIT

@@ -1,0 +1,60 @@
+name: Notify consumers
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      core_sha:
+        description: Optional browser-core commit SHA to notify consumers about
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    name: Notify ${{ matrix.repository }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        repository:
+          - PiesP/wasm-motion-converter
+          - PiesP/xcom-enhanced-gallery
+          - PiesP/yt-live-chat-overlay
+    env:
+      GH_TOKEN: ${{ secrets.CONSUMER_UPDATE_TOKEN }}
+      CONSUMER_REPOSITORY: ${{ matrix.repository }}
+      CORE_REPOSITORY: ${{ github.repository }}
+      CORE_SHA: ${{ inputs.core_sha || github.sha }}
+    steps:
+      - name: Validate commit SHA
+        run: |
+          set -euo pipefail
+          if [[ ! "$CORE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::core_sha must be a 40-character lowercase commit SHA"
+            exit 1
+          fi
+
+      - name: Dispatch update event
+        if: ${{ env.GH_TOKEN != '' }}
+        run: |
+          set -euo pipefail
+          gh api --method POST \
+            "/repos/$CONSUMER_REPOSITORY/dispatches" \
+            --input - <<EOF
+          {
+            "event_type": "browser-core-updated",
+            "client_payload": {
+              "core_repository": "$CORE_REPOSITORY",
+              "core_sha": "$CORE_SHA"
+            }
+          }
+          EOF
+
+      - name: Explain scheduled fallback
+        if: ${{ env.GH_TOKEN == '' }}
+        run: |
+          echo "::warning::CONSUMER_UPDATE_TOKEN is not configured. Consumer repositories will discover this commit on their scheduled runs."
