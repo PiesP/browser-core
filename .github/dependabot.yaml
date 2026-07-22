@@ -41,7 +41,6 @@ updates:
       timezone: "Asia/Seoul"
     cooldown:
       default-days: 7
-      semver-patch-days: 3
     open-pull-requests-limit: 3
     commit-message:
       prefix: "ci(deps)"
