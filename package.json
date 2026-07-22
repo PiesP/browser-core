@@ -5,6 +5,10 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.2.2",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=11.2.2"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/PiesP/browser-core.git"
