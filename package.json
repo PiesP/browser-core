@@ -4,6 +4,7 @@
   "description": "Shared TypeScript utilities for PiesP browser-based projects",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.2.2",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/PiesP/browser-core.git"
