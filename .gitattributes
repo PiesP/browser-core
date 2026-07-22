@@ -1,0 +1,15 @@
+* text=auto
+
+# JavaScript/TypeScript
+*.js text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+
+# Binary
+*.png binary
+*.wasm binary
+*.woff2 binary
