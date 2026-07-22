@@ -2,3 +2,9 @@ node_modules/
 .vite/
 *.tsbuildinfo
 dist/
+
+# Local AI instructions
+AGENTS.md
+CODEX_WORKFLOW.md
+CLAUDE.md
+GEMINI.md
