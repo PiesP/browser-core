@@ -32,6 +32,10 @@ function getFileSizeUnits(locale: Locale): readonly string[] {
  * @param locale - BCP 47 locale identifier
  */
 export function formatFileSize(bytes: number, locale: Locale): string {
+  if (!Number.isFinite(bytes) || bytes < 0) {
+    throw new RangeError('bytes must be a finite, non-negative number');
+  }
+
   if (bytes === 0) {
     const units = getFileSizeUnits(locale);
     return `${new Intl.NumberFormat(locale).format(0)} ${units[0]!}`;

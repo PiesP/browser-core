@@ -39,6 +39,13 @@ describe('isCancellationError', () => {
     expect(isCancellationError(error)).toBe(true);
   });
 
+  it('detects AbortError through multiple nested causes', () => {
+    const abortError = new DOMException('aborted', 'AbortError');
+    const inner = new Error('inner', { cause: abortError });
+    const outer = new Error('outer', { cause: inner });
+    expect(isCancellationError(outer)).toBe(true);
+  });
+
   it('detects message containing "cancelled"', () => {
     const error = new Error('Operation was cancelled by user');
     expect(isCancellationError(error, { checkMessage: true })).toBe(true);

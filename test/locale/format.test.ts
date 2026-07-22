@@ -25,6 +25,10 @@ describe('formatFileSize', () => {
     const result = formatFileSize(1024, 'ko');
     expect(result).toContain('KB');
   });
+
+  it('rejects negative byte counts', () => {
+    expect(() => formatFileSize(-1, 'en')).toThrow(RangeError);
+  });
 });
 
 describe('formatDuration', () => {
