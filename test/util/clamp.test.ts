@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clamp } from '../../src/util/clamp.js';
+import { clamp, clampIndex } from '../../src/util/clamp.js';
 
 describe('clamp', () => {
   it('returns the value when within range', () => {
@@ -25,5 +25,20 @@ describe('clamp', () => {
     expect(clamp(-5, -10, -2)).toBe(-5);
     expect(clamp(-15, -10, -2)).toBe(-10);
     expect(clamp(0, -10, -2)).toBe(-2);
+  });
+});
+
+describe('clampIndex', () => {
+  it('floors fractional indices and clamps them to array bounds', () => {
+    expect(clampIndex(1.9, 3)).toBe(1);
+    expect(clampIndex(-1, 3)).toBe(0);
+    expect(clampIndex(5, 3)).toBe(2);
+  });
+
+  it('returns zero for non-finite indices and empty lengths', () => {
+    expect(clampIndex(Number.NaN, 3)).toBe(0);
+    expect(clampIndex(Number.POSITIVE_INFINITY, 3)).toBe(0);
+    expect(clampIndex(1, 0)).toBe(0);
+    expect(clampIndex(1, -1)).toBe(0);
   });
 });
