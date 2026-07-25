@@ -19,3 +19,4 @@ export { ByteLimitedCache } from './util/byte-limited-cache.js';
 export { PriorityBucketQueue } from './util/priority-queue.js';
 export { schedulerYield, schedulerPostTask, yieldIfOverBudget, yieldIfOverBudgetAsync } from './util/scheduler.js';
 export { parseAnyColor, toRgba, computeReadableTextColor } from './util/color.js';
+// End-to-end chain verification
