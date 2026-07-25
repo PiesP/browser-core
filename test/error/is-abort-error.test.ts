@@ -26,6 +26,36 @@ describe('isAbortError', () => {
   it('rejects string', () => {
     expect(isAbortError('aborted')).toBe(false);
   });
+
+  describe('with checkTimeout option', () => {
+    it('detects TimeoutError DOMException when checkTimeout is true', () => {
+      expect(
+        isAbortError(new DOMException('timed out', 'TimeoutError'), { checkTimeout: true }),
+      ).toBe(true);
+    });
+
+    it('does not detect TimeoutError when checkTimeout is false', () => {
+      expect(
+        isAbortError(new DOMException('timed out', 'TimeoutError'), { checkTimeout: false }),
+      ).toBe(false);
+    });
+
+    it('does not detect TimeoutError when checkTimeout is not set (default)', () => {
+      expect(isAbortError(new DOMException('timed out', 'TimeoutError'))).toBe(false);
+    });
+
+    it('still detects AbortError when checkTimeout is true', () => {
+      expect(
+        isAbortError(new DOMException('aborted', 'AbortError'), { checkTimeout: true }),
+      ).toBe(true);
+    });
+
+    it('rejects plain objects with TimeoutError name', () => {
+      expect(
+        isAbortError({ name: 'TimeoutError' }, { checkTimeout: true }),
+      ).toBe(false);
+    });
+  });
 });
 
 describe('isCancellationError', () => {
