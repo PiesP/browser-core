@@ -1,8 +1,16 @@
 export { createId } from './create-id.js';
 export { clamp, clampIndex } from './clamp.js';
+export { clampSoft, clampMinmax } from './clamp-extended.js';
 export { cx } from './cx.js';
 export { escapeRegExp } from './escape-reg-exp.js';
 export { isRecord, isHTMLElement, createEventListener } from './guards.js';
 export { computePercentage } from './math.js';
 export { resolveNestedPath } from './object.js';
 export { generateUniqueId, createPrefixedId } from './unique-id.js';
+export { LruMap } from './lru-map.js';
+export { ByteLimitedCache } from './byte-limited-cache.js';
+export { PriorityBucketQueue } from './priority-queue.js';
+export { schedulerYield, schedulerPostTask, yieldIfOverBudget, yieldIfOverBudgetAsync } from './scheduler.js';
+export type { TaskPriority, SchedulerPostTaskOptions } from './scheduler.js';
+export { parseAnyColor, toRgba, computeReadableTextColor } from './color.js';
+export type { RgbaTuple } from './color.js';
