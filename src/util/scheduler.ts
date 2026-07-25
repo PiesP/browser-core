@@ -76,7 +76,7 @@ export function schedulerPostTask<T = void>(
           opts: { priority?: TaskPriority; signal?: AbortSignal },
         ) => Promise<R>;
       }
-    ).postTask(callback, { priority, signal });
+    ).postTask(callback, { priority, ...(signal ? { signal } : {}) });
   }
 
   // Fallback: setTimeout with priority-appropriate delays

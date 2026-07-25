@@ -33,7 +33,7 @@ export class ByteLimitedCache<V> {
 
   /** Callback invoked for each evicted entry. */
   private readonly _estimateSize: (value: V) => number;
-  private readonly _onEvict?: (key: string, value: V) => void;
+  private readonly _onEvict: ((key: string, value: V) => void) | undefined;
 
   /**
    * @param options - Configuration
