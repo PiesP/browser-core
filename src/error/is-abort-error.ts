@@ -3,18 +3,37 @@ export interface CancellationCheckOptions {
   checkMessage?: boolean;
 }
 
+export interface AbortErrorCheckOptions {
+  /**
+   * Also recognize TimeoutError DOMExceptions as abort-like errors.
+   * When `true`, `isAbortError` returns `true` for `TimeoutError` in addition
+   * to `AbortError`.
+   */
+  checkTimeout?: boolean;
+}
+
 /**
  * Check whether an error is a strict AbortError.
  *
  * Returns `true` only for DOMException instances with name "AbortError".
+ * If `options.checkTimeout` is `true`, also returns `true` for
+ * DOMException instances with name "TimeoutError".
+ *
  * This matches the behavior of xcom-enhanced-gallery (`cancellation.ts:10-14`)
  * and yt-live-chat-overlay (`dom.ts:178-179`).
  *
  * @param error - Unknown error value
- * @returns True if the error is a DOMException AbortError
+ * @param options - Configuration for timeout checking
+ * @returns True if the error is a DOMException AbortError (or TimeoutError)
  */
-export function isAbortError(error: unknown): boolean {
-  return error instanceof DOMException && error.name === 'AbortError';
+export function isAbortError(
+  error: unknown,
+  options: AbortErrorCheckOptions = {},
+): boolean {
+  if (!(error instanceof DOMException)) return false;
+  if (error.name === 'AbortError') return true;
+  if (options.checkTimeout && error.name === 'TimeoutError') return true;
+  return false;
 }
 
 /**
