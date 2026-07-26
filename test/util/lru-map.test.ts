@@ -99,6 +99,17 @@ describe('LruMap', () => {
     expect(map.get('b')).toBe(2);
   });
 
+  it('evicts an undefined key when it is least recently used', () => {
+    const map = new LruMap<string | undefined, number>(1);
+
+    map.set(undefined, 1);
+    map.set('replacement', 2);
+
+    expect(map.size).toBe(1);
+    expect(map.has(undefined)).toBe(false);
+    expect(map.get('replacement')).toBe(2);
+  });
+
   it('supports large maxSize without eviction', () => {
     const map = new LruMap<number, number>(100);
     for (let i = 0; i < 100; i++) map.set(i, i);

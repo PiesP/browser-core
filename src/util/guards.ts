@@ -19,8 +19,26 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
  * @returns `true` if the value is an HTMLElement
  */
 export function isHTMLElement(element: unknown): element is HTMLElement {
-  if (typeof window === 'undefined') return false;
-  return element instanceof HTMLElement;
+  if (
+    typeof element !== 'object' ||
+    element === null ||
+    typeof HTMLElement === 'undefined'
+  ) {
+    return false;
+  }
+
+  const titleGetter = Object.getOwnPropertyDescriptor(
+    HTMLElement.prototype,
+    'title',
+  )?.get;
+  if (!titleGetter) return false;
+
+  try {
+    titleGetter.call(element);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**

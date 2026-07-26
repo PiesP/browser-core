@@ -24,16 +24,21 @@
     ".": "./src/index.ts",
     "./async": "./src/async/index.ts",
     "./error": "./src/error/index.ts",
+    "./events": "./src/events/index.ts",
     "./locale": "./src/locale/index.ts",
     "./logging": "./src/logging/index.ts",
     "./util": "./src/util/index.ts"
   },
   "scripts": {
-    "check": "tsc --noEmit",
+    "check": "pnpm check:format && pnpm check:types && pnpm check:lint",
+    "check:format": "node scripts/check-format.mjs",
+    "check:types": "tsc --noEmit",
+    "check:lint": "tsc --noEmit --noUnusedLocals --noUnusedParameters --noFallthroughCasesInSwitch --noImplicitReturns --noUncheckedSideEffectImports --allowUnreachableCode false --allowUnusedLabels false",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "devDependencies": {
+    "jsdom": "^29.1.1",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },

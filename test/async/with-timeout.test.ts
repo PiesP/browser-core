@@ -26,12 +26,26 @@ describe('withTimeout', () => {
     );
   });
 
-  it('rejects immediately if signal is already aborted', () => {
+  it('returns a rejected promise if signal is already aborted', async () => {
     const controller = new AbortController();
     controller.abort();
-    expect(() =>
+    await expect(
       withTimeout(Promise.resolve(42), 5000, undefined, undefined, controller.signal),
-    ).toThrow('aborted');
+    ).rejects.toThrow('aborted');
+  });
+
+  it('consumes an already-rejected source when the signal is pre-aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const sourceError = new Error('source rejected first');
+
+    await expect(
+      withTimeout(Promise.reject(sourceError), 5000, undefined, undefined, controller.signal),
+    ).rejects.toThrow('aborted');
+
+    // Give Node a turn to report an unhandled source rejection. Vitest fails
+    // this test if withTimeout did not attach a rejection handler.
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
   });
 
   it('rejects when signal is aborted mid-wait', async () => {
@@ -57,6 +71,92 @@ describe('withTimeout', () => {
     }
     expect(caught).toBe(true);
     expect(onTimeout).toHaveBeenCalledOnce();
+  });
+
+  it('rejects the returned promise when onTimeout throws', async () => {
+    vi.useFakeTimers();
+    const callbackError = new Error('timeout cleanup failed');
+
+    try {
+      const result = withTimeout(
+        new Promise<never>(() => {}),
+        10,
+        undefined,
+        () => {
+          throw callbackError;
+        },
+      );
+      const outcome = result.then(
+        () => ({ status: 'resolved' as const }),
+        (reason: unknown) => ({ status: 'rejected' as const, reason }),
+      );
+
+      expect(() => vi.advanceTimersByTime(10)).not.toThrow();
+      await expect(outcome).resolves.toEqual({
+        status: 'rejected',
+        reason: callbackError,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('rejects with an asynchronous onTimeout error without leaking a rejection', async () => {
+    vi.useFakeTimers();
+    const callbackError = new Error('asynchronous timeout cleanup failed');
+
+    try {
+      const result = withTimeout(
+        new Promise<never>(() => {}),
+        10,
+        undefined,
+        async () => {
+          throw callbackError;
+        },
+      );
+      const outcome = result.then(
+        () => ({ status: 'resolved' as const }),
+        (reason: unknown) => ({ status: 'rejected' as const, reason }),
+      );
+
+      await vi.advanceTimersByTimeAsync(10);
+
+      await expect(outcome).resolves.toEqual({
+        status: 'rejected',
+        reason: callbackError,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not let the source win after the timeout deadline', async () => {
+    vi.useFakeTimers();
+    let resolveSource!: (value: string) => void;
+    let rejectTimeoutCleanup!: (error: Error) => void;
+    const source = new Promise<string>((resolve) => {
+      resolveSource = resolve;
+    });
+    const cleanup = new Promise<void>((_resolve, reject) => {
+      rejectTimeoutCleanup = reject;
+    });
+    const cleanupError = new Error('timeout cleanup failed');
+
+    try {
+      const result = withTimeout(source, 10, undefined, () => cleanup);
+      const outcome = vi.fn();
+      void result.then(outcome, outcome);
+
+      await vi.advanceTimersByTimeAsync(10);
+      resolveSource('late source success');
+      await Promise.resolve();
+      expect(outcome).not.toHaveBeenCalled();
+
+      rejectTimeoutCleanup(cleanupError);
+      await expect(result).rejects.toBe(cleanupError);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not call onTimeout when promise resolves before timeout', async () => {
@@ -97,11 +197,11 @@ describe('withTimeout', () => {
     await expect(promise).rejects.toThrow();
   });
 
-  it('wraps non-DOMException signal reason in AbortError', () => {
+  it('wraps non-DOMException signal reason in a rejected AbortError', async () => {
     const controller = new AbortController();
     controller.abort('just a string');
-    expect(() =>
+    await expect(
       withTimeout(Promise.resolve(42), 5000, undefined, undefined, controller.signal),
-    ).toThrow('aborted');
+    ).rejects.toThrow('aborted');
   });
 });

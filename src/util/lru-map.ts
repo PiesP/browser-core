@@ -140,9 +140,9 @@ export class LruMap<K, V> {
 
   /** Evict the least-recently-used entry (first in insertion order). */
   private _evictLru(): void {
-    const firstKey = this._map.keys().next().value;
-    if (firstKey !== undefined) {
-      this._map.delete(firstKey);
+    const firstEntry = this._map.keys().next();
+    if (!firstEntry.done) {
+      this._map.delete(firstEntry.value);
     }
   }
 }

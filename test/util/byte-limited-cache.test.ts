@@ -79,7 +79,7 @@ describe('ByteLimitedCache', () => {
   it('size reflects current entries', () => {
     const cache = new ByteLimitedCache<string>({
       maxBytes: 100,
-      estimateSize: (v) => 1,
+      estimateSize: () => 1,
     });
     expect(cache.size).toBe(0);
     cache.set('a', 'v1');
