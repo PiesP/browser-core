@@ -6,7 +6,7 @@ import * as eventsApi from '../src/events/index';
 import * as localeApi from '../src/locale/index';
 import * as loggingApi from '../src/logging/index';
 import * as utilApi from '../src/util/index';
-import packageJson from '../package.json';
+import * as packagedEventsApi from '@piesp/browser-core/events';
 
 describe('user-facing public API', () => {
   it('exposes the documented feature groups from the package entry point', () => {
@@ -40,6 +40,8 @@ describe('user-facing public API', () => {
     expect(errorApi.mergeAbortSignals).toBe(core.mergeAbortSignals);
     expect(eventsApi.MessageBus).toBe(core.MessageBus);
     expect(eventsApi.createEventEmitter).toBe(core.createEventEmitter);
+    expect(packagedEventsApi.MessageBus).toBe(core.MessageBus);
+    expect(packagedEventsApi.createEventEmitter).toBe(core.createEventEmitter);
     expect(localeApi.formatFileSize).toBe(core.formatFileSize);
     expect(localeApi.formatDuration).toBe(core.formatDuration);
     expect(loggingApi.createConsoleLogger).toBe(core.createConsoleLogger);
@@ -49,10 +51,11 @@ describe('user-facing public API', () => {
     expect(utilApi.clampIndex).toBe(core.clampIndex);
   });
 
-  it('publishes the events entry point as a package subpath', () => {
-    const exports = packageJson.exports as Record<string, string>;
+  it('publishes the events entry point as a resolvable package subpath', () => {
+    const bus = new packagedEventsApi.MessageBus<string>();
 
-    expect(exports['./events']).toBe('./src/events/index.ts');
+    expect(bus.subscriberCount).toBe(0);
+    expect(typeof bus.publishAsync).toBe('function');
   });
 
   it('supports the shared user flow of clamping and presenting a value', () => {

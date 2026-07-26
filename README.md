@@ -22,6 +22,24 @@ import { MessageBus } from '@piesp/browser-core/events';
 import { createId, clamp } from '@piesp/browser-core/util';
 ```
 
+This private source package is consumed by the workspace's TypeScript-aware
+bundlers. Its exports point to `.ts` source and are not a native Node runtime
+distribution.
+
+## Async and event error contracts
+
+`withTimeout` invokes `onTimeout` in the timer task. If the callback returns a
+promise, settlement waits for it and a callback rejection becomes the returned
+promise's rejection. An already-aborted signal throws synchronously for
+backward compatibility; other timeout and abort outcomes reject asynchronously.
+
+`MessageBus.publish` is synchronous. It snapshots subscribers, delivers to all
+of them, and then rethrows the first synchronous error. Promise-returning
+subscribers are consumed to avoid unhandled rejections, but cause `publish` to
+throw `TypeError`. Use and await `publishAsync` for asynchronous subscribers;
+it waits for every subscriber and rejects with the first error in subscription
+order.
+
 ## Locale contract
 
 The locale API supports `en`, `ko`, `ja`, `zh-CN`, `es`, and `ar`.
@@ -32,14 +50,15 @@ supported locale matches. `detectLocale` checks the platform UI language,
 to `en` unless a different `defaultLocale` is provided.
 
 File sizes and durations use `Intl.NumberFormat` for locale-specific digits,
-grouping, and decimal separators. Negative durations are normalized to zero.
-File sizes must be finite and non-negative; invalid values throw `RangeError`.
+grouping, and decimal separators. Negative finite durations are normalized to
+zero. File sizes must be finite and non-negative, and durations must be finite;
+invalid values throw `RangeError`.
 
 ## Development
 
 ```bash
 pnpm install    # install dependencies
-pnpm check      # formatting, type, lint, and unused-code checks
+pnpm check      # text hygiene, type, and compiler lint checks
 pnpm test       # run tests
 pnpm test:watch # watch mode
 ```
