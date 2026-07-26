@@ -34,6 +34,20 @@ describe('withTimeout', () => {
     ).rejects.toThrow('aborted');
   });
 
+  it('consumes an already-rejected source when the signal is pre-aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const sourceError = new Error('source rejected first');
+
+    await expect(
+      withTimeout(Promise.reject(sourceError), 5000, undefined, undefined, controller.signal),
+    ).rejects.toThrow('aborted');
+
+    // Give Node a turn to report an unhandled source rejection. Vitest fails
+    // this test if withTimeout did not attach a rejection handler.
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  });
+
   it('rejects when signal is aborted mid-wait', async () => {
     const controller = new AbortController();
     const never = new Promise<number>(() => {});
@@ -111,6 +125,35 @@ describe('withTimeout', () => {
         status: 'rejected',
         reason: callbackError,
       });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not let the source win after the timeout deadline', async () => {
+    vi.useFakeTimers();
+    let resolveSource!: (value: string) => void;
+    let rejectTimeoutCleanup!: (error: Error) => void;
+    const source = new Promise<string>((resolve) => {
+      resolveSource = resolve;
+    });
+    const cleanup = new Promise<void>((_resolve, reject) => {
+      rejectTimeoutCleanup = reject;
+    });
+    const cleanupError = new Error('timeout cleanup failed');
+
+    try {
+      const result = withTimeout(source, 10, undefined, () => cleanup);
+      const outcome = vi.fn();
+      void result.then(outcome, outcome);
+
+      await vi.advanceTimersByTimeAsync(10);
+      resolveSource('late source success');
+      await Promise.resolve();
+      expect(outcome).not.toHaveBeenCalled();
+
+      rejectTimeoutCleanup(cleanupError);
+      await expect(result).rejects.toBe(cleanupError);
     } finally {
       vi.useRealTimers();
     }

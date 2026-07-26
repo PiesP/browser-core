@@ -23,25 +23,65 @@ export function withTimeout<T>(
   onTimeout?: () => void | PromiseLike<void>,
   signal?: AbortSignal,
 ): Promise<T> {
-  // Fast path: already aborted
-  if (signal?.aborted) {
-    return Promise.reject(
-      signal.reason instanceof DOMException
-        ? signal.reason
-        : new DOMException(message ?? 'The operation was aborted.', 'AbortError'),
-    );
-  }
+  const source = Promise.resolve(promise);
 
-  let timerId: ReturnType<typeof setTimeout> | null = null;
-  let abortHandler: (() => void) | null = null;
+  return new Promise<T>((resolve, reject) => {
+    let outcomeOwned = false;
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+    let abortHandler: (() => void) | null = null;
 
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timerId = setTimeout(() => {
-      timerId = null;
+    const cleanup = (): void => {
+      if (timerId !== null) {
+        clearTimeout(timerId);
+        timerId = null;
+      }
       if (signal && abortHandler) {
         signal.removeEventListener('abort', abortHandler);
         abortHandler = null;
       }
+    };
+
+    // Attach both handlers before checking a pre-aborted signal so an already
+    // rejected source is still consumed and cannot leak an unhandled rejection.
+    void source.then(
+      (value) => {
+        if (outcomeOwned) return;
+        outcomeOwned = true;
+        cleanup();
+        resolve(value);
+      },
+      (error: unknown) => {
+        if (outcomeOwned) return;
+        outcomeOwned = true;
+        cleanup();
+        reject(error);
+      },
+    );
+
+    if (signal?.aborted) {
+      outcomeOwned = true;
+      reject(createAbortError(signal, message));
+      return;
+    }
+
+    if (signal) {
+      abortHandler = (): void => {
+        if (outcomeOwned) return;
+        outcomeOwned = true;
+        cleanup();
+        reject(createAbortError(signal, message));
+      };
+      signal.addEventListener('abort', abortHandler, { once: true });
+    }
+
+    timerId = setTimeout(() => {
+      if (outcomeOwned) return;
+      // The deadline owns settlement from this point forward. A late source
+      // result cannot win while asynchronous timeout cleanup is pending.
+      outcomeOwned = true;
+      timerId = null;
+      cleanup();
+
       let callbackResult: void | PromiseLike<void>;
       try {
         callbackResult = onTimeout?.();
@@ -60,43 +100,10 @@ export function withTimeout<T>(
       );
     }, ms);
   });
+}
 
-  if (signal) {
-    const abortPromise = new Promise<never>((_, reject) => {
-      abortHandler = (): void => {
-        if (timerId !== null) {
-          clearTimeout(timerId);
-          timerId = null;
-        }
-        reject(
-          signal.reason instanceof DOMException
-            ? signal.reason
-            : new DOMException(message ?? 'The operation was aborted.', 'AbortError'),
-        );
-      };
-      signal.addEventListener('abort', abortHandler, { once: true });
-    });
-
-    // Cleanup helper
-    const cleanup = (): void => {
-      if (timerId !== null) {
-        clearTimeout(timerId);
-        timerId = null;
-      }
-      if (signal && abortHandler) {
-        signal.removeEventListener('abort', abortHandler);
-        abortHandler = null;
-      }
-    };
-
-    return Promise.race([promise, timeoutPromise, abortPromise]).finally(cleanup) as Promise<T>;
-  }
-
-  // No signal — simpler path
-  return Promise.race([promise, timeoutPromise]).finally(() => {
-    if (timerId !== null) {
-      clearTimeout(timerId);
-      timerId = null;
-    }
-  }) as Promise<T>;
+function createAbortError(signal: AbortSignal, message: string | undefined): DOMException {
+  return signal.reason instanceof DOMException
+    ? signal.reason
+    : new DOMException(message ?? 'The operation was aborted.', 'AbortError');
 }
