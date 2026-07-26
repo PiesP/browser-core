@@ -113,4 +113,66 @@ describe('PriorityBucketQueue', () => {
     expect(queue.dequeue()).toBe('last');
     expect(queue.size).toBe(0);
   });
+
+  it('iterates an item snapshot when callbacks enqueue more items', () => {
+    const queue = new PriorityBucketQueue<string>();
+    queue.enqueue('first', 1);
+    queue.enqueue('second', 1);
+    const seen: string[] = [];
+
+    queue.forEach((item) => {
+      seen.push(item);
+      if (item === 'first') queue.enqueue('later', 1);
+    });
+
+    expect(seen).toEqual(['first', 'second']);
+    expect(queue.size).toBe(3);
+  });
+
+  it('finishes the current snapshot when callbacks clear the queue', () => {
+    const queue = new PriorityBucketQueue<string>();
+    queue.enqueue('first', 1);
+    queue.enqueue('second', 2);
+    const seen: string[] = [];
+
+    queue.forEach((item) => {
+      seen.push(item);
+      if (item === 'first') queue.clear();
+    });
+
+    expect(seen).toEqual(['first', 'second']);
+    expect(queue.isEmpty).toBe(true);
+  });
+
+  it('drains many distinct priority levels without quadratic scanning', { timeout: 2_000 }, () => {
+    const queue = new PriorityBucketQueue<number>();
+    const itemCount = 100_000;
+
+    for (let item = 0; item < itemCount; item++) {
+      queue.enqueue(item, itemCount - item);
+    }
+    let preservesPriorityOrder = true;
+    for (let expected = itemCount - 1; expected >= 0; expected--) {
+      if (queue.dequeue() !== expected) preservesPriorityOrder = false;
+    }
+
+    expect(preservesPriorityOrder).toBe(true);
+    expect(queue.isEmpty).toBe(true);
+  });
+
+  it('drains a large FIFO bucket without quadratic shifting', { timeout: 2_000 }, () => {
+    const queue = new PriorityBucketQueue<number>();
+    const itemCount = 300_000;
+
+    for (let item = 0; item < itemCount; item++) {
+      queue.enqueue(item, 1);
+    }
+    let preservesFifoOrder = true;
+    for (let expected = 0; expected < itemCount; expected++) {
+      if (queue.dequeue() !== expected) preservesFifoOrder = false;
+    }
+
+    expect(preservesFifoOrder).toBe(true);
+    expect(queue.isEmpty).toBe(true);
+  });
 });
