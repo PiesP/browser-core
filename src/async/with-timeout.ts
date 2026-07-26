@@ -36,7 +36,12 @@ export function withTimeout<T>(
         signal.removeEventListener('abort', abortHandler);
         abortHandler = null;
       }
-      onTimeout?.();
+      try {
+        onTimeout?.();
+      } catch (error) {
+        reject(error);
+        return;
+      }
       reject(new DOMException(message ?? 'The operation timed out.', 'TimeoutError'));
     }, ms);
   });

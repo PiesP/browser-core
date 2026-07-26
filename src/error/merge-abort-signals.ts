@@ -12,6 +12,14 @@ export function mergeAbortSignals(signals: readonly AbortSignal[]): AbortControl
 
   if (signals.length === 0) return controller;
 
+  const listeningSignals: AbortSignal[] = [];
+
+  const cleanup = (): void => {
+    for (const signal of listeningSignals.splice(0)) {
+      signal.removeEventListener('abort', onAbort);
+    }
+  };
+
   const onAbort = (): void => {
     // Find the first aborted signal and use its reason
     for (const sig of signals) {
@@ -23,18 +31,17 @@ export function mergeAbortSignals(signals: readonly AbortSignal[]): AbortControl
     if (!controller.signal.aborted) {
       controller.abort();
     }
-    // Clean up listeners from all signals
-    for (const sig of signals) {
-      sig.removeEventListener('abort', onAbort);
-    }
+    cleanup();
   };
 
   for (const sig of signals) {
     if (sig.aborted) {
       controller.abort(sig.reason);
+      cleanup();
       return controller;
     }
     sig.addEventListener('abort', onAbort, { once: true });
+    listeningSignals.push(sig);
   }
 
   return controller;

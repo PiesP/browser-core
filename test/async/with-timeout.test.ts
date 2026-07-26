@@ -59,6 +59,34 @@ describe('withTimeout', () => {
     expect(onTimeout).toHaveBeenCalledOnce();
   });
 
+  it('rejects the returned promise when onTimeout throws', async () => {
+    vi.useFakeTimers();
+    const callbackError = new Error('timeout cleanup failed');
+
+    try {
+      const result = withTimeout(
+        new Promise<never>(() => {}),
+        10,
+        undefined,
+        () => {
+          throw callbackError;
+        },
+      );
+      const outcome = result.then(
+        () => ({ status: 'resolved' as const }),
+        (reason: unknown) => ({ status: 'rejected' as const, reason }),
+      );
+
+      expect(() => vi.advanceTimersByTime(10)).not.toThrow();
+      await expect(outcome).resolves.toEqual({
+        status: 'rejected',
+        reason: callbackError,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('does not call onTimeout when promise resolves before timeout', async () => {
     const onTimeout = vi.fn();
     const result = await withTimeout(Promise.resolve('ok'), 5000, undefined, onTimeout);

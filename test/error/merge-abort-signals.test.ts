@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { mergeAbortSignals } from '../../src/error/merge-abort-signals.js';
 
 describe('mergeAbortSignals', () => {
@@ -43,5 +43,47 @@ describe('mergeAbortSignals', () => {
     // This should be a no-op after cleanup
     c2.abort();
     expect(merged.signal.aborted).toBe(true);
+  });
+
+  it('cleans earlier listeners when a later signal is already aborted', () => {
+    const active = new AbortController();
+    const aborted = new AbortController();
+    aborted.abort('already stopped');
+    const addListener = vi.spyOn(active.signal, 'addEventListener');
+    const removeListener = vi.spyOn(active.signal, 'removeEventListener');
+
+    const merged = mergeAbortSignals([active.signal, aborted.signal]);
+
+    expect(merged.signal.aborted).toBe(true);
+    expect(merged.signal.reason).toBe('already stopped');
+    expect(addListener).toHaveBeenCalledOnce();
+    expect(removeListener).toHaveBeenCalledOnce();
+    expect(removeListener).toHaveBeenCalledWith(
+      'abort',
+      addListener.mock.calls[0]![1],
+    );
+  });
+
+  it('removes every registered listener exactly once after abort', () => {
+    const sources = [
+      new AbortController(),
+      new AbortController(),
+      new AbortController(),
+    ];
+    const listenerSpies = sources.map(({ signal }) => ({
+      add: vi.spyOn(signal, 'addEventListener'),
+      remove: vi.spyOn(signal, 'removeEventListener'),
+    }));
+    const merged = mergeAbortSignals(sources.map(({ signal }) => signal));
+
+    sources[1]!.abort('stopped');
+    sources[2]!.abort('ignored later abort');
+
+    expect(merged.signal.reason).toBe('stopped');
+    for (const { add, remove } of listenerSpies) {
+      expect(add).toHaveBeenCalledOnce();
+      expect(remove).toHaveBeenCalledOnce();
+      expect(remove).toHaveBeenCalledWith('abort', add.mock.calls[0]![1]);
+    }
   });
 });

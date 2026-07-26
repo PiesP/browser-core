@@ -26,13 +26,31 @@ export class MessageBus<T> {
    * Publish a message to all current subscribers.
    *
    * Handlers are called synchronously in subscription order.
-   * Errors thrown by a handler do not prevent other handlers from running.
+   * The subscriber set is snapshotted before delivery, so subscriptions added
+   * or removed by a handler affect only later publications. Errors thrown by a
+   * handler do not prevent other handlers from running; after delivery, the
+   * first error is rethrown to the publisher.
    *
    * @param message - The message to broadcast
    */
   publish(message: T): void {
-    for (const handler of this.listeners) {
-      handler(message);
+    const handlers = [...this.listeners];
+    let firstError: unknown;
+    let hasError = false;
+
+    for (const handler of handlers) {
+      try {
+        handler(message);
+      } catch (error) {
+        if (!hasError) {
+          firstError = error;
+          hasError = true;
+        }
+      }
+    }
+
+    if (hasError) {
+      throw firstError;
     }
   }
 
