@@ -77,24 +77,33 @@ function getDurationUnits(locale: Locale): DurationUnits {
 /**
  * Format duration with locale-aware units.
  *
+ * Negative durations are normalized to zero.
+ *
  * @param ms - Duration in milliseconds
  * @param locale - BCP 47 locale identifier
  */
 export function formatDuration(ms: number, locale: Locale): string {
+  const normalizedMs = Math.max(0, ms);
   const units = getDurationUnits(locale);
   const numFormat = new Intl.NumberFormat(locale);
 
-  if (ms < 1000) {
-    return `${numFormat.format(Math.round(ms))}${units.ms}`;
+  if (normalizedMs < 1000) {
+    return `${numFormat.format(Math.round(normalizedMs))}${units.ms}`;
   }
 
-  const totalSeconds = Math.floor(ms / 1000);
+  const totalSeconds = Math.floor(normalizedMs / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
 
   if (minutes > 0) {
-    return `${minutes}${units.min} ${seconds}${units.sec}`;
+    const formattedMinutes = numFormat.format(minutes);
+    const formattedSeconds = numFormat.format(seconds);
+    return `${formattedMinutes}${units.min} ${formattedSeconds}${units.sec}`;
   }
 
-  return `${(ms / 1000).toFixed(1)}${units.sec}`;
+  const secondsFormat = new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+  return `${secondsFormat.format(normalizedMs / 1000)}${units.sec}`;
 }

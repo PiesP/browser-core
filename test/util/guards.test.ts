@@ -54,6 +54,27 @@ describe('isHTMLElement', () => {
     expect(isHTMLElement(null)).toBe(false);
     expect(isHTMLElement('div')).toBe(false);
   });
+
+  it('recognizes an HTMLElement through its iframe realm constructor', () => {
+    class CurrentRealmHTMLElement {}
+    class IframeHTMLElement {}
+    vi.stubGlobal('window', {});
+    vi.stubGlobal('HTMLElement', CurrentRealmHTMLElement);
+
+    try {
+      const iframeElement = new IframeHTMLElement();
+      Object.defineProperty(iframeElement, 'ownerDocument', {
+        value: {
+          defaultView: { HTMLElement: IframeHTMLElement },
+        },
+      });
+
+      expect(iframeElement).not.toBeInstanceOf(CurrentRealmHTMLElement);
+      expect(isHTMLElement(iframeElement)).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });
 
 describe('createEventListener', () => {

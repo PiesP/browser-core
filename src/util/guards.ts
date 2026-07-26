@@ -19,8 +19,25 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
  * @returns `true` if the value is an HTMLElement
  */
 export function isHTMLElement(element: unknown): element is HTMLElement {
-  if (typeof window === 'undefined') return false;
-  return element instanceof HTMLElement;
+  if (typeof element !== 'object' || element === null) return false;
+
+  const ownerDocument = (
+    element as { ownerDocument?: { defaultView?: unknown } }
+  ).ownerDocument;
+  const realmConstructor = (
+    ownerDocument?.defaultView as { HTMLElement?: unknown } | null
+  )?.HTMLElement;
+
+  if (
+    typeof realmConstructor === 'function' &&
+    element instanceof realmConstructor
+  ) {
+    return true;
+  }
+
+  return (
+    typeof HTMLElement !== 'undefined' && element instanceof HTMLElement
+  );
 }
 
 /**

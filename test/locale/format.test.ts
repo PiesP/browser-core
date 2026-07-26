@@ -60,4 +60,20 @@ describe('formatDuration', () => {
     const result = formatDuration(1000, 'en');
     expect(result).toBe('1.0s');
   });
+
+  it('uses the locale decimal separator for fractional seconds', () => {
+    expect(formatDuration(1500, 'es')).toBe('1,5s');
+  });
+
+  it('uses locale number formatting for minute and second components', () => {
+    const numberFormat = new Intl.NumberFormat('en');
+
+    expect(formatDuration(60_030_000, 'en')).toBe(
+      `${numberFormat.format(1000)}m ${numberFormat.format(30)}s`,
+    );
+  });
+
+  it('normalizes negative durations to zero', () => {
+    expect(formatDuration(-1500, 'en')).toBe('0ms');
+  });
 });
