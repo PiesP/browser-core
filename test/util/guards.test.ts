@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 import { describe, expect, it, vi } from 'vitest';
 import { isRecord, isHTMLElement, createEventListener } from '../../src/util/guards.js';
 
@@ -42,10 +44,7 @@ describe('isRecord', () => {
 });
 
 describe('isHTMLElement', () => {
-  it('returns false when window is undefined (node environment)', () => {
-    // In vitest (node environment), HTMLElement may not be available
-    // or the test runs in jsdom where window is defined.
-    // We only test that it doesn't throw.
+  it('does not throw for an ordinary non-element object', () => {
     expect(() => isHTMLElement({})).not.toThrow();
   });
 
@@ -55,25 +54,48 @@ describe('isHTMLElement', () => {
     expect(isHTMLElement('div')).toBe(false);
   });
 
-  it('recognizes an HTMLElement through its iframe realm constructor', () => {
-    class CurrentRealmHTMLElement {}
-    class IframeHTMLElement {}
-    vi.stubGlobal('window', {});
-    vi.stubGlobal('HTMLElement', CurrentRealmHTMLElement);
+  it('recognizes an actual HTMLElement created in an iframe realm', () => {
+    const iframe = document.createElement('iframe');
+    document.body.append(iframe);
 
     try {
-      const iframeElement = new IframeHTMLElement();
-      Object.defineProperty(iframeElement, 'ownerDocument', {
-        value: {
-          defaultView: { HTMLElement: IframeHTMLElement },
-        },
-      });
+      const iframeDocument = iframe.contentDocument;
+      const iframeWindow = iframe.contentWindow;
+      if (!iframeDocument || !iframeWindow) {
+        throw new Error('iframe realm was not created');
+      }
+      const iframeGlobal = iframeWindow as Window & typeof globalThis;
 
-      expect(iframeElement).not.toBeInstanceOf(CurrentRealmHTMLElement);
+      const iframeElement = iframeDocument.createElement('div');
+      expect(iframeElement).toBeInstanceOf(iframeGlobal.HTMLElement);
+      expect(iframeElement).not.toBeInstanceOf(HTMLElement);
       expect(isHTMLElement(iframeElement)).toBe(true);
     } finally {
-      vi.unstubAllGlobals();
+      iframe.remove();
     }
+  });
+
+  it('rejects an object that supplies its own HTMLElement constructor', () => {
+    class FakeHTMLElement {}
+    const spoof = new FakeHTMLElement() as FakeHTMLElement & {
+      ownerDocument: { defaultView: { HTMLElement: typeof FakeHTMLElement } };
+    };
+    spoof.ownerDocument = {
+      defaultView: { HTMLElement: FakeHTMLElement },
+    };
+
+    expect(isHTMLElement(spoof)).toBe(false);
+  });
+
+  it('returns false when candidate property access throws', () => {
+    const throwingCandidate = Object.defineProperty({}, 'ownerDocument', {
+      get: () => {
+        throw new Error('property access denied');
+      },
+    });
+
+    expect(() => isHTMLElement(throwingCandidate)).not.toThrow();
+    expect(isHTMLElement(throwingCandidate)).toBe(false);
   });
 });
 

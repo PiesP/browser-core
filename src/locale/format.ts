@@ -42,7 +42,10 @@ export function formatFileSize(bytes: number, locale: Locale): string {
   }
 
   const k = BYTES_PER_KB;
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), 3);
+  const i = Math.max(
+    0,
+    Math.min(Math.floor(Math.log(bytes) / Math.log(k)), 3),
+  );
   const value = bytes / k ** i;
   const units = getFileSizeUnits(locale);
 
@@ -81,8 +84,13 @@ function getDurationUnits(locale: Locale): DurationUnits {
  *
  * @param ms - Duration in milliseconds
  * @param locale - BCP 47 locale identifier
+ * @throws {RangeError} If `ms` is not finite
  */
 export function formatDuration(ms: number, locale: Locale): string {
+  if (!Number.isFinite(ms)) {
+    throw new RangeError('ms must be a finite number');
+  }
+
   const normalizedMs = Math.max(0, ms);
   const units = getDurationUnits(locale);
   const numFormat = new Intl.NumberFormat(locale);

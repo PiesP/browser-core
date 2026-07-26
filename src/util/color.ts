@@ -54,13 +54,28 @@ export function parseAnyColor(color: string): RgbaTuple | null {
 
   // rgb() / rgba()
   const rgbMatch = trimmed.match(
-    /rgba?\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*([\d.]+))?\s*\)/i,
+    /^(rgba?)\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*(\d+(?:\.\d*)?|\.\d+))?\s*\)$/i,
   );
   if (rgbMatch) {
-    const r = clampByte(Number(rgbMatch[1]));
-    const g = clampByte(Number(rgbMatch[2]));
-    const b = clampByte(Number(rgbMatch[3]));
-    const a = rgbMatch[4] !== undefined ? clampAlpha(Number(rgbMatch[4])) : 1;
+    const functionName = rgbMatch[1];
+    const red = rgbMatch[2];
+    const green = rgbMatch[3];
+    const blue = rgbMatch[4];
+    const alpha = rgbMatch[5];
+    if (
+      functionName === undefined ||
+      red === undefined ||
+      green === undefined ||
+      blue === undefined ||
+      (functionName.toLowerCase() === 'rgba') !== (alpha !== undefined)
+    ) {
+      return [0, 0, 0, 1];
+    }
+
+    const r = clampByte(Number(red));
+    const g = clampByte(Number(green));
+    const b = clampByte(Number(blue));
+    const a = alpha === undefined ? 1 : clampAlpha(Number(alpha));
     return [r, g, b, a];
   }
 

@@ -29,6 +29,11 @@ describe('formatFileSize', () => {
   it('rejects negative byte counts', () => {
     expect(() => formatFileSize(-1, 'en')).toThrow(RangeError);
   });
+
+  it('formats fractional bytes without selecting an invalid unit', () => {
+    expect(formatFileSize(0.5, 'en')).toBe('1 B');
+    expect(formatFileSize(Number.MIN_VALUE, 'en')).toBe('0 B');
+  });
 });
 
 describe('formatDuration', () => {
@@ -76,4 +81,11 @@ describe('formatDuration', () => {
   it('normalizes negative durations to zero', () => {
     expect(formatDuration(-1500, 'en')).toBe('0ms');
   });
+
+  it.each([NaN, Infinity, -Infinity])(
+    'rejects non-finite duration %s',
+    (duration) => {
+      expect(() => formatDuration(duration, 'en')).toThrow(RangeError);
+    },
+  );
 });

@@ -26,4 +26,19 @@ describe('parseAnyColor', () => {
       expect(parsed!.every(Number.isFinite)).toBe(true);
     },
   );
+
+  it.each([
+    'rgba(1, 2, 3, .)',
+    'rgba(1, 2, 3, 1.2.3)',
+    'rgba(1, 2, 3)',
+    'rgb(1, 2, 3, 0.5)',
+    'prefix rgb(1, 2, 3)',
+    'rgb(1, 2, 3) suffix',
+  ])('uses the non-hex fallback for malformed functional color %s', (color) => {
+    expect(parseAnyColor(color)).toEqual([0, 0, 0, 1]);
+  });
+
+  it('parses a leading-decimal alpha without producing NaN', () => {
+    expect(parseAnyColor('rgba(1, 2, 3, .5)')).toEqual([1, 2, 3, 0.5]);
+  });
 });
