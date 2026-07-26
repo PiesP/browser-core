@@ -4,19 +4,24 @@
  *
  * Supports cancellation via an AbortSignal — when the signal is aborted,
  * the promise rejects with an AbortError before the timeout fires.
+ * For backward compatibility, an already-aborted signal throws synchronously
+ * before a promise is returned.
  *
  * @param promise - The promise to wrap
  * @param ms - Timeout duration in milliseconds
  * @param message - Optional custom error message for the timeout
- * @param onTimeout - Optional callback invoked when the timeout fires
+ * @param onTimeout - Optional callback invoked when the timeout fires. If it
+ * returns a promise, timeout settlement waits for it; callback errors reject
+ * the returned promise.
  * @param signal - Optional AbortSignal for cancellation
  * @returns Promise that resolves with the original value or rejects on timeout/abort
+ * @throws {DOMException} Synchronously when `signal` is already aborted
  */
 export function withTimeout<T>(
   promise: PromiseLike<T>,
   ms: number,
   message?: string,
-  onTimeout?: () => void,
+  onTimeout?: () => void | PromiseLike<void>,
   signal?: AbortSignal,
 ): Promise<T> {
   // Fast path: already aborted
@@ -36,13 +41,22 @@ export function withTimeout<T>(
         signal.removeEventListener('abort', abortHandler);
         abortHandler = null;
       }
+      let callbackResult: void | PromiseLike<void>;
       try {
-        onTimeout?.();
+        callbackResult = onTimeout?.();
       } catch (error) {
         reject(error);
         return;
       }
-      reject(new DOMException(message ?? 'The operation timed out.', 'TimeoutError'));
+
+      void Promise.resolve(callbackResult).then(
+        () => {
+          reject(new DOMException(message ?? 'The operation timed out.', 'TimeoutError'));
+        },
+        (error: unknown) => {
+          reject(error);
+        },
+      );
     }, ms);
   });
 

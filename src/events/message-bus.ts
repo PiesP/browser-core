@@ -29,7 +29,9 @@ export class MessageBus<T> {
    * The subscriber set is snapshotted before delivery, so subscriptions added
    * or removed by a handler affect only later publications. Errors thrown by a
    * handler do not prevent other handlers from running; after delivery, the
-   * first error is rethrown to the publisher.
+   * first error is rethrown to the publisher. Promise-returning handlers are
+   * consumed to prevent unhandled rejections, then reported as a `TypeError`;
+   * use `publishAsync` when subscribers perform asynchronous work.
    *
    * @param message - The message to broadcast
    */
@@ -40,7 +42,16 @@ export class MessageBus<T> {
 
     for (const handler of handlers) {
       try {
-        handler(message);
+        const result = handler(message) as unknown;
+        if (isPromiseLike(result)) {
+          void Promise.resolve(result).catch(() => undefined);
+          if (!hasError) {
+            firstError = new TypeError(
+              'MessageBus.publish does not accept asynchronous subscribers; use publishAsync instead.',
+            );
+            hasError = true;
+          }
+        }
       } catch (error) {
         if (!hasError) {
           firstError = error;
@@ -51,6 +62,36 @@ export class MessageBus<T> {
 
     if (hasError) {
       throw firstError;
+    }
+  }
+
+  /**
+   * Publish a message and wait for all synchronous or asynchronous subscribers.
+   *
+   * The subscriber set is snapshotted before delivery. Every handler is invoked
+   * synchronously in subscription order before returned promises are awaited.
+   * After all handlers settle, the first error in subscription order is
+   * rethrown to the publisher.
+   *
+   * @param message - The message to broadcast
+   */
+  async publishAsync(message: T): Promise<void> {
+    const handlers = [...this.listeners];
+    const outcomes: Promise<unknown>[] = [];
+
+    for (const handler of handlers) {
+      try {
+        outcomes.push(Promise.resolve(handler(message) as unknown));
+      } catch (error) {
+        outcomes.push(Promise.reject(error));
+      }
+    }
+
+    const results = await Promise.allSettled(outcomes);
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        throw result.reason;
+      }
     }
   }
 
@@ -67,4 +108,14 @@ export class MessageBus<T> {
   get subscriberCount(): number {
     return this.listeners.size;
   }
+}
+
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+  if (
+    (typeof value !== 'object' || value === null) &&
+    typeof value !== 'function'
+  ) {
+    return false;
+  }
+  return typeof (value as { then?: unknown }).then === 'function';
 }

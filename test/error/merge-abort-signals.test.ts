@@ -86,4 +86,30 @@ describe('mergeAbortSignals', () => {
       expect(remove).toHaveBeenCalledWith('abort', add.mock.calls[0]![1]);
     }
   });
+
+  it('removes source listeners when the merged controller is aborted directly', () => {
+    const sources = [new AbortController(), new AbortController()];
+    const removeListeners = sources.map(({ signal }) =>
+      vi.spyOn(signal, 'removeEventListener'),
+    );
+    const merged = mergeAbortSignals(sources.map(({ signal }) => signal));
+
+    merged.abort('cancelled directly');
+
+    for (const removeListener of removeListeners) {
+      expect(removeListener).toHaveBeenCalledOnce();
+    }
+  });
+
+  it('registers a duplicate source signal only once', () => {
+    const source = new AbortController();
+    const addListener = vi.spyOn(source.signal, 'addEventListener');
+    const removeListener = vi.spyOn(source.signal, 'removeEventListener');
+    const merged = mergeAbortSignals([source.signal, source.signal]);
+
+    merged.abort();
+
+    expect(addListener).toHaveBeenCalledOnce();
+    expect(removeListener).toHaveBeenCalledOnce();
+  });
 });
