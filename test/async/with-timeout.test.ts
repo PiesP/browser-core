@@ -26,12 +26,12 @@ describe('withTimeout', () => {
     );
   });
 
-  it('rejects immediately if signal is already aborted', () => {
+  it('returns a rejected promise if signal is already aborted', async () => {
     const controller = new AbortController();
     controller.abort();
-    expect(() =>
+    await expect(
       withTimeout(Promise.resolve(42), 5000, undefined, undefined, controller.signal),
-    ).toThrow('aborted');
+    ).rejects.toThrow('aborted');
   });
 
   it('rejects when signal is aborted mid-wait', async () => {
@@ -154,11 +154,11 @@ describe('withTimeout', () => {
     await expect(promise).rejects.toThrow();
   });
 
-  it('wraps non-DOMException signal reason in AbortError', () => {
+  it('wraps non-DOMException signal reason in a rejected AbortError', async () => {
     const controller = new AbortController();
     controller.abort('just a string');
-    expect(() =>
+    await expect(
       withTimeout(Promise.resolve(42), 5000, undefined, undefined, controller.signal),
-    ).toThrow('aborted');
+    ).rejects.toThrow('aborted');
   });
 });

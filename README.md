@@ -30,8 +30,8 @@ distribution.
 
 `withTimeout` invokes `onTimeout` in the timer task. If the callback returns a
 promise, settlement waits for it and a callback rejection becomes the returned
-promise's rejection. An already-aborted signal throws synchronously for
-backward compatibility; other timeout and abort outcomes reject asynchronously.
+promise's rejection. Pre-existing and mid-flight aborts both reject the returned
+promise with an `AbortError`.
 
 `MessageBus.publish` is synchronous. It snapshots subscribers, delivers to all
 of them, and then rethrows the first synchronous error. Promise-returning

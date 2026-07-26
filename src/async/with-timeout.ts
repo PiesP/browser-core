@@ -4,8 +4,8 @@
  *
  * Supports cancellation via an AbortSignal — when the signal is aborted,
  * the promise rejects with an AbortError before the timeout fires.
- * For backward compatibility, an already-aborted signal throws synchronously
- * before a promise is returned.
+ * An already-aborted signal returns a rejected promise, matching aborts that
+ * happen while the operation is pending.
  *
  * @param promise - The promise to wrap
  * @param ms - Timeout duration in milliseconds
@@ -15,7 +15,6 @@
  * the returned promise.
  * @param signal - Optional AbortSignal for cancellation
  * @returns Promise that resolves with the original value or rejects on timeout/abort
- * @throws {DOMException} Synchronously when `signal` is already aborted
  */
 export function withTimeout<T>(
   promise: PromiseLike<T>,
@@ -26,9 +25,11 @@ export function withTimeout<T>(
 ): Promise<T> {
   // Fast path: already aborted
   if (signal?.aborted) {
-    throw signal.reason instanceof DOMException
-      ? signal.reason
-      : new DOMException(message ?? 'The operation was aborted.', 'AbortError');
+    return Promise.reject(
+      signal.reason instanceof DOMException
+        ? signal.reason
+        : new DOMException(message ?? 'The operation was aborted.', 'AbortError'),
+    );
   }
 
   let timerId: ReturnType<typeof setTimeout> | null = null;
