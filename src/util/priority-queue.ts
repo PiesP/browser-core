@@ -1,14 +1,12 @@
 /**
- * An O(1) enqueue priority queue backed by bucketed arrays.
+ * An O(1) enqueue priority queue backed by priority buckets.
  *
- * Items are assigned a numeric priority (lower = higher priority). Internally
- * the queue maintains an array of buckets where the index is the priority
- * level, plus an offset so that the lowest active priority always starts at
- * index 0 of the internal bucket array, avoiding large sparse arrays for
- * high-priority-first workloads.
+ * Items are assigned a safe-integer priority (lower = higher priority).
+ * Buckets are stored by priority without allocating intermediate slots, so
+ * priorities with very large gaps do not create sparse arrays.
  *
- * Dequeue is O(number-of-priority-levels) because it scans forward through
- * buckets to find the next non-empty one and shifts the first item.
+ * Dequeue is O(number of active priority levels) when it advances to the next
+ * bucket, and shifts the first item within a bucket.
  *
  * @typeParam T - Item type
  *
@@ -22,14 +20,8 @@
  * ```
  */
 export class PriorityBucketQueue<T> {
-  /** Buckets indexed by `priority - _offset`. Empty slots are `undefined`. */
-  private _buckets: (T[] | undefined)[] = [];
-
-  /**
-   * Offset so that the lowest active priority maps to index 0.
-   * This keeps the internal array compact.
-   */
-  private _offset = 0;
+  /** Non-empty item buckets keyed by priority. */
+  private readonly _buckets = new Map<number, T[]>();
 
   /** Current minimum priority among non-empty buckets. */
   private _min = Infinity;
@@ -51,18 +43,21 @@ export class PriorityBucketQueue<T> {
    * Insert an item with the given priority.
    *
    * @param item - The item to enqueue
-   * @param priority - Numeric priority (lower value = higher priority)
+   * @param priority - Safe-integer priority (lower value = higher priority)
    * @returns This queue (for chaining)
+   * @throws {RangeError} If `priority` is not a safe integer
    */
   enqueue(item: T, priority: number): this {
-    this._ensureBucket(priority);
-
-    // Rebase priority against the current offset
-    const adjustedIndex = priority - this._offset;
-    if (!this._buckets[adjustedIndex]) {
-      this._buckets[adjustedIndex] = [];
+    if (!Number.isSafeInteger(priority)) {
+      throw new RangeError('priority must be a safe integer');
     }
-    this._buckets[adjustedIndex].push(item);
+
+    let bucket = this._buckets.get(priority);
+    if (!bucket) {
+      bucket = [];
+      this._buckets.set(priority, bucket);
+    }
+    bucket.push(item);
     this._count++;
 
     if (priority < this._min) {
@@ -80,27 +75,16 @@ export class PriorityBucketQueue<T> {
   dequeue(): T | undefined {
     if (this._count === 0) return undefined;
 
-    // Find the first non-empty bucket
-    while (
-      this._min !== Infinity &&
-      this._min - this._offset < this._buckets.length
-    ) {
-      const adjustedIndex = this._min - this._offset;
-      const bucket = this._buckets[adjustedIndex];
-      if (bucket && bucket.length > 0) {
-        const item = bucket.shift()!;
-        this._count--;
+    const bucket = this._buckets.get(this._min)!;
+    const item = bucket.shift()!;
+    this._count--;
 
-        // Advance _min if this bucket is now empty
-        if (bucket.length === 0) {
-          this._advanceMin();
-        }
-        return item;
-      }
-      this._advanceMin();
+    if (bucket.length === 0) {
+      this._buckets.delete(this._min);
+      this._min = this._findMinimumPriority();
     }
 
-    return undefined;
+    return item;
   }
 
   /**
@@ -110,27 +94,12 @@ export class PriorityBucketQueue<T> {
    */
   peek(): T | undefined {
     if (this._count === 0) return undefined;
-
-    let scanMin = this._min;
-    while (
-      scanMin !== Infinity &&
-      scanMin - this._offset < this._buckets.length
-    ) {
-      const adjustedIndex = scanMin - this._offset;
-      const bucket = this._buckets[adjustedIndex];
-      if (bucket && bucket.length > 0) {
-        return bucket[0];
-      }
-      scanMin++;
-    }
-
-    return undefined;
+    return this._buckets.get(this._min)![0];
   }
 
   /** Remove all items. */
   clear(): void {
-    this._buckets.length = 0;
-    this._offset = 0;
+    this._buckets.clear();
     this._min = Infinity;
     this._count = 0;
   }
@@ -143,55 +112,23 @@ export class PriorityBucketQueue<T> {
    * @param callback - Called with each item and its priority
    */
   forEach(callback: (item: T, priority: number) => void): void {
-    for (let i = 0; i < this._buckets.length; i++) {
-      const bucket = this._buckets[i];
-      if (!bucket) continue;
-      const priority = i + this._offset;
+    const priorities = [...this._buckets.keys()].sort((a, b) => a - b);
+    for (const priority of priorities) {
+      const bucket = this._buckets.get(priority)!;
       for (const item of bucket) {
         callback(item, priority);
       }
     }
   }
 
-  /** Grow buckets array to accommodate the given priority. */
-  private _ensureBucket(priority: number): void {
-    const adjustedIndex = priority - this._offset;
-
-    if (adjustedIndex < 0) {
-      // Priority is lower than current offset — need to shift everything right
-      const shift = -adjustedIndex;
-      const newLen = this._buckets.length + shift;
-      const newBuckets: (T[] | undefined)[] = new Array(newLen);
-      for (let i = 0; i < this._buckets.length; i++) {
-        newBuckets[i + shift] = this._buckets[i];
+  /** Find the lowest active priority, or `Infinity` when empty. */
+  private _findMinimumPriority(): number {
+    let minimum = Infinity;
+    for (const priority of this._buckets.keys()) {
+      if (priority < minimum) {
+        minimum = priority;
       }
-      this._buckets = newBuckets;
-      this._offset -= shift; // actually lower the offset
-    } else if (adjustedIndex >= this._buckets.length) {
-      // Grow the array
-      this._buckets.length = adjustedIndex + 1;
     }
-  }
-
-  /** Advance `_min` to the next non-empty priority, compacting if possible. */
-  private _advanceMin(): void {
-    this._min++;
-    while (
-      this._min !== Infinity &&
-      this._min - this._offset < this._buckets.length
-    ) {
-      const bucket = this._buckets[this._min - this._offset];
-      if (bucket && bucket.length > 0) {
-        return;
-      }
-      this._min++;
-    }
-
-    // All buckets are empty — reset
-    if (this._count === 0) {
-      this._buckets.length = 0;
-      this._offset = 0;
-      this._min = Infinity;
-    }
+    return minimum;
   }
 }

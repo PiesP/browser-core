@@ -88,4 +88,29 @@ describe('PriorityBucketQueue', () => {
     expect(queue.size).toBe(0);
     expect(queue.dequeue()).toBeUndefined();
   });
+
+  it.each([NaN, Infinity, -Infinity, 1.5, Number.MAX_SAFE_INTEGER + 1])(
+    'rejects non-safe-integer priority %s without changing the queue',
+    (priority) => {
+      const queue = new PriorityBucketQueue<string>();
+
+      expect(() => queue.enqueue('invalid', priority)).toThrow(RangeError);
+      expect(queue.size).toBe(0);
+      expect(queue.isEmpty).toBe(true);
+    },
+  );
+
+  it('handles safe-integer priorities with an extreme gap', () => {
+    const queue = new PriorityBucketQueue<string>();
+
+    expect(() => {
+      queue.enqueue('last', Number.MAX_SAFE_INTEGER);
+      queue.enqueue('first', Number.MIN_SAFE_INTEGER);
+    }).not.toThrow();
+
+    expect(queue.size).toBe(2);
+    expect(queue.dequeue()).toBe('first');
+    expect(queue.dequeue()).toBe('last');
+    expect(queue.size).toBe(0);
+  });
 });

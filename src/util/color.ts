@@ -24,17 +24,22 @@ type HexColor = `#${string}`;
  * - `rgb(r, g, b)` / `rgba(r, g, b, a)`
  * - Named colors (subset of CSS named colors)
  *
- * Returns `[0, 0, 0, 1]` (opaque black) for unrecognized input.
+ * Returns `null` for malformed hex input and `[0, 0, 0, 1]` (opaque black)
+ * for other unrecognized input.
  *
  * @param color - A CSS color string
- * @returns RGBA tuple `[r, g, b, a]`
+ * @returns RGBA tuple `[r, g, b, a]`, or `null` for malformed hex input
  */
-export function parseAnyColor(color: string): RgbaTuple {
+export function parseAnyColor(color: string): RgbaTuple | null {
   if (!color || typeof color !== 'string') {
     return [0, 0, 0, 1];
   }
 
   const trimmed = color.trim();
+
+  if (trimmed.toLowerCase() === 'transparent') {
+    return [0, 0, 0, 0];
+  }
 
   // Named colors
   const named = NAMED_COLORS[trimmed.toLowerCase()];
@@ -57,11 +62,6 @@ export function parseAnyColor(color: string): RgbaTuple {
     const b = clampByte(Number(rgbMatch[3]));
     const a = rgbMatch[4] !== undefined ? clampAlpha(Number(rgbMatch[4])) : 1;
     return [r, g, b, a];
-  }
-
-  // transparent
-  if (trimmed.toLowerCase() === 'transparent') {
-    return [0, 0, 0, 0];
   }
 
   return [0, 0, 0, 1];
@@ -91,9 +91,10 @@ export function toRgba(rgba: RgbaTuple): string {
 export function computeReadableTextColor(
   backgroundColor: string | RgbaTuple,
 ): '#000' | '#fff' {
-  const [r, g, b] = Array.isArray(backgroundColor)
+  const parsed = Array.isArray(backgroundColor)
     ? backgroundColor
     : parseAnyColor(backgroundColor);
+  const [r, g, b] = parsed ?? [0, 0, 0, 1];
 
   // W3C relative luminance
   const luminance = relativeLuminance(r, g, b);
@@ -122,8 +123,12 @@ function clampAlpha(value: number): number {
 }
 
 /** Parse a hex color string. */
-function parseHexColor(hex: HexColor): RgbaTuple {
+function parseHexColor(hex: HexColor): RgbaTuple | null {
   let h = hex.slice(1);
+
+  if (!/^(?:[\da-f]{3}|[\da-f]{4}|[\da-f]{6}|[\da-f]{8})$/i.test(h)) {
+    return null;
+  }
 
   // Handle shorthand: #RGB -> #RRGGBB, #RGBA -> #RRGGBBAA
   if (h.length === 3) {
@@ -158,7 +163,7 @@ function parseHexColor(hex: HexColor): RgbaTuple {
     ];
   }
 
-  return [0, 0, 0, 1];
+  return null;
 }
 
 /**
@@ -211,5 +216,4 @@ const NAMED_COLORS: Record<string, [number, number, number]> = {
   lightblue: [173, 216, 230],
   lightgreen: [144, 238, 144],
   lightyellow: [255, 255, 224],
-  transparent: [0, 0, 0],
 };
