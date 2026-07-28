@@ -33,16 +33,20 @@
     "check": "pnpm check:format && pnpm check:types && pnpm check:lint",
     "check:format": "node scripts/check-format.mjs",
     "check:types": "tsc --noEmit",
-    "check:lint": "tsc --noEmit --noUnusedLocals --noUnusedParameters --noFallthroughCasesInSwitch --noImplicitReturns --noUncheckedSideEffectImports --allowUnreachableCode false --allowUnusedLabels false",
+    "check:lint": "tsc --noEmit --allowUnreachableCode false --allowUnusedLabels false",
     "test": "vitest run",
+    "test:cov": "vitest run --coverage",
+    "verify": "pnpm check && pnpm test:cov",
     "test:watch": "vitest"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "4.1.10",
     "jsdom": "^29.1.1",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },
   "volta": {
-    "node": "26.5.0"
+    "node": "26.5.0",
+    "pnpm": "11.2.2"
   }
 }
