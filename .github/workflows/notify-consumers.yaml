@@ -17,6 +17,7 @@ jobs:
   dispatch:
     name: Notify ${{ matrix.repository }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
@@ -31,10 +32,24 @@ jobs:
       CORE_SHA: ${{ inputs.core_sha || github.sha }}
     steps:
       - name: Validate commit SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           if [[ ! "$CORE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
             echo "::error::core_sha must be a 40-character lowercase commit SHA"
+            exit 1
+          fi
+
+          RESOLVED_SHA="$(gh api "/repos/$CORE_REPOSITORY/commits/$CORE_SHA" --jq .sha)"
+          if [[ "$RESOLVED_SHA" != "$CORE_SHA" ]]; then
+            echo "::error::core_sha does not resolve to the requested commit"
+            exit 1
+          fi
+
+          COMPARE_STATUS="$(gh api "/repos/$CORE_REPOSITORY/compare/$CORE_SHA...master" --jq .status)"
+          if [[ "$COMPARE_STATUS" != "ahead" && "$COMPARE_STATUS" != "identical" ]]; then
+            echo "::error::core_sha must be reachable from browser-core master (status: $COMPARE_STATUS)"
             exit 1
           fi
 
