@@ -24,9 +24,9 @@ describe('getErrorMessage', () => {
     );
   });
 
-  it('serializes objects instead of hiding them as [object Object]', () => {
-    expect(getErrorMessage({ code: 'AVIF_RESULT_OUT_OF_MEMORY' })).toBe(
-      '{"code":"AVIF_RESULT_OUT_OF_MEMORY"}'
+  it('does not serialize arbitrary object fields', () => {
+    expect(getErrorMessage({ code: 'AVIF_RESULT_OUT_OF_MEMORY', token: 'secret' })).toBe(
+      '[object Object]'
     );
   });
 

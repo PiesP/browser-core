@@ -76,6 +76,11 @@ describe('isCancellationError', () => {
     expect(isCancellationError(outer)).toBe(true);
   });
 
+  it('bounds traversal of generated cause chains', () => {
+    const generated = new Proxy({}, { get: () => generated, has: () => true });
+    expect(isCancellationError(generated)).toBe(false);
+  });
+
   it('detects message containing "cancelled"', () => {
     const error = new Error('Operation was cancelled by user');
     expect(isCancellationError(error, { checkMessage: true })).toBe(true);

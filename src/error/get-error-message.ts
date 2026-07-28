@@ -22,18 +22,6 @@ function getErrorProperty(error: object, key: string): string | undefined {
 }
 
 /**
- * Serialize an object when String(error) would only produce `[object Object]`.
- */
-function serializeErrorObject(error: object): string | undefined {
-  try {
-    const serialized = JSON.stringify(error);
-    return serialized && serialized !== '{}' ? serialized : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
  * Extract a human-readable error message from any error type.
  *
  * Handles Error instances, objects with a `message` property,
@@ -56,7 +44,7 @@ export function getErrorMessage(error: unknown): string {
   }
 
   if (typeof error === 'object' && error !== null) {
-    for (const key of ['what', 'description', 'reason', 'detail']) {
+    for (const key of ['what', 'description']) {
       const message = getErrorProperty(error, key);
       if (message) return message;
     }
@@ -64,7 +52,7 @@ export function getErrorMessage(error: unknown): string {
     const stringified = String(error);
     if (stringified !== '[object Object]') return stringified;
 
-    return serializeErrorObject(error) ?? stringified;
+    return stringified;
   }
 
   return String(error);
