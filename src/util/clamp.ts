@@ -19,7 +19,7 @@ export function clamp(value: number, min: number, max: number): number {
  * @returns Valid index in [0, length-1] or 0 on invalid input
  */
 export function clampIndex(index: number, length: number): number {
-  if (!Number.isFinite(index) || length <= 0) {
+  if (!Number.isFinite(index) || !Number.isSafeInteger(length) || length <= 0) {
     return 0;
   }
   return clamp(Math.floor(index), 0, length - 1);

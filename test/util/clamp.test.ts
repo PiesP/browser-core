@@ -40,5 +40,8 @@ describe('clampIndex', () => {
     expect(clampIndex(Number.POSITIVE_INFINITY, 3)).toBe(0);
     expect(clampIndex(1, 0)).toBe(0);
     expect(clampIndex(1, -1)).toBe(0);
+    expect(clampIndex(1, Number.NaN)).toBe(0);
+    expect(clampIndex(1, 0.5)).toBe(0);
+    expect(clampIndex(5, 3.7)).toBe(0);
   });
 });

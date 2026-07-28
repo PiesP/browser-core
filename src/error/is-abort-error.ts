@@ -52,28 +52,39 @@ export function isCancellationError(
   options: CancellationCheckOptions = {}
 ): boolean {
   // 1. Direct AbortError name
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'name' in error &&
-    (error as { name: unknown }).name === 'AbortError'
-  ) {
-    return true;
+  try {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'name' in error &&
+      (error as { name: unknown }).name === 'AbortError'
+    ) {
+      return true;
+    }
+  } catch {
+    return false;
   }
 
   // 2. Cause chain — AbortError wrapped in one or more errors. A visited set
   // prevents malformed cyclic cause objects from looping forever.
+  const MAX_CAUSE_DEPTH = 16;
   const visited = new Set<object>();
   let current: unknown = error;
-  while (typeof current === 'object' && current !== null) {
+  let depth = 0;
+  while (typeof current === 'object' && current !== null && depth < MAX_CAUSE_DEPTH) {
+    depth += 1;
     if (visited.has(current)) break;
     visited.add(current);
 
-    if ('name' in current && (current as { name: unknown }).name === 'AbortError') {
-      return true;
+    try {
+      if ('name' in current && (current as { name: unknown }).name === 'AbortError') {
+        return true;
+      }
+      if (!('cause' in current)) break;
+      current = (current as { cause: unknown }).cause;
+    } catch {
+      break;
     }
-    if (!('cause' in current)) break;
-    current = (current as { cause: unknown }).cause;
   }
 
   // 3. Optional message keyword check
