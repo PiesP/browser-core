@@ -37,6 +37,13 @@ export function parseAnyColor(color: string): RgbaTuple | null {
 
   const trimmed = color.trim();
 
+  // CSS color tokens are short. Bounding untrusted input before the functional
+  // color regular expression prevents pathological backtracking on strings
+  // containing very large runs of whitespace.
+  if (trimmed.length > 128) {
+    return [0, 0, 0, 1];
+  }
+
   if (trimmed.toLowerCase() === 'transparent') {
     return [0, 0, 0, 0];
   }

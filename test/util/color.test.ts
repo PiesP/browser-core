@@ -41,4 +41,10 @@ describe('parseAnyColor', () => {
   it('parses a leading-decimal alpha without producing NaN', () => {
     expect(parseAnyColor('rgba(1, 2, 3, .5)')).toEqual([1, 2, 3, 0.5]);
   });
+
+  it('rejects oversized functional colors before regular-expression parsing', () => {
+    const oversized = `rgba(${` `.repeat(10_000)}1, 2, 3, 0.5)`;
+
+    expect(parseAnyColor(oversized)).toEqual([0, 0, 0, 1]);
+  });
 });
