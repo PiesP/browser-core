@@ -3,6 +3,31 @@ node_modules/
 *.tsbuildinfo
 dist/
 
+# Test and tooling output
+coverage/
+test-results/
+playwright-report/
+.stryker-tmp*/
+.cache/
+
+# Local environment and logs
+.env
+.env.*
+!.env.example
+*.log
+tmp/
+temp/
+
+# Editor and OS metadata
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*:Zone.Identifier
+
 # Local AI instructions
 AGENTS.md
 CODEX_WORKFLOW.md
