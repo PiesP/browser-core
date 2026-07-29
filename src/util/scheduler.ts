@@ -60,9 +60,9 @@ export interface SchedulerPostTaskOptions {
  * @typeParam T - Return type of the callback
  */
 export function schedulerPostTask<T = void>(
-  callback: () => T,
+  callback: () => T | PromiseLike<T>,
   options: SchedulerPostTaskOptions = {},
-): Promise<T> {
+): Promise<Awaited<T>> {
   const { signal, priority = 'user-visible' } = options;
 
   if (
@@ -72,20 +72,22 @@ export function schedulerPostTask<T = void>(
     return (
       globalThis.scheduler as Scheduler & {
         postTask: <R>(
-          cb: () => R,
+          cb: () => R | PromiseLike<R>,
           opts: { priority?: TaskPriority; signal?: AbortSignal },
-        ) => Promise<R>;
+        ) => Promise<Awaited<R>>;
       }
     ).postTask(callback, { priority, ...(signal ? { signal } : {}) });
   }
 
   // Fallback: setTimeout with priority-appropriate delays
-  return new Promise<T>((resolve, reject) => {
+  return new Promise<Awaited<T>>((resolve, reject) => {
     // Abort handling for the fallback path
     if (signal?.aborted) {
-      reject(signal.reason);
+      reject(getAbortReason(signal));
       return;
     }
+
+    const abortSignal = signal;
 
     const delayMap: Record<TaskPriority, number> = {
       'user-blocking': 0,
@@ -94,11 +96,11 @@ export function schedulerPostTask<T = void>(
     };
 
     const timeoutId = setTimeout(() => {
-      if (signal) {
-        signal.removeEventListener('abort', onAbort);
+      if (abortSignal) {
+        abortSignal.removeEventListener('abort', onAbort);
       }
       try {
-        resolve(callback());
+        Promise.resolve(callback()).then(resolve, reject);
       } catch (err) {
         reject(err);
       }
@@ -106,27 +108,26 @@ export function schedulerPostTask<T = void>(
 
     const onAbort = () => {
       clearTimeout(timeoutId);
-      reject(signal!.reason);
+      reject(getAbortReason(abortSignal));
     };
 
-    if (signal) {
-      signal.addEventListener('abort', onAbort, { once: true });
+    if (abortSignal) {
+      abortSignal.addEventListener('abort', onAbort, { once: true });
     }
   });
 }
 
 /**
- * Yield control back to the browser if the elapsed time since the last
- * yield exceeds the given budget.
+ * Return an updated budget timestamp when the elapsed time exceeds the limit.
  *
- * Useful inside long loops — call this periodically and pass the result
- * of a `performance.now()` snapshot taken at the start of the frame/work
- * unit.
+ * This synchronous compatibility helper does not yield control. New code
+ * should await {@link yieldIfOverBudgetAsync} instead.
  *
  * @param now - Current `performance.now()` value
  * @param lastYield - Timestamp of the last yield (or 0 for the first check)
  * @param budgetMs - Max allowed milliseconds before yielding (default 8)
  * @returns The new `lastYield` timestamp (pass this to the next call)
+ * @deprecated Use {@link yieldIfOverBudgetAsync} to yield control.
  *
  * @example
  * ```ts
@@ -143,13 +144,13 @@ export function yieldIfOverBudget(
   budgetMs = 8,
 ): number {
   if (now - lastYield > budgetMs) {
-    // Note: we must await the caller to actually yield — this function
-    // returns the new lastYield so the caller can do:
-    //   lastYield = await yieldIfOverBudget(...)
-    // For synchronous callers, this is a no-op marker.
     return now;
   }
   return lastYield;
+}
+
+function getAbortReason(signal: AbortSignal | undefined): unknown {
+  return signal?.reason ?? new DOMException('The operation was aborted.', 'AbortError');
 }
 
 /**

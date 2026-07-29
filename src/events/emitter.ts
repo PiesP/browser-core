@@ -67,7 +67,7 @@ type BusMap<E extends Record<string, unknown>> = Map<keyof E, MessageBus<any>>;
 export function createEventEmitter<E extends Record<string, unknown>>(): EventEmitter<E> {
   const buses: BusMap<E> = new Map();
 
-  function getBus<K extends keyof E>(event: K): MessageBus<E[K]> {
+  function getOrCreateBus<K extends keyof E>(event: K): MessageBus<E[K]> {
     let bus = buses.get(event);
     if (!bus) {
       bus = new MessageBus<E[K]>();
@@ -78,15 +78,25 @@ export function createEventEmitter<E extends Record<string, unknown>>(): EventEm
 
   return {
     on<K extends keyof E>(event: K, handler: (payload: E[K]) => void): () => void {
-      return getBus(event).subscribe(handler);
+      const bus = getOrCreateBus(event);
+      const unsubscribe = bus.subscribe(handler);
+      return () => {
+        unsubscribe();
+        if (bus.subscriberCount === 0) buses.delete(event);
+      };
     },
 
     off<K extends keyof E>(event: K, handler: (payload: E[K]) => void): void {
-      getBus(event).unsubscribe(handler);
+      const bus = buses.get(event) as MessageBus<E[K]> | undefined;
+      if (!bus) return;
+
+      bus.unsubscribe(handler);
+      if (bus.subscriberCount === 0) buses.delete(event);
     },
 
     emit<K extends keyof E>(event: K, payload: E[K]): void {
-      getBus(event).publish(payload);
+      const bus = buses.get(event) as MessageBus<E[K]> | undefined;
+      bus?.publish(payload);
     },
   };
 }
