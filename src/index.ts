@@ -16,6 +16,7 @@ export { generateUniqueId, createPrefixedId } from './util/unique-id.js';
 export { clampSoft, clampMinmax } from './util/clamp-extended.js';
 export { LruMap } from './util/lru-map.js';
 export { ByteLimitedCache } from './util/byte-limited-cache.js';
+export { ResizableByteLimitedCache } from './util/resizable-byte-limited-cache.js';
 export { PriorityBucketQueue } from './util/priority-queue.js';
 export { schedulerYield, schedulerPostTask, yieldIfOverBudget, yieldIfOverBudgetAsync } from './util/scheduler.js';
 export { parseAnyColor, toRgba, computeReadableTextColor } from './util/color.js';

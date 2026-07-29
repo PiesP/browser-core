@@ -25,6 +25,26 @@ describe('throwIfAborted', () => {
     expect(() => throwIfAborted(controller.signal)).toThrow('Custom reason');
   });
 
+  it('preserves a non-DOMException signal reason', () => {
+    const controller = new AbortController();
+    const reason = new Error('custom error');
+    controller.abort(reason);
+
+    expect(() => throwIfAborted(controller.signal)).toThrow(reason);
+  });
+
+  it('preserves an explicit null signal reason', () => {
+    const controller = new AbortController();
+    controller.abort(null);
+
+    try {
+      throwIfAborted(controller.signal);
+      expect.unreachable('throwIfAborted should throw');
+    } catch (reason) {
+      expect(reason).toBeNull();
+    }
+  });
+
   it('throws for already-aborted signal passed as undefined does nothing', () => {
     const controller = new AbortController();
     controller.abort();

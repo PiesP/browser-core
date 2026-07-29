@@ -26,6 +26,15 @@ describe('normalizeLocale', () => {
     expect(normalizeLocale('xyz')).toBeNull();
   });
 
+  it('returns null for empty or whitespace-only input', () => {
+    expect(normalizeLocale('')).toBeNull();
+    expect(normalizeLocale('   ')).toBeNull();
+  });
+
+  it('ignores surrounding whitespace', () => {
+    expect(normalizeLocale('  ko-KR  ')).toBe('ko');
+  });
+
   it('handles region codes for supported languages', () => {
     expect(normalizeLocale('en-US')).toBe('en');
     expect(normalizeLocale('ko-KR')).toBe('ko');
@@ -90,5 +99,15 @@ describe('detectLocale', () => {
   it('returns DEFAULT_LOCALE for empty options', () => {
     const result = detectLocale({});
     expect(result).toBe('en');
+  });
+
+  it('does not read global navigator when language sources are injected', () => {
+    const result = detectLocale({
+      languages: ['fr'],
+      singleLanguage: '',
+      defaultLocale: 'ja',
+    });
+
+    expect(result).toBe('ja');
   });
 });

@@ -9,7 +9,7 @@
  * @returns A unique ID string
  */
 export function createId(seed?: string): string {
-  if (seed) return seed;
+  if (seed !== undefined) return seed;
   try {
     return crypto.randomUUID();
   } catch {

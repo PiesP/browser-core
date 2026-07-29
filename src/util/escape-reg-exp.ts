@@ -1,5 +1,5 @@
 /**
- * Escape a string so it can be safely embedded in a `RegExp` literal.
+ * Escape a string so it can be safely passed to the `RegExp` constructor.
  *
  * Escapes characters with special meaning in regex syntax:
  * `^ $ \ . * + ? ( ) [ ] { } |`

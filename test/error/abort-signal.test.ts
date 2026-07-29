@@ -1,8 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import {
+  USER_CANCELLED_ABORT_MESSAGE,
+  createAbortError,
+  createUserCancelledAbortError,
   getUserCancelledAbortErrorFromSignal,
   getAbortReasonOrAbortErrorFromSignal,
+  isUserCancelledAbortError,
 } from '../../src/error/abort-signal.js';
+
+describe('abort error creation', () => {
+  it('creates an AbortError and preserves its cause', () => {
+    const cause = { code: 'CANCEL' };
+    const result = createAbortError('cancelled', cause);
+
+    expect(result).toMatchObject({ name: 'AbortError', message: 'cancelled', cause });
+  });
+
+  it('creates and recognizes the canonical user-cancelled error', () => {
+    const result = createUserCancelledAbortError();
+
+    expect(result.message).toBe(USER_CANCELLED_ABORT_MESSAGE);
+    expect(isUserCancelledAbortError(result)).toBe(true);
+    expect(isUserCancelledAbortError(new DOMException('other', 'AbortError'))).toBe(false);
+  });
+});
 
 describe('getUserCancelledAbortErrorFromSignal', () => {
   it('returns null when the signal is not aborted', () => {
@@ -26,6 +47,14 @@ describe('getUserCancelledAbortErrorFromSignal', () => {
     const controller = new AbortController();
     controller.abort(new DOMException('something else', 'AbortError'));
     expect(getUserCancelledAbortErrorFromSignal(controller.signal)).toBeNull();
+  });
+
+  it('returns a user-cancelled reason created by the public helper', () => {
+    const controller = new AbortController();
+    const reason = createUserCancelledAbortError();
+    controller.abort(reason);
+
+    expect(getUserCancelledAbortErrorFromSignal(controller.signal)).toBe(reason);
   });
 });
 
@@ -54,6 +83,7 @@ describe('getAbortReasonOrAbortErrorFromSignal', () => {
     expect(result).toBeInstanceOf(DOMException);
     expect(result.name).toBe('AbortError');
     expect(result.message).toBe('user clicked cancel');
+    expect((result as DOMException & { cause?: unknown }).cause).toBe('user clicked cancel');
   });
 
   it('returns a default message for undefined reason', () => {

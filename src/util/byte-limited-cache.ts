@@ -46,6 +46,9 @@ export class ByteLimitedCache<V> {
     estimateSize: (value: V) => number;
     onEvict?: (key: string, value: V) => void;
   }) {
+    if (!Number.isFinite(options.maxBytes) || options.maxBytes < 0) {
+      throw new RangeError('maxBytes must be a finite, non-negative number');
+    }
     this.maxBytes = options.maxBytes;
     this._estimateSize = options.estimateSize;
     this._onEvict = options.onEvict;
@@ -81,8 +84,9 @@ export class ByteLimitedCache<V> {
    * Store a value by key.
    *
    * If the key already exists its old size is subtracted, the new size is
-   * added, and the entry is promoted. After insertion any excess bytes are
-   * evicted from the LRU end.
+   * added, and the entry is promoted. Values larger than the entire cache
+   * budget are rejected without disturbing existing entries. After insertion
+   * any remaining excess bytes are evicted from the LRU end.
    *
    * @param key - The key
    * @param value - The value to cache
@@ -90,6 +94,10 @@ export class ByteLimitedCache<V> {
    */
   set(key: string, value: V): this {
     const newSize = this._estimateSize(value);
+    if (!Number.isFinite(newSize) || newSize < 0) {
+      throw new RangeError('estimateSize must return a finite, non-negative number');
+    }
+    if (newSize > this.maxBytes) return this;
 
     // Remove old entry if present
     const existing = this._map.get(key);
@@ -150,7 +158,8 @@ export class ByteLimitedCache<V> {
       const firstKey = this._map.keys().next().value;
       if (firstKey === undefined) break;
 
-      const entry = this._map.get(firstKey)!;
+      const entry = this._map.get(firstKey);
+      if (!entry) break;
       this._map.delete(firstKey);
       this._currentBytes -= entry.size;
 

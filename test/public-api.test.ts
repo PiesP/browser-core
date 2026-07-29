@@ -8,6 +8,15 @@ import * as loggingApi from '../src/logging/index';
 import * as utilApi from '../src/util/index';
 import * as packagedEventsApi from '@piesp/browser-core/events';
 
+const runtimeSubpathApis = [
+  asyncApi,
+  errorApi,
+  eventsApi,
+  localeApi,
+  loggingApi,
+  utilApi,
+] as const;
+
 describe('user-facing public API', () => {
   it('exposes the documented feature groups from the package entry point', () => {
     expect(typeof core.sleep).toBe('function');
@@ -31,6 +40,7 @@ describe('user-facing public API', () => {
     expect(typeof core.createId).toBe('function');
     expect(typeof core.clamp).toBe('function');
     expect(typeof core.clampIndex).toBe('function');
+    expect(typeof core.ResizableByteLimitedCache).toBe('function');
   });
 
   it('keeps every documented subpath aligned with the main entry point', () => {
@@ -49,6 +59,15 @@ describe('user-facing public API', () => {
     expect(utilApi.createId).toBe(core.createId);
     expect(utilApi.clamp).toBe(core.clamp);
     expect(utilApi.clampIndex).toBe(core.clampIndex);
+    expect(utilApi.ResizableByteLimitedCache).toBe(core.ResizableByteLimitedCache);
+  });
+
+  it('re-exports every runtime subpath export from the main entry point', () => {
+    for (const api of runtimeSubpathApis) {
+      for (const [name, value] of Object.entries(api)) {
+        expect(core).toHaveProperty(name, value);
+      }
+    }
   });
 
   it('publishes the events entry point as a resolvable package subpath', () => {
