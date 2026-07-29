@@ -31,6 +31,7 @@ describe('user-facing public API', () => {
     expect(typeof core.createId).toBe('function');
     expect(typeof core.clamp).toBe('function');
     expect(typeof core.clampIndex).toBe('function');
+    expect(typeof core.ResizableByteLimitedCache).toBe('function');
   });
 
   it('keeps every documented subpath aligned with the main entry point', () => {
@@ -49,6 +50,7 @@ describe('user-facing public API', () => {
     expect(utilApi.createId).toBe(core.createId);
     expect(utilApi.clamp).toBe(core.clamp);
     expect(utilApi.clampIndex).toBe(core.clampIndex);
+    expect(utilApi.ResizableByteLimitedCache).toBe(core.ResizableByteLimitedCache);
   });
 
   it('publishes the events entry point as a resolvable package subpath', () => {

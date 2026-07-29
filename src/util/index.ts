@@ -9,6 +9,7 @@ export { resolveNestedPath } from './object.js';
 export { generateUniqueId, createPrefixedId } from './unique-id.js';
 export { LruMap } from './lru-map.js';
 export { ByteLimitedCache } from './byte-limited-cache.js';
+export { ResizableByteLimitedCache } from './resizable-byte-limited-cache.js';
 export { PriorityBucketQueue } from './priority-queue.js';
 export { schedulerYield, schedulerPostTask, yieldIfOverBudget, yieldIfOverBudgetAsync } from './scheduler.js';
 export type { TaskPriority, SchedulerPostTaskOptions } from './scheduler.js';
