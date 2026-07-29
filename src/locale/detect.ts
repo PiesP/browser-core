@@ -42,7 +42,10 @@ export interface DetectOptions {
  * 3. 2-letter base prefix match (e.g. 'zh-TW' → 'zh-CN')
  */
 export function normalizeLocale(code: string): Locale | null {
-  const lower = code.toLowerCase();
+  const normalizedCode = code.trim();
+  if (!normalizedCode) return null;
+
+  const lower = normalizedCode.toLowerCase();
 
   // Exact match
   const exact = LOCALE_CODES.find((l) => l.toLowerCase() === lower);
@@ -50,7 +53,7 @@ export function normalizeLocale(code: string): Locale | null {
 
   // Language-region match (e.g., 'zh-CN' or 'zh-cn')
   if (lower.includes('-')) {
-    const region = code.slice(0, 5); // 'zh-CN'
+    const region = normalizedCode.slice(0, 5); // 'zh-CN'
     const regionMatch = LOCALE_CODES.find((l) => l.toLowerCase() === region.toLowerCase());
     if (regionMatch) return regionMatch;
   }
@@ -74,6 +77,11 @@ export function normalizeLocale(code: string): Locale | null {
  * Falls back to DEFAULT_LOCALE if nothing matches.
  */
 export function detectLocale(options: DetectOptions = {}): Locale {
+  const hasInjectedLanguageSource =
+    Object.prototype.hasOwnProperty.call(options, 'platformUILanguage') ||
+    Object.prototype.hasOwnProperty.call(options, 'languages') ||
+    Object.prototype.hasOwnProperty.call(options, 'singleLanguage');
+
   // 1. Platform-provided UI language (extension context only)
   if (options.platformUILanguage) {
     const normalized = normalizeLocale(options.platformUILanguage);
@@ -97,8 +105,8 @@ export function detectLocale(options: DetectOptions = {}): Locale {
     if (normalized) return normalized;
   }
 
-  // 4. If no navigator provided, try reading from global
-  if (typeof navigator !== 'undefined') {
+  // 4. When no language source was injected, try reading from globals.
+  if (!hasInjectedLanguageSource && typeof navigator !== 'undefined') {
     try {
       const chromeGlobal =
         typeof chrome !== 'undefined' ? (chrome as { i18n?: { getUILanguage?: () => string } }) : undefined;

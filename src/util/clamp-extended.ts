@@ -15,9 +15,9 @@ import { clamp } from './clamp.js';
  *
  * @example
  * ```ts
- * clampSoft(110, 0, 100, 15); // 100 (snapped)
+ * clampSoft(116, 0, 100, 15); // 100 (snapped)
  * clampSoft(108, 0, 100, 15); // 108 (within tolerance)
- * clampSoft(-5, 0, 100, 15);  // 0 (snapped)
+ * clampSoft(-16, 0, 100, 15); // 0 (snapped)
  * ```
  */
 export function clampSoft(
@@ -28,7 +28,7 @@ export function clampSoft(
 ): number {
   if (value < min - tolerance) return min;
   if (value > max + tolerance) return max;
-  return clamp(value, min, max);
+  return value;
 }
 
 /**

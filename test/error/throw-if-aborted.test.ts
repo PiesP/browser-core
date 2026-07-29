@@ -25,6 +25,14 @@ describe('throwIfAborted', () => {
     expect(() => throwIfAborted(controller.signal)).toThrow('Custom reason');
   });
 
+  it('preserves a non-DOMException signal reason', () => {
+    const controller = new AbortController();
+    const reason = new Error('custom error');
+    controller.abort(reason);
+
+    expect(() => throwIfAborted(controller.signal)).toThrow(reason);
+  });
+
   it('throws for already-aborted signal passed as undefined does nothing', () => {
     const controller = new AbortController();
     controller.abort();

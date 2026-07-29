@@ -43,8 +43,36 @@ describe('ByteLimitedCache', () => {
       onEvict: (k) => evictedKeys.push(k),
     });
     cache.set('small', 'hi'); // 2 bytes
-    cache.set('large', 'hello world'); // 11 bytes -> exceeds, evicts 'small'
+    cache.set('large', 'four'); // 4 bytes -> total exceeds, evicts 'small'
     expect(evictedKeys).toContain('small');
+  });
+
+  it('rejects an oversized value without evicting existing entries', () => {
+    const evictedKeys: string[] = [];
+    const cache = new ByteLimitedCache<string>({
+      maxBytes: 5,
+      estimateSize: (v) => v.length,
+      onEvict: (k) => evictedKeys.push(k),
+    });
+    cache.set('small', 'hi');
+    cache.set('large', 'hello world');
+
+    expect(cache.get('small')).toBe('hi');
+    expect(cache.get('large')).toBeUndefined();
+    expect(cache.currentBytes).toBe(2);
+    expect(evictedKeys).toEqual([]);
+  });
+
+  it('keeps the old value when an oversized replacement is rejected', () => {
+    const cache = new ByteLimitedCache<string>({
+      maxBytes: 5,
+      estimateSize: (v) => v.length,
+    });
+    cache.set('key', 'old');
+    cache.set('key', 'too large');
+
+    expect(cache.get('key')).toBe('old');
+    expect(cache.currentBytes).toBe(3);
   });
 
   it('has() returns true for existing keys', () => {
@@ -87,4 +115,30 @@ describe('ByteLimitedCache', () => {
     cache.set('b', 'v2');
     expect(cache.size).toBe(2);
   });
+
+  it.each([-1, Number.POSITIVE_INFINITY, Number.NaN])(
+    'rejects invalid maxBytes %s',
+    (maxBytes) => {
+      expect(
+        () =>
+          new ByteLimitedCache<string>({
+            maxBytes,
+            estimateSize: (v) => v.length,
+          }),
+      ).toThrow(RangeError);
+    },
+  );
+
+  it.each([-1, Number.POSITIVE_INFINITY, Number.NaN])(
+    'rejects invalid estimated size %s',
+    (estimatedSize) => {
+      const cache = new ByteLimitedCache<string>({
+        maxBytes: 100,
+        estimateSize: () => estimatedSize,
+      });
+
+      expect(() => cache.set('key', 'value')).toThrow(RangeError);
+      expect(cache.size).toBe(0);
+    },
+  );
 });
