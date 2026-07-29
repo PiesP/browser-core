@@ -1,5 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { generateUniqueId, createPrefixedId } from '../../src/util/unique-id.js';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('generateUniqueId', () => {
   it('returns a non-empty string', () => {
@@ -30,6 +34,17 @@ describe('generateUniqueId', () => {
       ids.add(generateUniqueId());
     }
     expect(ids.size).toBe(1000);
+  });
+
+  it('keeps the fallback ID dash-free', () => {
+    vi.spyOn(crypto, 'randomUUID').mockImplementation(() => {
+      throw new Error('unavailable');
+    });
+    vi.spyOn(Date, 'now').mockReturnValue(1234);
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+
+    expect(generateUniqueId()).toMatch(/^[a-z0-9]+$/);
+    expect(generateUniqueId()).not.toContain('-');
   });
 });
 
