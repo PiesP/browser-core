@@ -43,6 +43,21 @@ describe('createEventEmitter', () => {
     expect(() => emitter.off('message', handler)).not.toThrow();
   });
 
+  it('does not let a stale unsubscribe remove a replacement event bus', () => {
+    const emitter = createEventEmitter<TestEvents>();
+    const oldHandler = vi.fn();
+    const newHandler = vi.fn();
+    const unsubscribeOld = emitter.on('count', oldHandler);
+    unsubscribeOld();
+    emitter.on('count', newHandler);
+
+    unsubscribeOld();
+    emitter.emit('count', 2);
+
+    expect(oldHandler).not.toHaveBeenCalled();
+    expect(newHandler).toHaveBeenCalledWith(2);
+  });
+
   it('snapshots handlers and rethrows the first delivery error', () => {
     const emitter = createEventEmitter<TestEvents>();
     const calls: string[] = [];

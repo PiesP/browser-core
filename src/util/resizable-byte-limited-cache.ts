@@ -83,6 +83,10 @@ export class ResizableByteLimitedCache<V> {
   set(key: string, value: V): boolean {
     const size = this._estimateSize(value);
     this._assertValidSize(size);
+    if (size > this._maxBytes || this._maxEntries < 1) {
+      this._onEvict?.(value);
+      return false;
+    }
 
     const existing = this._map.get(key);
     if (existing) {
@@ -99,11 +103,6 @@ export class ResizableByteLimitedCache<V> {
       const oldestKey = this._map.keys().next().value;
       if (oldestKey === undefined) break;
       this.delete(oldestKey);
-    }
-
-    if (this._currentBytes + size > this._maxBytes || this._maxEntries < 1) {
-      this._onEvict?.(value);
-      return false;
     }
 
     this._map.set(key, { value, size });

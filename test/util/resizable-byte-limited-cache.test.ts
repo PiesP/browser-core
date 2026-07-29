@@ -60,6 +60,36 @@ describe('ResizableByteLimitedCache', () => {
     expect(evicted).toEqual(['too large']);
   });
 
+  it('rejects an oversized value without evicting existing entries', () => {
+    const evicted: string[] = [];
+    const limitedCache = new ResizableByteLimitedCache<string>(
+      5,
+      estimateSize,
+      (value) => evicted.push(value),
+    );
+    limitedCache.set('small', 'old');
+
+    expect(limitedCache.set('large', 'too large')).toBe(false);
+    expect(limitedCache.get('small')).toBe('old');
+    expect(limitedCache.currentBytes).toBe(3);
+    expect(evicted).toEqual(['too large']);
+  });
+
+  it('keeps an existing value when its oversized replacement is rejected', () => {
+    const evicted: string[] = [];
+    const limitedCache = new ResizableByteLimitedCache<string>(
+      5,
+      estimateSize,
+      (value) => evicted.push(value),
+    );
+    limitedCache.set('key', 'old');
+
+    expect(limitedCache.set('key', 'too large')).toBe(false);
+    expect(limitedCache.get('key')).toBe('old');
+    expect(limitedCache.currentBytes).toBe(3);
+    expect(evicted).toEqual(['too large']);
+  });
+
   it('enforces the optional entry limit independently of bytes', () => {
     const limitedCache = new ResizableByteLimitedCache<string>(
       100,

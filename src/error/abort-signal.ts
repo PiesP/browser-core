@@ -39,8 +39,9 @@ export function isUserCancelledAbortError(reason: unknown): reason is DOMExcepti
 /**
  * Extract a user-cancelled AbortError from the signal's `reason` if present.
  *
- * If the signal's reason was created by {@link createUserCancelledAbortError},
- * this returns that DOMException. Otherwise returns `null`.
+ * If the signal's reason is an AbortError with the canonical user-cancelled
+ * message, this returns that DOMException regardless of how it was created.
+ * Otherwise returns `null`.
  *
  * @param signal - The AbortSignal to inspect
  * @returns The user-cancelled DOMException, or `null`

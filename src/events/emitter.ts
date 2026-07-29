@@ -82,7 +82,9 @@ export function createEventEmitter<E extends Record<string, unknown>>(): EventEm
       const unsubscribe = bus.subscribe(handler);
       return () => {
         unsubscribe();
-        if (bus.subscriberCount === 0) buses.delete(event);
+        if (bus.subscriberCount === 0 && buses.get(event) === bus) {
+          buses.delete(event);
+        }
       };
     },
 
