@@ -46,6 +46,15 @@ contract. This is especially important for injected extension UI: do not import
 the stylesheet globally into a host page. Canvas code and runtime-generated CSS
 can consume the typed token values instead.
 
+The design entry point also provides framework-independent interaction
+contracts. `DESIGN_ICON_CONTRACT` fixes a 24-unit rounded-stroke geometry while
+leaving each product free to choose its own symbols. `OperationState` separates
+starting, running, completed, failed, and cancelled work so a success check is
+never shown before completion; its presentation map deliberately contains no
+user-facing strings. `shouldHandleGlobalShortcut` protects text inputs,
+contenteditable surfaces, IME composition, and events already handled by a
+closer component. Products retain their own shortcut chords and translations.
+
 This private source package is consumed by the workspace's TypeScript-aware
 bundlers. Its exports point to `.ts` source and are not a native Node runtime
 distribution.

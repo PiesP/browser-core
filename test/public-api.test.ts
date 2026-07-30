@@ -27,6 +27,9 @@ describe('user-facing public API', () => {
 
     expect(core.DESIGN_FAMILY.name).toBe('Quiet Instruments');
     expect(core.DESIGN_PRODUCTS).toEqual(['wmc', 'xeg', 'ytco']);
+    expect(core.DESIGN_ICON_CONTRACT.viewBox).toBe('0 0 24 24');
+    expect(typeof core.getOperationPresentation).toBe('function');
+    expect(typeof core.shouldHandleGlobalShortcut).toBe('function');
 
     expect(typeof core.getErrorMessage).toBe('function');
     expect(typeof core.isAbortError).toBe('function');
