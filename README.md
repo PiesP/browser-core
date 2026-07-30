@@ -7,6 +7,9 @@
 | Import path | Exports | Description |
 |---|---|---|
 | `@piesp/browser-core/async` | `sleep`, `debounce`, `withTimeout`, `createDeferred`, `clearSafe*` | Async control, timeout, deferred-promise, and timer cleanup utilities |
+| `@piesp/browser-core/design` | Quiet Instruments tokens, themes, and product identifiers | Framework-independent visual foundation |
+| `@piesp/browser-core/design/tokens.css` | Scoped `--pp-*` custom properties | Optional CSS contract for `.pp-design` hosts |
+| `@piesp/browser-core/design/tokens.json` | DTCG source tokens | Generator and design-tool source of truth |
 | `@piesp/browser-core/error` | `getErrorMessage`, abort detection/creation, `mergeAbortSignals`, `throwIfAborted` | Error handling utilities with abort/cancellation support |
 | `@piesp/browser-core/events` | `MessageBus`, `createEventEmitter`, `EventEmitter` | Typed synchronous publish/subscribe utilities |
 | `@piesp/browser-core/util` | IDs, clamps, guards, colors, LRU/byte caches, priority queue, scheduler wrappers | General-purpose browser and data-structure utilities |
@@ -17,10 +20,31 @@
 
 ```ts
 import { createDeferred, sleep } from '@piesp/browser-core/async';
+import { QUIET_INSTRUMENTS_TOKENS } from '@piesp/browser-core/design';
 import { createUserCancelledAbortError, isAbortError } from '@piesp/browser-core/error';
 import { MessageBus } from '@piesp/browser-core/events';
 import { ResizableByteLimitedCache, schedulerYield } from '@piesp/browser-core/util';
 ```
+
+## Quiet Instruments design contract
+
+Quiet Instruments gives the products a shared construction language without
+making them visually identical. Neutral surfaces, typography, spacing, focus,
+motion, icon geometry, and status colors are common. WMC uses the Iris accent,
+XCOM Enhanced Gallery uses Tide, and YouTube Live Chat Overlay uses Flare.
+
+The DTCG-format JSON file is canonical. `pnpm generate:design` deterministically
+creates typed values and a reference stylesheet; `pnpm check:design` rejects
+stale generated files and invalid aliases, incomplete variants, or declared
+contrast pairs below their minimum ratio. The generated stylesheet never writes
+to `:root` or `html`. It applies only below `.pp-design`, selects a product with
+`data-pp-product="wmc|xeg|ytco"`, and selects `light`, `dark`, or system-following
+behavior with `data-pp-theme="light|dark|auto"`.
+
+Consumers should keep their existing public token names and adapt them to this
+contract. This is especially important for injected extension UI: do not import
+the stylesheet globally into a host page. Canvas code and runtime-generated CSS
+can consume the typed token values instead.
 
 This private source package is consumed by the workspace's TypeScript-aware
 bundlers. Its exports point to `.ts` source and are not a native Node runtime

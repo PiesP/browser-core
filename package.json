@@ -23,6 +23,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./async": "./src/async/index.ts",
+    "./design": "./src/design/index.ts",
+    "./design/tokens.css": "./src/design/generated/tokens.css",
+    "./design/tokens.json": "./src/design/quiet-instruments.tokens.json",
     "./error": "./src/error/index.ts",
     "./events": "./src/events/index.ts",
     "./locale": "./src/locale/index.ts",
@@ -30,10 +33,12 @@
     "./util": "./src/util/index.ts"
   },
   "scripts": {
-    "check": "pnpm check:format && pnpm check:types && pnpm check:lint",
+    "check": "pnpm check:format && pnpm check:design && pnpm check:types && pnpm check:lint",
+    "check:design": "node scripts/generate-design-tokens.mjs --check",
     "check:format": "node scripts/check-format.mjs",
     "check:types": "tsc --noEmit",
     "check:lint": "tsc --noEmit --allowUnreachableCode false --allowUnusedLabels false",
+    "generate:design": "node scripts/generate-design-tokens.mjs",
     "test": "vitest run",
     "test:cov": "vitest run --coverage",
     "verify": "pnpm check && pnpm test:cov",

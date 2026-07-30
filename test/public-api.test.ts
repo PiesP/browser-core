@@ -1,15 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import * as core from '../src/index';
 import * as asyncApi from '../src/async/index';
+import * as designApi from '../src/design/index';
 import * as errorApi from '../src/error/index';
 import * as eventsApi from '../src/events/index';
 import * as localeApi from '../src/locale/index';
 import * as loggingApi from '../src/logging/index';
 import * as utilApi from '../src/util/index';
 import * as packagedEventsApi from '@piesp/browser-core/events';
+import * as packagedDesignApi from '@piesp/browser-core/design';
 
 const runtimeSubpathApis = [
   asyncApi,
+  designApi,
   errorApi,
   eventsApi,
   localeApi,
@@ -21,6 +24,9 @@ describe('user-facing public API', () => {
   it('exposes the documented feature groups from the package entry point', () => {
     expect(typeof core.sleep).toBe('function');
     expect(typeof core.debounce).toBe('function');
+
+    expect(core.DESIGN_FAMILY.name).toBe('Quiet Instruments');
+    expect(core.DESIGN_PRODUCTS).toEqual(['wmc', 'xeg', 'ytco']);
 
     expect(typeof core.getErrorMessage).toBe('function');
     expect(typeof core.isAbortError).toBe('function');
@@ -46,6 +52,11 @@ describe('user-facing public API', () => {
   it('keeps every documented subpath aligned with the main entry point', () => {
     expect(asyncApi.sleep).toBe(core.sleep);
     expect(asyncApi.debounce).toBe(core.debounce);
+    expect(designApi.DESIGN_FAMILY).toBe(core.DESIGN_FAMILY);
+    expect(packagedDesignApi.DESIGN_FAMILY).toBe(core.DESIGN_FAMILY);
+    expect(packagedDesignApi.QUIET_INSTRUMENTS_TOKENS).toBe(
+      core.QUIET_INSTRUMENTS_TOKENS,
+    );
     expect(errorApi.getErrorMessage).toBe(core.getErrorMessage);
     expect(errorApi.mergeAbortSignals).toBe(core.mergeAbortSignals);
     expect(eventsApi.MessageBus).toBe(core.MessageBus);
