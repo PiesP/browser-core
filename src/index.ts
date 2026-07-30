@@ -1,5 +1,6 @@
 // @piesp/browser-core — main entry
 export * from './async/index.js';
+export * from './design/index.js';
 export * from './error/index.js';
 export * from './events/index.js';
 export * from './locale/index.js';

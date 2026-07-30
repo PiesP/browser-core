@@ -3,6 +3,7 @@ import { extname } from 'node:path';
 import { readFileSync } from 'node:fs';
 
 const textExtensions = new Set([
+  '.css',
   '.json',
   '.md',
   '.mjs',
