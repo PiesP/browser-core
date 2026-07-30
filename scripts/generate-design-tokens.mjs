@@ -519,7 +519,8 @@ ${darkDeclarations
 }
 
 @media (forced-colors: active) {
-  .pp-design {
+  .pp-design,
+  .pp-design[data-pp-theme] {
     --pp-color-canvas: Canvas;
     --pp-color-surface: Canvas;
     --pp-color-raised: Canvas;
@@ -554,6 +555,12 @@ function validateGeneratedCss(css, extension) {
   assert(
     css.includes('@media (forced-colors: active)'),
     'generated CSS requires a forced-colors override',
+  );
+  assert(
+    css.includes(
+      ".pp-design,\n  .pp-design[data-pp-theme] {\n    --pp-color-canvas: Canvas;",
+    ),
+    'forced-colors declarations must override theme-scoped declarations',
   );
   for (const product of extension.products) {
     assert(
