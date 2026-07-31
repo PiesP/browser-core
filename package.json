@@ -46,12 +46,12 @@
   },
   "devDependencies": {
     "@vitest/coverage-v8": "4.1.10",
-    "jsdom": "^29.1.1",
+    "jsdom": "^30.0.1",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },
   "volta": {
-    "node": "26.5.0",
+    "node": "26.5.1",
     "pnpm": "11.2.2"
   }
 }
