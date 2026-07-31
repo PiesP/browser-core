@@ -32,5 +32,5 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Check text hygiene, types, and compiler lint rules
         run: pnpm check
-      - name: Run tests
-        run: pnpm test
+      - name: Run coverage-gated tests
+        run: pnpm test:cov
