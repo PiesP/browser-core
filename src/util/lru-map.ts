@@ -28,11 +28,11 @@ export class LruMap<K, V> {
   readonly maxSize: number;
 
   /**
-   * @param maxSize - Maximum capacity; must be >= 1
+   * @param maxSize - Maximum capacity; must be a positive safe integer
    */
   constructor(maxSize: number) {
-    if (maxSize < 1) {
-      throw new RangeError('maxSize must be >= 1');
+    if (!Number.isSafeInteger(maxSize) || maxSize < 1) {
+      throw new RangeError('maxSize must be a positive safe integer');
     }
     this.maxSize = maxSize;
   }

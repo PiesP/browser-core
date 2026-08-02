@@ -86,9 +86,12 @@ describe('LruMap', () => {
     expect(entries).toEqual([['a', 1], ['b', 2]]);
   });
 
-  it('throws on zero maxSize', () => {
-    expect(() => new LruMap<string, number>(0)).toThrow(RangeError);
-  });
+  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, 1.5, Number.MAX_SAFE_INTEGER + 1])(
+    'rejects invalid maxSize %s',
+    (maxSize) => {
+      expect(() => new LruMap<string, number>(maxSize)).toThrow(RangeError);
+    }
+  );
 
   it('supports maxSize = 1', () => {
     const map = new LruMap<string, number>(1);
