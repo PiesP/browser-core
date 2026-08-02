@@ -43,4 +43,32 @@ describe('getErrorMessage', () => {
     }
     expect(getErrorMessage(new CustomError('custom'))).toBe('custom');
   });
+
+  it('uses another native error property when message access throws', () => {
+    const error = {
+      get message(): string {
+        throw new Error('blocked getter');
+      },
+      what: 'native failure',
+    };
+
+    expect(getErrorMessage(error)).toBe('native failure');
+  });
+
+  it('returns a stable fallback when error coercion throws', () => {
+    const error = {
+      [Symbol.toPrimitive](): never {
+        throw new Error('blocked coercion');
+      },
+    };
+
+    expect(getErrorMessage(error)).toBe('Unknown error');
+  });
+
+  it('handles revoked proxies without throwing', () => {
+    const { proxy, revoke } = Proxy.revocable({}, {});
+    revoke();
+
+    expect(getErrorMessage(proxy)).toBe('Unknown error');
+  });
 });
