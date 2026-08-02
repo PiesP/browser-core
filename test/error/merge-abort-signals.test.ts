@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { mergeAbortSignals } from '../../src/error/merge-abort-signals.js';
+import {
+  mergeAbortSignals,
+  mergeAbortSignalsWithCleanup,
+} from '../../src/error/merge-abort-signals.js';
 
 describe('mergeAbortSignals', () => {
   it('resolves when no signals are provided', () => {
@@ -108,6 +111,50 @@ describe('mergeAbortSignals', () => {
     const merged = mergeAbortSignals([source.signal, source.signal]);
 
     merged.abort();
+
+    expect(addListener).toHaveBeenCalledOnce();
+    expect(removeListener).toHaveBeenCalledOnce();
+  });
+});
+
+describe('mergeAbortSignalsWithCleanup', () => {
+  it('preserves the first abort reason', () => {
+    const first = new AbortController();
+    const second = new AbortController();
+    const merged = mergeAbortSignalsWithCleanup([first.signal, second.signal]);
+
+    second.abort('caller cancelled');
+
+    expect(merged.signal.aborted).toBe(true);
+    expect(merged.signal.reason).toBe('caller cancelled');
+  });
+
+  it('removes source listeners when a successful operation cleans up', () => {
+    const sources = [new AbortController(), new AbortController()];
+    const listenerSpies = sources.map(({ signal }) => ({
+      add: vi.spyOn(signal, 'addEventListener'),
+      remove: vi.spyOn(signal, 'removeEventListener'),
+    }));
+    const merged = mergeAbortSignalsWithCleanup(sources.map(({ signal }) => signal));
+
+    merged.cleanup();
+    merged.cleanup();
+
+    expect(merged.signal.aborted).toBe(false);
+    for (const { add, remove } of listenerSpies) {
+      expect(add).toHaveBeenCalledOnce();
+      expect(remove).toHaveBeenCalledOnce();
+      expect(remove).toHaveBeenCalledWith('abort', add.mock.calls[0]![1]);
+    }
+  });
+
+  it('registers duplicate source signals only once', () => {
+    const source = new AbortController();
+    const addListener = vi.spyOn(source.signal, 'addEventListener');
+    const removeListener = vi.spyOn(source.signal, 'removeEventListener');
+    const merged = mergeAbortSignalsWithCleanup([source.signal, source.signal]);
+
+    merged.cleanup();
 
     expect(addListener).toHaveBeenCalledOnce();
     expect(removeListener).toHaveBeenCalledOnce();

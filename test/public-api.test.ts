@@ -35,6 +35,7 @@ describe('user-facing public API', () => {
     expect(typeof core.isAbortError).toBe('function');
     expect(typeof core.isCancellationError).toBe('function');
     expect(typeof core.mergeAbortSignals).toBe('function');
+    expect(typeof core.mergeAbortSignalsWithCleanup).toBe('function');
     expect(typeof core.throwIfAborted).toBe('function');
 
     expect(core.DEFAULT_LOCALE).toBe('en');
@@ -62,6 +63,7 @@ describe('user-facing public API', () => {
     );
     expect(errorApi.getErrorMessage).toBe(core.getErrorMessage);
     expect(errorApi.mergeAbortSignals).toBe(core.mergeAbortSignals);
+    expect(errorApi.mergeAbortSignalsWithCleanup).toBe(core.mergeAbortSignalsWithCleanup);
     expect(eventsApi.MessageBus).toBe(core.MessageBus);
     expect(eventsApi.createEventEmitter).toBe(core.createEventEmitter);
     expect(packagedEventsApi.MessageBus).toBe(core.MessageBus);
