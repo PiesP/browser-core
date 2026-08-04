@@ -8,8 +8,8 @@
  * Yield control back to the browser's event loop.
  *
  * Uses `scheduler.yield()` when available (Chromium 115+, Firefox 135+).
- * Falls back to a microtask-delayed `setTimeout(0)` for Safari and older
- * browsers, which still allows pending UI work to be processed.
+ * Falls back to `setTimeout(0)` for Safari and older browsers, which still
+ * allows pending UI work to be processed.
  *
  * Call this inside long-running synchronous work to keep the page
  * responsive.
@@ -24,11 +24,9 @@ export function schedulerYield(): Promise<void> {
     return (globalThis.scheduler as Scheduler & { yield: () => Promise<void> }).yield();
   }
 
-  // Fallback: yield via setTimeout(0) wrapped in a resolved promise
-  // so the microtask queue drains before the macrotask fires.
-  return Promise.resolve().then(
-    () => new Promise<void>((resolve) => setTimeout(resolve, 0)),
-  );
+  // setTimeout schedules the next macrotask after the current microtask queue
+  // drains, so an intermediate resolved promise only adds avoidable overhead.
+  return new Promise<void>((resolve) => setTimeout(resolve, 0));
 }
 
 /**
