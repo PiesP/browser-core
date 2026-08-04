@@ -25,8 +25,10 @@ describe('schedulerYield', () => {
   it('falls back to a zero-delay timer', async () => {
     vi.stubGlobal('scheduler', undefined);
     vi.useFakeTimers();
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
     const pendingYield = schedulerYield();
 
+    expect(setTimeoutSpy).toHaveBeenCalledOnce();
     await vi.runAllTimersAsync();
 
     await expect(pendingYield).resolves.toBeUndefined();
