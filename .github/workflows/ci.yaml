@@ -34,3 +34,15 @@ jobs:
         run: pnpm check
       - name: Run coverage-gated tests
         run: pnpm test:cov
+
+  quality-gate:
+    name: quality
+    if: ${{ always() }}
+    needs: [quality]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - name: Require every Node.js quality job to pass
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+        run: test "$QUALITY_RESULT" = success
