@@ -47,6 +47,27 @@ describe('ByteLimitedCache', () => {
     expect(evictedKeys).toContain('small');
   });
 
+  it('finishes eviction and cleanup before rethrowing the first callback error', () => {
+    const evictedKeys: string[] = [];
+    const cache = new ByteLimitedCache<string>({
+      maxBytes: 10,
+      estimateSize: (value) => value.length,
+      onEvict: (key) => {
+        evictedKeys.push(key);
+        if (key === 'a') throw new Error('first cleanup failed');
+      },
+    });
+    cache.set('a', '12');
+    cache.set('b', '12345678');
+
+    expect(() => cache.set('c', '12345678')).toThrow('first cleanup failed');
+    expect(evictedKeys).toEqual(['a', 'b']);
+    expect(cache.has('a')).toBe(false);
+    expect(cache.has('b')).toBe(false);
+    expect(cache.get('c')).toBe('12345678');
+    expect(cache.currentBytes).toBe(8);
+  });
+
   it('rejects an oversized value without evicting existing entries', () => {
     const evictedKeys: string[] = [];
     const cache = new ByteLimitedCache<string>({

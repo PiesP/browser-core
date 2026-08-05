@@ -56,12 +56,16 @@ export class ResizableByteLimitedCache<V> {
   resize(newMaxBytes: number): void {
     this._assertValidMaxBytes(newMaxBytes);
     this._maxBytes = newMaxBytes;
+    const evicted: V[] = [];
 
     while (this._currentBytes > this._maxBytes && this._map.size > 0) {
       const oldestKey = this._map.keys().next().value;
       if (oldestKey === undefined) break;
-      this.delete(oldestKey);
+      const entry = this._remove(oldestKey);
+      if (entry) evicted.push(entry.value);
     }
+
+    this._notifyEvictions(evicted);
   }
 
   /** Retrieve a value and promote it to most-recently-used. */
@@ -88,12 +92,9 @@ export class ResizableByteLimitedCache<V> {
       return false;
     }
 
-    const existing = this._map.get(key);
-    if (existing) {
-      this._map.delete(key);
-      this._currentBytes -= existing.size;
-      this._onEvict?.(existing.value);
-    }
+    const evicted: V[] = [];
+    const existing = this._remove(key);
+    if (existing) evicted.push(existing.value);
 
     while (
       (this._currentBytes + size > this._maxBytes ||
@@ -102,21 +103,21 @@ export class ResizableByteLimitedCache<V> {
     ) {
       const oldestKey = this._map.keys().next().value;
       if (oldestKey === undefined) break;
-      this.delete(oldestKey);
+      const entry = this._remove(oldestKey);
+      if (entry) evicted.push(entry.value);
     }
 
     this._map.set(key, { value, size });
     this._currentBytes += size;
+    this._notifyEvictions(evicted);
     return true;
   }
 
   /** Remove a value and invoke eviction cleanup. */
   delete(key: string): boolean {
-    const entry = this._map.get(key);
+    const entry = this._remove(key);
     if (!entry) return false;
 
-    this._map.delete(key);
-    this._currentBytes -= entry.size;
     this._onEvict?.(entry.value);
     return true;
   }
@@ -143,7 +144,7 @@ export class ResizableByteLimitedCache<V> {
       : [];
     this._map.clear();
     this._currentBytes = 0;
-    for (const value of values) this._onEvict?.(value);
+    this._notifyEvictions(values);
   }
 
   /** Promote an entry to most-recently-used without returning it. */
@@ -161,5 +162,32 @@ export class ResizableByteLimitedCache<V> {
     if (!Number.isFinite(size) || size < 0) {
       throw new RangeError('estimateSize must return a finite, non-negative number');
     }
+  }
+
+  private _remove(key: string): { value: V; size: number } | undefined {
+    const entry = this._map.get(key);
+    if (!entry) return undefined;
+
+    this._map.delete(key);
+    this._currentBytes -= entry.size;
+    return entry;
+  }
+
+  private _notifyEvictions(values: readonly V[]): void {
+    if (!this._onEvict) return;
+
+    let firstError: unknown;
+    let cleanupFailed = false;
+    for (const value of values) {
+      try {
+        this._onEvict(value);
+      } catch (error) {
+        if (!cleanupFailed) {
+          firstError = error;
+          cleanupFailed = true;
+        }
+      }
+    }
+    if (cleanupFailed) throw firstError;
   }
 }

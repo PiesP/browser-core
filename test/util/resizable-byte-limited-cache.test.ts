@@ -181,6 +181,35 @@ describe('ResizableByteLimitedCache', () => {
     expect(throwingCache.currentBytes).toBe(0);
   });
 
+  it('preserves a re-entrant replacement and its byte accounting', () => {
+    let replacementCache!: ResizableByteLimitedCache<string>;
+    replacementCache = new ResizableByteLimitedCache<string>(100, estimateSize, (value) => {
+      if (value === 'old') replacementCache.set('key', 'callback');
+    });
+    replacementCache.set('key', 'old');
+
+    replacementCache.set('key', 'outer');
+
+    expect(replacementCache.get('key')).toBe('callback');
+    expect(replacementCache.size).toBe(1);
+    expect(replacementCache.currentBytes).toBe('callback'.length);
+  });
+
+  it('attempts every clear cleanup before rethrowing the first error', () => {
+    const cleaned: string[] = [];
+    const throwingCache = new ResizableByteLimitedCache<string>(100, estimateSize, (value) => {
+      cleaned.push(value);
+      if (value === 'one') throw new Error('first cleanup failed');
+    });
+    throwingCache.set('a', 'one');
+    throwingCache.set('b', 'two');
+
+    expect(() => throwingCache.clear()).toThrow('first cleanup failed');
+    expect(cleaned).toEqual(['one', 'two']);
+    expect(throwingCache.size).toBe(0);
+    expect(throwingCache.currentBytes).toBe(0);
+  });
+
   it('uses the insertion-time size when cleanup mutates a value', () => {
     const first = { bytes: 60 };
     const second = { bytes: 60 };

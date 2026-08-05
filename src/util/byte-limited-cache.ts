@@ -154,6 +154,7 @@ export class ByteLimitedCache<V> {
    * Calls `onEvict` for each evicted entry.
    */
   private _evictExcess(): void {
+    const evicted: Array<readonly [string, V]> = [];
     while (this._currentBytes > this.maxBytes && this._map.size > 0) {
       const firstKey = this._map.keys().next().value;
       if (firstKey === undefined) break;
@@ -162,10 +163,27 @@ export class ByteLimitedCache<V> {
       if (!entry) break;
       this._map.delete(firstKey);
       this._currentBytes -= entry.size;
+      evicted.push([firstKey, entry.value]);
+    }
 
-      if (this._onEvict) {
-        this._onEvict(firstKey, entry.value);
+    this._notifyEvictions(evicted);
+  }
+
+  private _notifyEvictions(entries: ReadonlyArray<readonly [string, V]>): void {
+    if (!this._onEvict) return;
+
+    let firstError: unknown;
+    let cleanupFailed = false;
+    for (const [key, value] of entries) {
+      try {
+        this._onEvict(key, value);
+      } catch (error) {
+        if (!cleanupFailed) {
+          firstError = error;
+          cleanupFailed = true;
+        }
       }
     }
+    if (cleanupFailed) throw firstError;
   }
 }
