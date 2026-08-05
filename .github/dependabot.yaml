@@ -3,13 +3,12 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "daily"
       time: "09:00"
       timezone: "Asia/Seoul"
+    # Keep only a short supply-chain cooling window for these fast-moving consumers.
     cooldown:
-      default-days: 7
-      semver-patch-days: 3
+      default-days: 1
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps)"
@@ -35,12 +34,12 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "daily"
       time: "09:00"
       timezone: "Asia/Seoul"
+    # Keep only a short supply-chain cooling window for these fast-moving consumers.
     cooldown:
-      default-days: 7
+      default-days: 1
     open-pull-requests-limit: 3
     commit-message:
       prefix: "ci(deps)"
