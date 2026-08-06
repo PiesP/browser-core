@@ -1,6 +1,8 @@
 name: Security Scanning
 
 on:
+  push:
+    branches: [master]
   pull_request:
     branches: [master]
   schedule:
@@ -107,7 +109,7 @@ jobs:
 
   osv-scan-full:
     name: OSV Vulnerability Scan (Full)
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -181,7 +183,7 @@ jobs:
 
   semgrep:
     name: Static Analysis (Semgrep)
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -215,3 +217,60 @@ jobs:
         uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
         with:
           sarif_file: semgrep.sarif
+
+  security-summary:
+    name: Security scan summary
+    if: ${{ always() }}
+    needs: [osv-scan-pr, osv-scan-full, codeql, semgrep]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Summarize and validate event-specific scans
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          OSV_PR_RESULT: ${{ needs.osv-scan-pr.result }}
+          OSV_FULL_RESULT: ${{ needs.osv-scan-full.result }}
+          CODEQL_RESULT: ${{ needs.codeql.result }}
+          SEMGREP_RESULT: ${{ needs.semgrep.result }}
+        run: |
+          set -euo pipefail
+
+          {
+            echo "## Security scan results"
+            echo
+            echo "| Check | Result |"
+            echo "| --- | --- |"
+            echo "| OSV PR diff | $OSV_PR_RESULT |"
+            echo "| OSV full | $OSV_FULL_RESULT |"
+            echo "| CodeQL | $CODEQL_RESULT |"
+            echo "| Semgrep | $SEMGREP_RESULT |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          failed=0
+          expect_success() {
+            local label="$1"
+            local result="$2"
+            if [[ "$result" != "success" ]]; then
+              echo "Expected $label to succeed for $EVENT_NAME, got: $result" >&2
+              failed=1
+            fi
+          }
+
+          expect_success "CodeQL" "$CODEQL_RESULT"
+          expect_success "Semgrep" "$SEMGREP_RESULT"
+          case "$EVENT_NAME" in
+            pull_request)
+              expect_success "OSV PR diff" "$OSV_PR_RESULT"
+              ;;
+            push|schedule|workflow_dispatch)
+              expect_success "OSV full" "$OSV_FULL_RESULT"
+              ;;
+            *)
+              echo "Unsupported security workflow event: $EVENT_NAME" >&2
+              failed=1
+              ;;
+          esac
+
+          exit "$failed"
