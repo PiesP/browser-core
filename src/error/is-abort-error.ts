@@ -89,12 +89,16 @@ export function isCancellationError(
 
   // 3. Optional message keyword check
   if (options.checkMessage) {
-    const message =
-      typeof error === 'object' && error !== null && 'message' in error
-        ? String((error as { message: unknown }).message).toLowerCase()
-        : String(error).toLowerCase();
+    try {
+      const message =
+        typeof error === 'object' && error !== null && 'message' in error
+          ? String((error as { message: unknown }).message).toLowerCase()
+          : String(error).toLowerCase();
 
-    return message.includes('cancelled') || message.includes('canceled');
+      return message.includes('cancelled') || message.includes('canceled');
+    } catch {
+      return false;
+    }
   }
 
   return false;
