@@ -91,6 +91,17 @@ describe('isCancellationError', () => {
     expect(isCancellationError(error, { checkMessage: true })).toBe(true);
   });
 
+  it('rejects an error whose message getter throws', () => {
+    const error = {
+      get message(): never {
+        throw new Error('message is not readable');
+      },
+    };
+
+    expect(() => isCancellationError(error, { checkMessage: true })).not.toThrow();
+    expect(isCancellationError(error, { checkMessage: true })).toBe(false);
+  });
+
   it('rejects abort message without keyword flag', () => {
     const error = new Error('cancelled by user');
     expect(isCancellationError(error)).toBe(false);
