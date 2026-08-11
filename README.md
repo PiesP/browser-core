@@ -117,6 +117,14 @@ pnpm test       # run tests
 pnpm test:watch # watch mode
 ```
 
+## Shared automation
+
+Unprivileged CI setup shared by consumer repositories lives under
+[`automation/`](automation/README.md). Consumers reference those actions by a
+full browser-core commit SHA that is independent from their runtime
+`packages/core` gitlink. Privileged approval, security scanning, release, and
+deployment workflows remain repository-local.
+
 ## Consumer updates
 
 The browser-based consumer repositories track this repository as the
