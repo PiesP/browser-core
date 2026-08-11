@@ -19,4 +19,4 @@ runs:
 
     - name: Install locked dependencies
       shell: bash
-      run: pnpm install --frozen-lockfile
+      run: pnpm install --frozen-lockfile --no-runtime

@@ -8,6 +8,30 @@ const runtimePackage = JSON.parse(runtimePackageJson) as {
   exports: Record<string, string>;
 };
 
+function parsePathFilters(workflow: string, key: 'paths' | 'paths-ignore'): string[] {
+  const trigger = workflow.slice(workflow.indexOf('  push:'), workflow.indexOf('  workflow_dispatch:'));
+  const block = trigger.match(new RegExp(`^    ${key}:\\n((?:      - .+\\n)+)`, 'm'))?.[1];
+  if (!block) return [];
+
+  return [...block.matchAll(/^      - ["']?(.+?)["']?$/gm)].flatMap((match) =>
+    match[1] === undefined ? [] : [match[1]],
+  );
+}
+
+function matchesPath(path: string, pattern: string): boolean {
+  if (pattern.endsWith('/**')) return path.startsWith(pattern.slice(0, -2));
+  if (!pattern.includes('*')) return path === pattern;
+  throw new Error(`Unsupported workflow path pattern in contract test: ${pattern}`);
+}
+
+function runtimeNotificationRunsFor(path: string): boolean {
+  const included = parsePathFilters(runtimeNotifications, 'paths');
+  const ignored = parsePathFilters(runtimeNotifications, 'paths-ignore');
+  const passesInclude = included.length === 0 || included.some((pattern) => matchesPath(path, pattern));
+  const passesIgnore = !ignored.some((pattern) => matchesPath(path, pattern));
+  return passesInclude && passesIgnore;
+}
+
 describe('central project setup action', () => {
   it('uses an immutable toolchain action and the consumer package manifest', () => {
     expect(action).toContain(
@@ -20,7 +44,7 @@ describe('central project setup action', () => {
   });
 
   it('installs exactly the locked consumer dependency graph', () => {
-    expect(action).toContain('run: pnpm install --frozen-lockfile');
+    expect(action).toContain('run: pnpm install --frozen-lockfile --no-runtime');
     expect(action).not.toMatch(/^\s*run: (?:npm|yarn) install/m);
     expect(action).not.toContain('pnpm update');
   });
@@ -43,7 +67,7 @@ describe('runtime and automation release boundaries', () => {
   });
 
   it('does not dispatch runtime gitlink updates for automation-only changes', () => {
-    expect(runtimeNotifications).not.toContain('automation/**');
-    expect(runtimeNotifications).toContain('- "src/**"');
+    expect(runtimeNotificationRunsFor('automation/actions/setup-project/action.yaml')).toBe(false);
+    expect(runtimeNotificationRunsFor('src/error/get-error-message.ts')).toBe(true);
   });
 });

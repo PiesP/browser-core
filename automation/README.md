@@ -18,8 +18,10 @@ commit SHA:
 
 The setup action reads the consumer's root `package.json`, installs its declared
 pnpm version and requested Node.js runtime, enables the pnpm cache, and runs
-`pnpm install --frozen-lockfile`. It does not accept executable commands, paths,
-references, URLs, or secrets as inputs.
+`pnpm install --frozen-lockfile --no-runtime`. Disabling runtime installation in
+the dependency step ensures the preceding pinned setup action remains the only
+runtime owner. The action does not accept executable commands, paths, references,
+URLs, or secrets as inputs.
 
 ## Trust boundary
 
