@@ -1,3 +1,5 @@
+import { estimateRetainedEntrySize } from './cache-entry-size.js';
+
 /**
  * An LRU cache bounded by both estimated byte usage and an optional entry count.
  *
@@ -85,8 +87,9 @@ export class ResizableByteLimitedCache<V> {
    * cache state and byte accounting have been removed.
    */
   set(key: string, value: V): boolean {
-    const size = this._estimateSize(value);
-    this._assertValidSize(size);
+    const valueSize = this._estimateSize(value);
+    this._assertValidSize(valueSize);
+    const size = estimateRetainedEntrySize(key, valueSize);
     if (size > this._maxBytes || this._maxEntries < 1) {
       this._onEvict?.(value);
       return false;

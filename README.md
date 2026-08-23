@@ -96,11 +96,14 @@ invalid values throw `RangeError`.
 
 ## Cache and scheduler contracts
 
-`ByteLimitedCache` is a fixed-budget LRU cache. An entry larger than the entire
-budget is rejected without evicting existing entries. `ResizableByteLimitedCache`
-adds runtime resizing, an optional entry-count cap, ownership transfer through
-`take`, and cleanup callbacks for every removed resource. Both caches reject
-negative or non-finite byte limits and size estimates.
+`ByteLimitedCache` is a fixed-budget LRU cache. Both cache variants include
+UTF-16 key storage, the caller-provided value estimate, and a positive minimum
+cost for every entry in retained-cost accounting. An entry larger than the
+entire budget is rejected without evicting existing entries.
+`ResizableByteLimitedCache` adds runtime resizing, an optional entry-count cap,
+ownership transfer through `take`, and cleanup callbacks for every removed
+resource. Both caches reject negative or non-finite byte limits and size
+estimates.
 
 `schedulerYield` and `schedulerPostTask` prefer the browser Scheduler API and
 fall back to timers. Fallback tasks preserve abort reasons, and async callback
