@@ -1,4 +1,8 @@
-import { estimateRetainedEntrySize } from './cache-entry-size.js';
+import {
+  assertValidCacheByteSize,
+  estimateRetainedEntrySize,
+  hasRetainedEntryCapacity,
+} from './cache-entry-size.js';
 
 /**
  * A cache that evicts entries based on an estimated byte size limit.
@@ -48,9 +52,7 @@ export class ByteLimitedCache<V> {
     estimateSize: (value: V) => number;
     onEvict?: (key: string, value: V) => void;
   }) {
-    if (!Number.isFinite(options.maxBytes) || options.maxBytes < 0) {
-      throw new RangeError('maxBytes must be a finite, non-negative number');
-    }
+    assertValidCacheByteSize(options.maxBytes, 'maxBytes');
     this.maxBytes = options.maxBytes;
     this._estimateSize = options.estimateSize;
     this._onEvict = options.onEvict;
@@ -96,9 +98,7 @@ export class ByteLimitedCache<V> {
    */
   set(key: string, value: V): this {
     const valueSize = this._estimateSize(value);
-    if (!Number.isFinite(valueSize) || valueSize < 0) {
-      throw new RangeError('estimateSize must return a finite, non-negative number');
-    }
+    assertValidCacheByteSize(valueSize, 'estimateSize result');
     const newSize = estimateRetainedEntrySize(key, valueSize);
     if (newSize > this.maxBytes) return this;
 
@@ -160,8 +160,10 @@ export class ByteLimitedCache<V> {
    */
   private _evictToFit(incomingSize: number): Array<readonly [string, V]> {
     const evicted: Array<readonly [string, V]> = [];
-    const availableBeforeInsert = this.maxBytes - incomingSize;
-    while (this._currentBytes > availableBeforeInsert && this._map.size > 0) {
+    while (
+      !hasRetainedEntryCapacity(this._currentBytes, this.maxBytes, incomingSize) &&
+      this._map.size > 0
+    ) {
       const firstKey = this._map.keys().next().value;
       if (firstKey === undefined) break;
 

@@ -259,7 +259,25 @@ describe('ResizableByteLimitedCache', () => {
     expect(evicted).toEqual(['']);
   });
 
-  it.each([-1, Number.POSITIVE_INFINITY, Number.NaN])(
+  it('rejects a derived entry cost outside the safe-integer range', () => {
+    const limitedCache = new ResizableByteLimitedCache<string>(
+      Number.MAX_SAFE_INTEGER,
+      () => Number.MAX_SAFE_INTEGER,
+    );
+
+    expect(limitedCache.set('a', 'value')).toBe(false);
+    expect(limitedCache.size).toBe(0);
+    expect(limitedCache.currentBytes).toBe(0);
+  });
+
+  it.each([
+    -1,
+    1.5,
+    Number.MAX_SAFE_INTEGER + 1,
+    Number.MAX_VALUE,
+    Number.POSITIVE_INFINITY,
+    Number.NaN,
+  ])(
     'rejects invalid maxBytes %s',
     (maxBytes) => {
       expect(() => new ResizableByteLimitedCache(maxBytes, estimateSize)).toThrow(RangeError);
@@ -267,13 +285,23 @@ describe('ResizableByteLimitedCache', () => {
     },
   );
 
-  it.each([-1, Number.NaN, 1.5])('rejects invalid maxEntries %s', (maxEntries) => {
-    expect(
-      () => new ResizableByteLimitedCache(100, estimateSize, undefined, maxEntries),
-    ).toThrow(RangeError);
-  });
+  it.each([-1, Number.NaN, 1.5, Number.MAX_SAFE_INTEGER + 1, Number.MAX_VALUE])(
+    'rejects invalid maxEntries %s',
+    (maxEntries) => {
+      expect(
+        () => new ResizableByteLimitedCache(100, estimateSize, undefined, maxEntries),
+      ).toThrow(RangeError);
+    },
+  );
 
-  it.each([-1, Number.POSITIVE_INFINITY, Number.NaN])(
+  it.each([
+    -1,
+    1.5,
+    Number.MAX_SAFE_INTEGER + 1,
+    Number.MAX_VALUE,
+    Number.POSITIVE_INFINITY,
+    Number.NaN,
+  ])(
     'rejects invalid estimated size %s',
     (estimatedSize) => {
       const invalidCache = new ResizableByteLimitedCache<string>(100, () => estimatedSize);

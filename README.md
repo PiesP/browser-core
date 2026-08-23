@@ -102,8 +102,8 @@ cost for every entry in retained-cost accounting. An entry larger than the
 entire budget is rejected without evicting existing entries.
 `ResizableByteLimitedCache` adds runtime resizing, an optional entry-count cap,
 ownership transfer through `take`, and cleanup callbacks for every removed
-resource. Both caches reject negative or non-finite byte limits and size
-estimates.
+resource. Both caches require byte limits and size estimates to be non-negative
+safe integers so every retained byte remains representable in their accounting.
 
 `schedulerYield` and `schedulerPostTask` prefer the browser Scheduler API and
 fall back to timers. Fallback tasks preserve abort reasons, and async callback

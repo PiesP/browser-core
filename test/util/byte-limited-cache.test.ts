@@ -179,25 +179,25 @@ describe('ByteLimitedCache', () => {
     expect(cache.currentBytes).toBe(9);
   });
 
-  it('avoids overflowing accumulated byte accounting', () => {
-    const halfBudget = Number.MAX_VALUE / 2;
+  it('rejects a derived entry cost outside the safe-integer range', () => {
     const cache = new ByteLimitedCache<string>({
-      maxBytes: Number.MAX_VALUE,
-      estimateSize: () => halfBudget,
+      maxBytes: Number.MAX_SAFE_INTEGER,
+      estimateSize: () => Number.MAX_SAFE_INTEGER,
     });
 
-    cache.set('a', 'first');
-    cache.set('b', 'second');
-    cache.set('c', 'third');
-
-    expect(Number.isFinite(cache.currentBytes)).toBe(true);
-    expect(cache.currentBytes).toBeLessThanOrEqual(cache.maxBytes);
-    expect(cache.has('a')).toBe(false);
-    expect(cache.has('b')).toBe(true);
-    expect(cache.get('c')).toBe('third');
+    cache.set('a', 'value');
+    expect(cache.size).toBe(0);
+    expect(cache.currentBytes).toBe(0);
   });
 
-  it.each([-1, Number.POSITIVE_INFINITY, Number.NaN])(
+  it.each([
+    -1,
+    1.5,
+    Number.MAX_SAFE_INTEGER + 1,
+    Number.MAX_VALUE,
+    Number.POSITIVE_INFINITY,
+    Number.NaN,
+  ])(
     'rejects invalid maxBytes %s',
     (maxBytes) => {
       expect(
@@ -210,7 +210,14 @@ describe('ByteLimitedCache', () => {
     },
   );
 
-  it.each([-1, Number.POSITIVE_INFINITY, Number.NaN])(
+  it.each([
+    -1,
+    1.5,
+    Number.MAX_SAFE_INTEGER + 1,
+    Number.MAX_VALUE,
+    Number.POSITIVE_INFINITY,
+    Number.NaN,
+  ])(
     'rejects invalid estimated size %s',
     (estimatedSize) => {
       const cache = new ByteLimitedCache<string>({

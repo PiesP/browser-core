@@ -3,6 +3,8 @@
  *
  * Accepts strings, arrays, and conditional objects.
  * Falsy values, empty strings, and `undefined` members are silently dropped.
+ * Cyclic array references are skipped, and oversized input graphs throw a
+ * `RangeError` after a bounded number of processed values.
  *
  * @param args - Any number of class name arguments
  * @returns Joined class name string
@@ -15,10 +17,43 @@
  * cx({ foo: true, bar: false })        // 'foo'
  * ```
  */
+const MAX_CLASS_VALUE_NODES = 10_000;
+
+type TraversalFrame =
+  | { readonly kind: 'value'; readonly value: unknown }
+  | { readonly kind: 'array-exit'; readonly array: unknown[] };
+
 export function cx(...args: unknown[]): string {
   const out: string[] = [];
+  const activeArrays = new Set<unknown[]>();
+  const stack: TraversalFrame[] = [];
+  let processedNodes = 0;
+  let pendingValueFrames = 0;
 
-  for (const arg of args) {
+  if (args.length > MAX_CLASS_VALUE_NODES) {
+    throw new RangeError(`cx input exceeds ${MAX_CLASS_VALUE_NODES} processed values`);
+  }
+
+  for (let index = args.length - 1; index >= 0; index--) {
+    stack.push({ kind: 'value', value: args[index] });
+    pendingValueFrames++;
+  }
+
+  while (stack.length > 0) {
+    const frame = stack.pop();
+    if (!frame) break;
+    if (frame.kind === 'array-exit') {
+      activeArrays.delete(frame.array);
+      continue;
+    }
+
+    pendingValueFrames--;
+    processedNodes++;
+    if (processedNodes > MAX_CLASS_VALUE_NODES) {
+      throw new RangeError(`cx input exceeds ${MAX_CLASS_VALUE_NODES} processed values`);
+    }
+
+    const arg = frame.value;
     if (!arg) continue;
 
     if (typeof arg === 'string') {
@@ -27,14 +62,32 @@ export function cx(...args: unknown[]): string {
     }
 
     if (Array.isArray(arg)) {
-      const nested = cx(...arg);
-      if (nested) out.push(nested);
+      if (activeArrays.has(arg)) continue;
+      if (
+        processedNodes + pendingValueFrames + arg.length >
+        MAX_CLASS_VALUE_NODES
+      ) {
+        throw new RangeError(`cx input exceeds ${MAX_CLASS_VALUE_NODES} processed values`);
+      }
+
+      activeArrays.add(arg);
+      stack.push({ kind: 'array-exit', array: arg });
+      for (let index = arg.length - 1; index >= 0; index--) {
+        stack.push({ kind: 'value', value: arg[index] });
+        pendingValueFrames++;
+      }
       continue;
     }
 
     if (typeof arg === 'object') {
-      for (const [key, value] of Object.entries(arg as Record<string, unknown>)) {
-        if (value) out.push(key);
+      const record = arg as Record<string, unknown>;
+      for (const key in record) {
+        processedNodes++;
+        if (processedNodes > MAX_CLASS_VALUE_NODES) {
+          throw new RangeError(`cx input exceeds ${MAX_CLASS_VALUE_NODES} processed values`);
+        }
+        if (!Object.hasOwn(record, key)) continue;
+        if (record[key]) out.push(key);
       }
     }
   }

@@ -36,6 +36,48 @@ describe('cx', () => {
     expect(cx('root', ['a', ['b', ['c']]])).toBe('root a b c');
   });
 
+  it('handles deep arrays without consuming the JavaScript call stack', () => {
+    let nested: unknown = 'leaf';
+    for (let depth = 0; depth < 5_000; depth++) nested = [nested];
+
+    expect(cx(nested)).toBe('leaf');
+  });
+
+  it('skips cyclic array references and preserves surrounding values', () => {
+    const cyclic: unknown[] = ['before'];
+    cyclic.push(cyclic, 'after');
+
+    expect(cx(cyclic)).toBe('before after');
+  });
+
+  it('preserves repeated non-cyclic array values', () => {
+    const shared = ['value'];
+    expect(cx(shared, shared)).toBe('value value');
+  });
+
+  it('rejects input graphs above the processed-value bound', () => {
+    const oversized = Array.from({ length: 10_001 }, () => 'value');
+    expect(() => cx(oversized)).toThrow(RangeError);
+  });
+
+  it('bounds inherited enumerable traversal without emitting inherited keys', () => {
+    const prototype: Record<string, boolean> = {};
+    for (let index = 0; index < 10_001; index++) {
+      prototype[`inherited-${index}`] = true;
+    }
+    const value = Object.create(prototype) as Record<string, unknown>;
+    value.own = true;
+
+    expect(() => cx(value)).toThrow(RangeError);
+  });
+
+  it('does not emit inherited enumerable keys below the work bound', () => {
+    const value = Object.create({ inherited: true }) as Record<string, unknown>;
+    value.own = true;
+
+    expect(cx(value)).toBe('own');
+  });
+
   it('returns empty string for all-falsy arguments', () => {
     expect(cx(false, null, undefined, 0, '')).toBe('');
     expect(cx([])).toBe('');
