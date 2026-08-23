@@ -1,5 +1,6 @@
 import {
   assertValidCacheByteSize,
+  assertValidCacheKey,
   estimateRetainedEntrySize,
   hasRetainedEntryCapacity,
 } from './cache-entry-size.js';
@@ -97,6 +98,7 @@ export class ByteLimitedCache<V> {
    * @returns This cache (for chaining)
    */
   set(key: string, value: V): this {
+    assertValidCacheKey(key);
     const valueSize = this._estimateSize(value);
     assertValidCacheByteSize(valueSize, 'estimateSize result');
     const newSize = estimateRetainedEntrySize(key, valueSize);

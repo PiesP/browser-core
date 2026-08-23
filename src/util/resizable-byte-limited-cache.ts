@@ -1,5 +1,6 @@
 import {
   assertValidCacheByteSize,
+  assertValidCacheKey,
   estimateRetainedEntrySize,
   hasRetainedEntryCapacity,
 } from './cache-entry-size.js';
@@ -91,6 +92,7 @@ export class ResizableByteLimitedCache<V> {
    * cache state and byte accounting have been removed.
    */
   set(key: string, value: V): boolean {
+    assertValidCacheKey(key);
     const valueSize = this._estimateSize(value);
     this._assertValidSize(valueSize);
     const size = estimateRetainedEntrySize(key, valueSize);
