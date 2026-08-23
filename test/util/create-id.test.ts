@@ -1,5 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { createId } from '../../src/util/create-id.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createId } from '../../src/util/id.js';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('createId', () => {
   it('returns a non-empty string', () => {
@@ -23,5 +27,16 @@ describe('createId', () => {
     expect(id).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
     );
+  });
+
+  it('preserves the timestamp fallback format', () => {
+    vi.spyOn(crypto, 'randomUUID').mockImplementation(() => {
+      throw new Error('unavailable');
+    });
+    vi.spyOn(Date, 'now').mockReturnValue(1234);
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    vi.spyOn(performance, 'now').mockReturnValue(42);
+
+    expect(createId()).toBe('1234-i-42');
   });
 });
