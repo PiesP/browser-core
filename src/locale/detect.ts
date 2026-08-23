@@ -13,6 +13,8 @@
 import { DEFAULT_LOCALE, LOCALE_CODES } from './constants';
 import type { Locale } from './types';
 
+const MAX_LOCALE_CODE_LENGTH = 64;
+
 /** Minimal chrome.i18n API shape for platform UI language detection. */
 declare const chrome:
   | {
@@ -42,8 +44,11 @@ export interface DetectOptions {
  * 3. 2-letter base prefix match (e.g. 'zh-TW' → 'zh-CN')
  */
 export function normalizeLocale(code: string): Locale | null {
+  if (typeof code !== 'string') return null;
+  if (code.length > MAX_LOCALE_CODE_LENGTH) return null;
   const normalizedCode = code.trim();
   if (!normalizedCode) return null;
+  if (!/^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$/.test(normalizedCode)) return null;
 
   const lower = normalizedCode.toLowerCase();
 
@@ -51,16 +56,11 @@ export function normalizeLocale(code: string): Locale | null {
   const exact = LOCALE_CODES.find((l) => l.toLowerCase() === lower);
   if (exact) return exact;
 
-  // Language-region match (e.g., 'zh-CN' or 'zh-cn')
-  if (lower.includes('-')) {
-    const region = normalizedCode.slice(0, 5); // 'zh-CN'
-    const regionMatch = LOCALE_CODES.find((l) => l.toLowerCase() === region.toLowerCase());
-    if (regionMatch) return regionMatch;
-  }
-
-  // 2-letter base prefix match (e.g., 'zh' → 'zh-CN')
-  const base = lower.slice(0, 2);
-  const baseMatch = LOCALE_CODES.find((l) => l.toLowerCase().startsWith(base));
+  // Primary-language match (e.g., 'zh-TW' → 'zh-CN', 'en-US' → 'en').
+  const primaryLanguage = lower.split('-', 1)[0];
+  const baseMatch = LOCALE_CODES.find(
+    (locale) => locale.toLowerCase().split('-', 1)[0] === primaryLanguage,
+  );
   if (baseMatch) return baseMatch;
 
   return null;
@@ -136,6 +136,5 @@ export function detectLocale(options: DetectOptions = {}): Locale {
     }
   }
 
-  const fallbackLocale = options.defaultLocale ?? DEFAULT_LOCALE;
-  return fallbackLocale;
+  return normalizeLocale(options.defaultLocale ?? DEFAULT_LOCALE) ?? DEFAULT_LOCALE;
 }

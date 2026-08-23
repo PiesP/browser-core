@@ -152,6 +152,25 @@ describe('cx', () => {
     expect(cx(value)).toBe('first second');
   });
 
+  it('charges symbol keys to the work bound without emitting them', () => {
+    const value: Record<PropertyKey, unknown> = { own: true };
+    for (let index = 0; index < 10_000; index++) {
+      value[Symbol(`ignored-${index}`)] = true;
+    }
+
+    expect(() => cx(value)).toThrow(RangeError);
+  });
+
+  it('ignores ordinary symbol keys while preserving string-key order', () => {
+    const value: Record<PropertyKey, unknown> = {
+      first: true,
+      second: true,
+    };
+    value[Symbol('ignored')] = true;
+
+    expect(cx(value)).toBe('first second');
+  });
+
   it('returns empty string for all-falsy arguments', () => {
     expect(cx(false, null, undefined, 0, '')).toBe('');
     expect(cx([])).toBe('');

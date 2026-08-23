@@ -5,6 +5,8 @@
  * Copyright (c) 2025-2026 PiesP
  */
 
+import { normalizeLocale } from './detect';
+import { DEFAULT_LOCALE, LOCALE_CODES } from './constants';
 import type { Locale } from './types';
 
 /** Bytes per kilobyte */
@@ -26,20 +28,54 @@ const FILE_SIZE_NUMBER_FORMAT_OPTIONS: Intl.NumberFormatOptions = {
   maximumFractionDigits: 2,
 };
 
+const MAX_FORMAT_LOCALE_LENGTH = 64;
+
+interface ResolvedFormattingLocale {
+  readonly numberLocale: string;
+  readonly labelLocale: Locale;
+}
+
+function resolveFormattingLocale(locale: unknown): ResolvedFormattingLocale {
+  if (typeof locale !== 'string' || locale.length > MAX_FORMAT_LOCALE_LENGTH) {
+    throw new RangeError('locale must be a valid bounded BCP 47 locale');
+  }
+  const trimmedLocale = locale.trim();
+  if (!trimmedLocale) throw new RangeError('locale must be a valid bounded BCP 47 locale');
+
+  let canonicalLocale: string;
+  try {
+    const [canonical] = Intl.getCanonicalLocales(trimmedLocale);
+    if (!canonical) throw new RangeError('missing canonical locale');
+    canonicalLocale = canonical;
+  } catch {
+    throw new RangeError('locale must be a valid bounded BCP 47 locale');
+  }
+
+  return {
+    numberLocale: canonicalLocale,
+    labelLocale: normalizeLocale(canonicalLocale) ?? DEFAULT_LOCALE,
+  };
+}
+
 function getOrCreateNumberFormat(
   formats: Map<Locale, Intl.NumberFormat>,
-  locale: Locale,
+  locale: string,
   options?: Intl.NumberFormatOptions,
 ): Intl.NumberFormat {
-  let numberFormat = formats.get(locale);
+  const cacheLocale = LOCALE_CODES.includes(locale as Locale)
+    ? (locale as Locale)
+    : null;
+  if (!cacheLocale) return new Intl.NumberFormat(locale, options);
+
+  let numberFormat = formats.get(cacheLocale);
   if (!numberFormat) {
-    numberFormat = new Intl.NumberFormat(locale, options);
-    formats.set(locale, numberFormat);
+    numberFormat = new Intl.NumberFormat(cacheLocale, options);
+    formats.set(cacheLocale, numberFormat);
   }
   return numberFormat;
 }
 
-function getIntegerNumberFormat(locale: Locale): Intl.NumberFormat {
+function getIntegerNumberFormat(locale: string): Intl.NumberFormat {
   integerNumberFormats ??= new Map();
   return getOrCreateNumberFormat(
     integerNumberFormats,
@@ -48,7 +84,7 @@ function getIntegerNumberFormat(locale: Locale): Intl.NumberFormat {
   );
 }
 
-function getDecimalNumberFormat(locale: Locale): Intl.NumberFormat {
+function getDecimalNumberFormat(locale: string): Intl.NumberFormat {
   decimalNumberFormats ??= new Map();
   return getOrCreateNumberFormat(
     decimalNumberFormats,
@@ -57,7 +93,7 @@ function getDecimalNumberFormat(locale: Locale): Intl.NumberFormat {
   );
 }
 
-function getFileSizeNumberFormat(locale: Locale): Intl.NumberFormat {
+function getFileSizeNumberFormat(locale: string): Intl.NumberFormat {
   fileSizeNumberFormats ??= new Map();
   return getOrCreateNumberFormat(
     fileSizeNumberFormats,
@@ -91,10 +127,11 @@ export function formatFileSize(bytes: number, locale: Locale): string {
   if (!Number.isFinite(bytes) || bytes < 0) {
     throw new RangeError('bytes must be a finite, non-negative number');
   }
+  const resolvedLocale = resolveFormattingLocale(locale);
 
   if (bytes === 0) {
-    const units = getFileSizeUnits(locale);
-    const numberFormat = getIntegerNumberFormat(locale);
+    const units = getFileSizeUnits(resolvedLocale.labelLocale);
+    const numberFormat = getIntegerNumberFormat(resolvedLocale.numberLocale);
     return `${numberFormat.format(0)} ${units[0]!}`;
   }
 
@@ -107,12 +144,12 @@ export function formatFileSize(bytes: number, locale: Locale): string {
           ? 1
           : 0;
   const value = bytes / BYTES_PER_KB ** unitIndex;
-  const units = getFileSizeUnits(locale);
+  const units = getFileSizeUnits(resolvedLocale.labelLocale);
 
   const numberFormat =
     unitIndex === 0
-      ? getIntegerNumberFormat(locale)
-      : getFileSizeNumberFormat(locale);
+      ? getIntegerNumberFormat(resolvedLocale.numberLocale)
+      : getFileSizeNumberFormat(resolvedLocale.numberLocale);
   const formatted = numberFormat.format(value);
 
   return `${formatted} ${units[unitIndex]!}`;
@@ -152,10 +189,11 @@ export function formatDuration(ms: number, locale: Locale): string {
   if (!Number.isFinite(ms)) {
     throw new RangeError('ms must be a finite number');
   }
+  const resolvedLocale = resolveFormattingLocale(locale);
 
   const normalizedMs = Math.max(0, ms);
-  const units = getDurationUnits(locale);
-  const numberFormat = getIntegerNumberFormat(locale);
+  const units = getDurationUnits(resolvedLocale.labelLocale);
+  const numberFormat = getIntegerNumberFormat(resolvedLocale.numberLocale);
 
   if (normalizedMs < 1000) {
     return `${numberFormat.format(Math.round(normalizedMs))}${units.ms}`;
@@ -171,6 +209,6 @@ export function formatDuration(ms: number, locale: Locale): string {
     return `${formattedMinutes}${units.min} ${formattedSeconds}${units.sec}`;
   }
 
-  const decimalNumberFormat = getDecimalNumberFormat(locale);
+  const decimalNumberFormat = getDecimalNumberFormat(resolvedLocale.numberLocale);
   return `${decimalNumberFormat.format(normalizedMs / 1000)}${units.sec}`;
 }

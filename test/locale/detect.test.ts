@@ -24,11 +24,20 @@ describe('normalizeLocale', () => {
 
   it('returns null for gibberish', () => {
     expect(normalizeLocale('xyz')).toBeNull();
+    expect(normalizeLocale('enochian')).toBeNull();
+    expect(normalizeLocale('jargon')).toBeNull();
+    expect(normalizeLocale('arbitrary')).toBeNull();
   });
 
   it('returns null for empty or whitespace-only input', () => {
     expect(normalizeLocale('')).toBeNull();
     expect(normalizeLocale('   ')).toBeNull();
+  });
+
+  it('returns null for non-string and oversized runtime inputs', () => {
+    expect(normalizeLocale({ code: 'en' } as unknown as string)).toBeNull();
+    expect(normalizeLocale('x'.repeat(65))).toBeNull();
+    expect(normalizeLocale(`${' '.repeat(64)}en`)).toBeNull();
   });
 
   it('ignores surrounding whitespace', () => {
@@ -109,5 +118,20 @@ describe('detectLocale', () => {
     });
 
     expect(result).toBe('ja');
+  });
+
+  it('normalizes or rejects an invalid runtime default locale', () => {
+    expect(
+      detectLocale({
+        languages: ['fr'],
+        defaultLocale: 'ja-JP' as unknown as 'ja',
+      }),
+    ).toBe('ja');
+    expect(
+      detectLocale({
+        languages: ['fr'],
+        defaultLocale: 'fr' as unknown as 'en',
+      }),
+    ).toBe('en');
   });
 });

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { formatFileSize, formatDuration } from '../../src/locale/format.js';
+import type { Locale } from '../../src/locale/types.js';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -29,6 +30,21 @@ describe('formatFileSize', () => {
     const result = formatFileSize(1024, 'ko');
     expect(result).toContain('KB');
   });
+
+  it('canonicalizes supported runtime locale variants', () => {
+    expect(formatFileSize(1024, 'en-US' as Locale)).toBe('1 KB');
+  });
+
+  it('preserves arbitrary valid BCP 47 number formatting with fallback units', () => {
+    expect(formatFileSize(1536, 'fr-FR' as Locale)).toBe('1,5 KB');
+  });
+
+  it.each(['not_a_locale', '', 'x'.repeat(65), { locale: 'en' }])(
+    'rejects invalid runtime locale %s before formatting',
+    (locale) => {
+      expect(() => formatFileSize(1024, locale as Locale)).toThrow(RangeError);
+    },
+  );
 
   it('rejects negative byte counts', () => {
     expect(() => formatFileSize(-1, 'en')).toThrow(RangeError);
@@ -93,6 +109,21 @@ describe('formatDuration', () => {
     );
   });
 
+  it('canonicalizes supported runtime locale variants', () => {
+    expect(formatDuration(1500, 'ko-KR' as Locale)).toBe('1.5초');
+  });
+
+  it('preserves arbitrary valid BCP 47 duration formatting', () => {
+    expect(formatDuration(1500, 'fr' as Locale)).toBe('1,5s');
+  });
+
+  it.each(['not_a_locale', '', 'x'.repeat(65), Symbol('en')])(
+    'rejects invalid runtime locale %s before formatting',
+    (locale) => {
+      expect(() => formatDuration(1500, locale as Locale)).toThrow(RangeError);
+    },
+  );
+
   it('normalizes negative durations to zero', () => {
     expect(formatDuration(-1500, 'en')).toBe('0ms');
   });
@@ -116,6 +147,11 @@ describe('number formatter reuse', () => {
       });
     const freshModule = await import('../../src/locale/format.js');
 
+    expect(() => freshModule.formatFileSize(1024, 'not_a_locale' as Locale)).toThrow(
+      RangeError,
+    );
+    expect(numberFormatSpy).not.toHaveBeenCalled();
+
     for (let iteration = 0; iteration < 2; iteration++) {
       freshModule.formatDuration(500, 'ar');
       freshModule.formatDuration(1500, 'ar');
@@ -123,5 +159,23 @@ describe('number formatter reuse', () => {
     }
 
     expect(numberFormatSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not retain formatter instances for non-cacheable valid locales', async () => {
+    vi.resetModules();
+    const OriginalNumberFormat = Intl.NumberFormat;
+    const numberFormatSpy = vi
+      .spyOn(Intl, 'NumberFormat')
+      .mockImplementation(function numberFormatConstructor(locales, options) {
+        return new OriginalNumberFormat(locales, options);
+      });
+    const freshModule = await import('../../src/locale/format.js');
+
+    freshModule.formatDuration(1500, 'fr' as Locale);
+    freshModule.formatDuration(1500, 'fr' as Locale);
+    freshModule.formatFileSize(1536, 'en-IN' as Locale);
+    freshModule.formatFileSize(1536, 'en-IN' as Locale);
+
+    expect(numberFormatSpy).toHaveBeenCalledTimes(6);
   });
 });

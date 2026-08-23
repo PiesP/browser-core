@@ -84,14 +84,13 @@ export function cx(...args: unknown[]): string {
 
     if (typeof arg === 'object') {
       const record = arg as Record<string, unknown>;
-      const ownStringKeys = Reflect.ownKeys(record).filter(
-        (key): key is string => typeof key === 'string',
-      );
-      if (processedNodes + ownStringKeys.length > MAX_CLASS_VALUE_NODES) {
+      const ownKeys = Reflect.ownKeys(record);
+      if (processedNodes + ownKeys.length > MAX_CLASS_VALUE_NODES) {
         throw new RangeError(`cx input exceeds ${MAX_CLASS_VALUE_NODES} processed values`);
       }
-      processedNodes += ownStringKeys.length;
-      for (const key of ownStringKeys) {
+      processedNodes += ownKeys.length;
+      for (const key of ownKeys) {
+        if (typeof key !== 'string') continue;
         if (!Object.prototype.propertyIsEnumerable.call(record, key)) continue;
         if (record[key]) out.push(key);
       }
