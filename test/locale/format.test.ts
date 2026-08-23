@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { formatFileSize, formatDuration } from '../../src/locale/format';
+import { formatFileSize, formatDuration } from '../../src/locale/format.js';
 
 afterEach(() => {
   vi.restoreAllMocks();
