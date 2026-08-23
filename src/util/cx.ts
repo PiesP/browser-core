@@ -63,8 +63,11 @@ export function cx(...args: unknown[]): string {
 
     if (Array.isArray(arg)) {
       if (activeArrays.has(arg)) continue;
+      const arrayLength = arg.length;
       if (
-        processedNodes + pendingValueFrames + arg.length >
+        !Number.isSafeInteger(arrayLength) ||
+        arrayLength < 0 ||
+        processedNodes + pendingValueFrames + arrayLength >
         MAX_CLASS_VALUE_NODES
       ) {
         throw new RangeError(`cx input exceeds ${MAX_CLASS_VALUE_NODES} processed values`);
@@ -72,7 +75,7 @@ export function cx(...args: unknown[]): string {
 
       activeArrays.add(arg);
       stack.push({ kind: 'array-exit', array: arg });
-      for (let index = arg.length - 1; index >= 0; index--) {
+      for (let index = arrayLength - 1; index >= 0; index--) {
         stack.push({ kind: 'value', value: arg[index] });
         pendingValueFrames++;
       }
@@ -81,12 +84,15 @@ export function cx(...args: unknown[]): string {
 
     if (typeof arg === 'object') {
       const record = arg as Record<string, unknown>;
-      for (const key in record) {
-        processedNodes++;
-        if (processedNodes > MAX_CLASS_VALUE_NODES) {
-          throw new RangeError(`cx input exceeds ${MAX_CLASS_VALUE_NODES} processed values`);
-        }
-        if (!Object.hasOwn(record, key)) continue;
+      const ownStringKeys = Reflect.ownKeys(record).filter(
+        (key): key is string => typeof key === 'string',
+      );
+      if (processedNodes + ownStringKeys.length > MAX_CLASS_VALUE_NODES) {
+        throw new RangeError(`cx input exceeds ${MAX_CLASS_VALUE_NODES} processed values`);
+      }
+      processedNodes += ownStringKeys.length;
+      for (const key of ownStringKeys) {
+        if (!Object.prototype.propertyIsEnumerable.call(record, key)) continue;
         if (record[key]) out.push(key);
       }
     }

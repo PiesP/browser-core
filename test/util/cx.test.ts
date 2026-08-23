@@ -60,7 +60,7 @@ describe('cx', () => {
     expect(() => cx(oversized)).toThrow(RangeError);
   });
 
-  it('bounds inherited enumerable traversal without emitting inherited keys', () => {
+  it('does not traverse oversized inherited enumerable keys', () => {
     const prototype: Record<string, boolean> = {};
     for (let index = 0; index < 10_001; index++) {
       prototype[`inherited-${index}`] = true;
@@ -68,7 +68,7 @@ describe('cx', () => {
     const value = Object.create(prototype) as Record<string, unknown>;
     value.own = true;
 
-    expect(() => cx(value)).toThrow(RangeError);
+    expect(cx(value)).toBe('own');
   });
 
   it('does not emit inherited enumerable keys below the work bound', () => {
@@ -76,6 +76,80 @@ describe('cx', () => {
     value.own = true;
 
     expect(cx(value)).toBe('own');
+  });
+
+  it('uses one validated array-length snapshot for proxy arrays', () => {
+    let lengthReads = 0;
+    const value = new Proxy(['class-name'], {
+      get(target, property, receiver) {
+        if (property === 'length') {
+          lengthReads++;
+          return lengthReads === 1 ? 1 : Number.POSITIVE_INFINITY;
+        }
+        return Reflect.get(target, property, receiver);
+      },
+    });
+
+    expect(cx(value)).toBe('class-name');
+    expect(lengthReads).toBe(1);
+  });
+
+  it('rejects an unsafe proxy array-length snapshot before frame allocation', () => {
+    const value = new Proxy([], {
+      get(target, property, receiver) {
+        if (property === 'length') return Number.POSITIVE_INFINITY;
+        return Reflect.get(target, property, receiver);
+      },
+    });
+
+    expect(() => cx(value)).toThrow(RangeError);
+  });
+
+  it('does not traverse deeply chained prototypes for own-key output', () => {
+    let prototype: object | null = null;
+    for (let depth = 0; depth < 20_000; depth++) {
+      prototype = Object.create(prototype) as object;
+    }
+    const value = Object.create(prototype) as Record<string, unknown>;
+    value.own = true;
+
+    expect(cx(value)).toBe('own');
+  });
+
+  it('does not fall back to an inherited key deleted by an earlier getter', () => {
+    const value = Object.create({ second: true }) as Record<string, unknown>;
+    Object.defineProperty(value, 'first', {
+      enumerable: true,
+      get() {
+        delete value.second;
+        return true;
+      },
+    });
+    value.second = true;
+
+    expect(cx(value)).toBe('first');
+  });
+
+  it('includes an own key made enumerable by an earlier getter', () => {
+    const value: Record<string, unknown> = {};
+    Object.defineProperty(value, 'first', {
+      enumerable: true,
+      get() {
+        Object.defineProperty(value, 'second', {
+          configurable: true,
+          enumerable: true,
+          value: true,
+        });
+        return true;
+      },
+    });
+    Object.defineProperty(value, 'second', {
+      configurable: true,
+      enumerable: false,
+      value: true,
+    });
+
+    expect(cx(value)).toBe('first second');
   });
 
   it('returns empty string for all-falsy arguments', () => {
