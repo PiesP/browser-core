@@ -11,9 +11,9 @@ import type { Locale } from './types';
 const BYTES_PER_KB = 1024;
 
 /** Reused number formatters, keyed by their stable formatting role and locale. */
-const integerNumberFormats = new Map<Locale, Intl.NumberFormat>();
-const decimalNumberFormats = new Map<Locale, Intl.NumberFormat>();
-const fileSizeNumberFormats = new Map<Locale, Intl.NumberFormat>();
+let integerNumberFormats: Map<Locale, Intl.NumberFormat> | undefined;
+let decimalNumberFormats: Map<Locale, Intl.NumberFormat> | undefined;
+let fileSizeNumberFormats: Map<Locale, Intl.NumberFormat> | undefined;
 
 const INTEGER_NUMBER_FORMAT_OPTIONS: Intl.NumberFormatOptions = {
   maximumFractionDigits: 0,
@@ -37,6 +37,33 @@ function getOrCreateNumberFormat(
     formats.set(locale, numberFormat);
   }
   return numberFormat;
+}
+
+function getIntegerNumberFormat(locale: Locale): Intl.NumberFormat {
+  integerNumberFormats ??= new Map();
+  return getOrCreateNumberFormat(
+    integerNumberFormats,
+    locale,
+    INTEGER_NUMBER_FORMAT_OPTIONS,
+  );
+}
+
+function getDecimalNumberFormat(locale: Locale): Intl.NumberFormat {
+  decimalNumberFormats ??= new Map();
+  return getOrCreateNumberFormat(
+    decimalNumberFormats,
+    locale,
+    DECIMAL_NUMBER_FORMAT_OPTIONS,
+  );
+}
+
+function getFileSizeNumberFormat(locale: Locale): Intl.NumberFormat {
+  fileSizeNumberFormats ??= new Map();
+  return getOrCreateNumberFormat(
+    fileSizeNumberFormats,
+    locale,
+    FILE_SIZE_NUMBER_FORMAT_OPTIONS,
+  );
 }
 
 // ── File size unit labels per locale ──────────────────────────────────────
@@ -67,11 +94,7 @@ export function formatFileSize(bytes: number, locale: Locale): string {
 
   if (bytes === 0) {
     const units = getFileSizeUnits(locale);
-    const numberFormat = getOrCreateNumberFormat(
-      integerNumberFormats,
-      locale,
-      INTEGER_NUMBER_FORMAT_OPTIONS,
-    );
+    const numberFormat = getIntegerNumberFormat(locale);
     return `${numberFormat.format(0)} ${units[0]!}`;
   }
 
@@ -88,16 +111,8 @@ export function formatFileSize(bytes: number, locale: Locale): string {
 
   const numberFormat =
     unitIndex === 0
-      ? getOrCreateNumberFormat(
-          integerNumberFormats,
-          locale,
-          INTEGER_NUMBER_FORMAT_OPTIONS,
-        )
-      : getOrCreateNumberFormat(
-          fileSizeNumberFormats,
-          locale,
-          FILE_SIZE_NUMBER_FORMAT_OPTIONS,
-        );
+      ? getIntegerNumberFormat(locale)
+      : getFileSizeNumberFormat(locale);
   const formatted = numberFormat.format(value);
 
   return `${formatted} ${units[unitIndex]!}`;
@@ -140,11 +155,7 @@ export function formatDuration(ms: number, locale: Locale): string {
 
   const normalizedMs = Math.max(0, ms);
   const units = getDurationUnits(locale);
-  const numberFormat = getOrCreateNumberFormat(
-    integerNumberFormats,
-    locale,
-    INTEGER_NUMBER_FORMAT_OPTIONS,
-  );
+  const numberFormat = getIntegerNumberFormat(locale);
 
   if (normalizedMs < 1000) {
     return `${numberFormat.format(Math.round(normalizedMs))}${units.ms}`;
@@ -160,10 +171,6 @@ export function formatDuration(ms: number, locale: Locale): string {
     return `${formattedMinutes}${units.min} ${formattedSeconds}${units.sec}`;
   }
 
-  const decimalNumberFormat = getOrCreateNumberFormat(
-    decimalNumberFormats,
-    locale,
-    DECIMAL_NUMBER_FORMAT_OPTIONS,
-  );
+  const decimalNumberFormat = getDecimalNumberFormat(locale);
   return `${decimalNumberFormat.format(normalizedMs / 1000)}${units.sec}`;
 }
