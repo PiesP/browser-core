@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { extname } from 'node:path';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 const textExtensions = new Set([
   '.css',
@@ -11,15 +11,16 @@ const textExtensions = new Set([
   '.yaml',
   '.yml',
 ]);
-const trackedFiles = execFileSync('git', ['ls-files', '-z'], {
+const textFiles = execFileSync('git', ['ls-files', '-co', '--exclude-standard', '-z'], {
   encoding: 'utf8',
 })
   .split('\0')
   .filter(Boolean)
-  .filter((file) => textExtensions.has(extname(file)));
+  .filter((file) => textExtensions.has(extname(file)))
+  .filter(existsSync);
 const violations = [];
 
-for (const file of trackedFiles) {
+for (const file of textFiles) {
   const contents = readFileSync(file, 'utf8');
 
   if (contents.includes('\r')) {

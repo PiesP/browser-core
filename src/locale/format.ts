@@ -10,6 +10,62 @@ import type { Locale } from './types';
 /** Bytes per kilobyte */
 const BYTES_PER_KB = 1024;
 
+/** Reused number formatters, keyed by their stable formatting role and locale. */
+let integerNumberFormats: Map<Locale, Intl.NumberFormat> | undefined;
+let decimalNumberFormats: Map<Locale, Intl.NumberFormat> | undefined;
+let fileSizeNumberFormats: Map<Locale, Intl.NumberFormat> | undefined;
+
+const INTEGER_NUMBER_FORMAT_OPTIONS: Intl.NumberFormatOptions = {
+  maximumFractionDigits: 0,
+};
+const DECIMAL_NUMBER_FORMAT_OPTIONS: Intl.NumberFormatOptions = {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+};
+const FILE_SIZE_NUMBER_FORMAT_OPTIONS: Intl.NumberFormatOptions = {
+  maximumFractionDigits: 2,
+};
+
+function getOrCreateNumberFormat(
+  formats: Map<Locale, Intl.NumberFormat>,
+  locale: Locale,
+  options?: Intl.NumberFormatOptions,
+): Intl.NumberFormat {
+  let numberFormat = formats.get(locale);
+  if (!numberFormat) {
+    numberFormat = new Intl.NumberFormat(locale, options);
+    formats.set(locale, numberFormat);
+  }
+  return numberFormat;
+}
+
+function getIntegerNumberFormat(locale: Locale): Intl.NumberFormat {
+  integerNumberFormats ??= new Map();
+  return getOrCreateNumberFormat(
+    integerNumberFormats,
+    locale,
+    INTEGER_NUMBER_FORMAT_OPTIONS,
+  );
+}
+
+function getDecimalNumberFormat(locale: Locale): Intl.NumberFormat {
+  decimalNumberFormats ??= new Map();
+  return getOrCreateNumberFormat(
+    decimalNumberFormats,
+    locale,
+    DECIMAL_NUMBER_FORMAT_OPTIONS,
+  );
+}
+
+function getFileSizeNumberFormat(locale: Locale): Intl.NumberFormat {
+  fileSizeNumberFormats ??= new Map();
+  return getOrCreateNumberFormat(
+    fileSizeNumberFormats,
+    locale,
+    FILE_SIZE_NUMBER_FORMAT_OPTIONS,
+  );
+}
+
 // ── File size unit labels per locale ──────────────────────────────────────
 
 const FILE_SIZE_LABELS: Record<string, readonly string[]> = {
@@ -38,22 +94,28 @@ export function formatFileSize(bytes: number, locale: Locale): string {
 
   if (bytes === 0) {
     const units = getFileSizeUnits(locale);
-    return `${new Intl.NumberFormat(locale).format(0)} ${units[0]!}`;
+    const numberFormat = getIntegerNumberFormat(locale);
+    return `${numberFormat.format(0)} ${units[0]!}`;
   }
 
-  const k = BYTES_PER_KB;
-  const i = Math.max(
-    0,
-    Math.min(Math.floor(Math.log(bytes) / Math.log(k)), 3),
-  );
-  const value = bytes / k ** i;
+  const unitIndex =
+    bytes >= BYTES_PER_KB ** 3
+      ? 3
+      : bytes >= BYTES_PER_KB ** 2
+        ? 2
+        : bytes >= BYTES_PER_KB
+          ? 1
+          : 0;
+  const value = bytes / BYTES_PER_KB ** unitIndex;
   const units = getFileSizeUnits(locale);
 
-  const formatted = new Intl.NumberFormat(locale, {
-    maximumFractionDigits: i === 0 ? 0 : 2,
-  }).format(value);
+  const numberFormat =
+    unitIndex === 0
+      ? getIntegerNumberFormat(locale)
+      : getFileSizeNumberFormat(locale);
+  const formatted = numberFormat.format(value);
 
-  return `${formatted} ${units[i]!}`;
+  return `${formatted} ${units[unitIndex]!}`;
 }
 
 // ── Duration unit labels per locale ───────────────────────────────────────
@@ -93,10 +155,10 @@ export function formatDuration(ms: number, locale: Locale): string {
 
   const normalizedMs = Math.max(0, ms);
   const units = getDurationUnits(locale);
-  const numFormat = new Intl.NumberFormat(locale);
+  const numberFormat = getIntegerNumberFormat(locale);
 
   if (normalizedMs < 1000) {
-    return `${numFormat.format(Math.round(normalizedMs))}${units.ms}`;
+    return `${numberFormat.format(Math.round(normalizedMs))}${units.ms}`;
   }
 
   const totalSeconds = Math.floor(normalizedMs / 1000);
@@ -104,14 +166,11 @@ export function formatDuration(ms: number, locale: Locale): string {
   const seconds = totalSeconds % 60;
 
   if (minutes > 0) {
-    const formattedMinutes = numFormat.format(minutes);
-    const formattedSeconds = numFormat.format(seconds);
+    const formattedMinutes = numberFormat.format(minutes);
+    const formattedSeconds = numberFormat.format(seconds);
     return `${formattedMinutes}${units.min} ${formattedSeconds}${units.sec}`;
   }
 
-  const secondsFormat = new Intl.NumberFormat(locale, {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  });
-  return `${secondsFormat.format(normalizedMs / 1000)}${units.sec}`;
+  const decimalNumberFormat = getDecimalNumberFormat(locale);
+  return `${decimalNumberFormat.format(normalizedMs / 1000)}${units.sec}`;
 }

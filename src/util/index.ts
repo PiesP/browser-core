@@ -1,4 +1,4 @@
-export { createId } from './create-id.js';
+export { createId, generateUniqueId, createPrefixedId } from './id.js';
 export { clamp, clampIndex } from './clamp.js';
 export { clampSoft, clampMinmax } from './clamp-extended.js';
 export { cx } from './cx.js';
@@ -6,7 +6,6 @@ export { escapeRegExp } from './escape-reg-exp.js';
 export { isRecord, isHTMLElement, createEventListener } from './guards.js';
 export { computePercentage } from './math.js';
 export { resolveNestedPath } from './object.js';
-export { generateUniqueId, createPrefixedId } from './unique-id.js';
 export { LruMap } from './lru-map.js';
 export { ByteLimitedCache } from './byte-limited-cache.js';
 export { ResizableByteLimitedCache } from './resizable-byte-limited-cache.js';

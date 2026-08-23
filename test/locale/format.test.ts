@@ -1,5 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { formatFileSize, formatDuration } from '../../src/locale/format';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('formatFileSize', () => {
   it('formats 0 bytes', () => {
@@ -33,6 +37,17 @@ describe('formatFileSize', () => {
   it('formats fractional bytes without selecting an invalid unit', () => {
     expect(formatFileSize(0.5, 'en')).toBe('1 B');
     expect(formatFileSize(Number.MIN_VALUE, 'en')).toBe('0 B');
+  });
+
+  it.each([
+    [1023, '1,023 B'],
+    [1024, '1 KB'],
+    [1024 ** 2 - 1, '1,024 KB'],
+    [1024 ** 2, '1 MB'],
+    [1024 ** 3 - 1, '1,024 MB'],
+    [1024 ** 3, '1 GB'],
+  ])('selects the correct unit at the %i-byte boundary', (bytes, expected) => {
+    expect(formatFileSize(bytes, 'en')).toBe(expected);
   });
 });
 
@@ -88,4 +103,25 @@ describe('formatDuration', () => {
       expect(() => formatDuration(duration, 'en')).toThrow(RangeError);
     },
   );
+});
+
+describe('number formatter reuse', () => {
+  it('creates each locale and formatting-role combination only once', async () => {
+    vi.resetModules();
+    const OriginalNumberFormat = Intl.NumberFormat;
+    const numberFormatSpy = vi
+      .spyOn(Intl, 'NumberFormat')
+      .mockImplementation(function numberFormatConstructor(locales, options) {
+        return new OriginalNumberFormat(locales, options);
+      });
+    const freshModule = await import('../../src/locale/format.js');
+
+    for (let iteration = 0; iteration < 2; iteration++) {
+      freshModule.formatDuration(500, 'ar');
+      freshModule.formatDuration(1500, 'ar');
+      freshModule.formatFileSize(1024, 'ar');
+    }
+
+    expect(numberFormatSpy).toHaveBeenCalledTimes(3);
+  });
 });

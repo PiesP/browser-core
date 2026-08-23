@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { generateUniqueId, createPrefixedId } from '../../src/util/unique-id.js';
+import { generateUniqueId, createPrefixedId } from '../../src/util/id.js';
 
 afterEach(() => {
   vi.restoreAllMocks();
