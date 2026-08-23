@@ -7,8 +7,15 @@ export function assertValidCacheByteSize(value: number, name: string): void {
   }
 }
 
+export function assertValidCacheKey(key: unknown): asserts key is string {
+  if (typeof key !== 'string') {
+    throw new TypeError('cache key must be a string');
+  }
+}
+
 /** Estimate retained key and value bytes while keeping every entry charge positive. */
 export function estimateRetainedEntrySize(key: string, valueSize: number): number {
+  assertValidCacheKey(key);
   const retainedSize = Math.max(
     MIN_ENTRY_COST_BYTES,
     key.length * UTF16_CODE_UNIT_BYTES + valueSize,

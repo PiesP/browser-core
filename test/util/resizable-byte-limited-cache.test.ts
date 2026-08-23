@@ -271,6 +271,33 @@ describe('ResizableByteLimitedCache', () => {
   });
 
   it.each([
+    { label: 'object', key: { length: 0, retained: new Array(1_000).fill('value') } },
+    { label: 'boxed string', key: new String('key') },
+    { label: 'function', key: (): void => undefined },
+  ])('rejects a non-string runtime $label key before mutation', ({ key }) => {
+    const evicted: string[] = [];
+    let estimateCalls = 0;
+    const limitedCache = new ResizableByteLimitedCache<string>(
+      100,
+      (value) => {
+        estimateCalls++;
+        return estimateSize(value);
+      },
+      (value) => evicted.push(value),
+    );
+    const setWithUnknownKey = limitedCache.set.bind(limitedCache) as (
+      unsafeKey: unknown,
+      value: string,
+    ) => boolean;
+
+    expect(() => setWithUnknownKey(key, 'value')).toThrow(TypeError);
+    expect(limitedCache.size).toBe(0);
+    expect(limitedCache.currentBytes).toBe(0);
+    expect(evicted).toEqual([]);
+    expect(estimateCalls).toBe(0);
+  });
+
+  it.each([
     -1,
     1.5,
     Number.MAX_SAFE_INTEGER + 1,

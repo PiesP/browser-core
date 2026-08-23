@@ -191,6 +191,30 @@ describe('ByteLimitedCache', () => {
   });
 
   it.each([
+    { label: 'object', key: { length: 0, retained: new Array(1_000).fill('value') } },
+    { label: 'boxed string', key: new String('key') },
+    { label: 'function', key: (): void => undefined },
+  ])('rejects a non-string runtime $label key before mutation', ({ key }) => {
+    let estimateCalls = 0;
+    const cache = new ByteLimitedCache<string>({
+      maxBytes: 100,
+      estimateSize: (value) => {
+        estimateCalls++;
+        return value.length;
+      },
+    });
+    const setWithUnknownKey = cache.set.bind(cache) as (
+      unsafeKey: unknown,
+      value: string,
+    ) => ByteLimitedCache<string>;
+
+    expect(() => setWithUnknownKey(key, 'value')).toThrow(TypeError);
+    expect(cache.size).toBe(0);
+    expect(cache.currentBytes).toBe(0);
+    expect(estimateCalls).toBe(0);
+  });
+
+  it.each([
     -1,
     1.5,
     Number.MAX_SAFE_INTEGER + 1,
