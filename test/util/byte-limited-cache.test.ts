@@ -22,13 +22,13 @@ describe('ByteLimitedCache', () => {
   it('evicts oldest entries when byte limit is exceeded', () => {
     const evicted: string[] = [];
     const cache = new ByteLimitedCache<string>({
-      maxBytes: 10,
+      maxBytes: 12,
       estimateSize: (v) => v.length,
       onEvict: (k) => evicted.push(k),
     });
-    cache.set('a', '1234'); // 4 bytes
-    cache.set('b', '1234'); // 4 bytes = 8 total
-    cache.set('c', '1234'); // 4 bytes = 12 > 10, should evict 'a'
+    cache.set('a', '1234'); // 2 key bytes + 4 value bytes
+    cache.set('b', '1234'); // 12 total
+    cache.set('c', '1234'); // 18 > 12, should evict 'a'
     expect(cache.get('a')).toBeUndefined();
     expect(cache.get('b')).toBe('1234');
     expect(cache.get('c')).toBe('1234');
@@ -38,19 +38,19 @@ describe('ByteLimitedCache', () => {
   it('calls onEvict when entries are evicted', () => {
     const evictedKeys: string[] = [];
     const cache = new ByteLimitedCache<string>({
-      maxBytes: 5,
+      maxBytes: 18,
       estimateSize: (v) => v.length,
       onEvict: (k) => evictedKeys.push(k),
     });
-    cache.set('small', 'hi'); // 2 bytes
-    cache.set('large', 'four'); // 4 bytes -> total exceeds, evicts 'small'
+    cache.set('small', 'hi'); // 10 key bytes + 2 value bytes
+    cache.set('large', 'four'); // 14 bytes -> total exceeds, evicts 'small'
     expect(evictedKeys).toContain('small');
   });
 
   it('finishes eviction and cleanup before rethrowing the first callback error', () => {
     const evictedKeys: string[] = [];
     const cache = new ByteLimitedCache<string>({
-      maxBytes: 10,
+      maxBytes: 14,
       estimateSize: (value) => value.length,
       onEvict: (key) => {
         evictedKeys.push(key);
@@ -65,13 +65,13 @@ describe('ByteLimitedCache', () => {
     expect(cache.has('a')).toBe(false);
     expect(cache.has('b')).toBe(false);
     expect(cache.get('c')).toBe('12345678');
-    expect(cache.currentBytes).toBe(8);
+    expect(cache.currentBytes).toBe(10);
   });
 
   it('rejects an oversized value without evicting existing entries', () => {
     const evictedKeys: string[] = [];
     const cache = new ByteLimitedCache<string>({
-      maxBytes: 5,
+      maxBytes: 12,
       estimateSize: (v) => v.length,
       onEvict: (k) => evictedKeys.push(k),
     });
@@ -80,20 +80,20 @@ describe('ByteLimitedCache', () => {
 
     expect(cache.get('small')).toBe('hi');
     expect(cache.get('large')).toBeUndefined();
-    expect(cache.currentBytes).toBe(2);
+    expect(cache.currentBytes).toBe(12);
     expect(evictedKeys).toEqual([]);
   });
 
   it('keeps the old value when an oversized replacement is rejected', () => {
     const cache = new ByteLimitedCache<string>({
-      maxBytes: 5,
+      maxBytes: 9,
       estimateSize: (v) => v.length,
     });
     cache.set('key', 'old');
     cache.set('key', 'too large');
 
     expect(cache.get('key')).toBe('old');
-    expect(cache.currentBytes).toBe(3);
+    expect(cache.currentBytes).toBe(9);
   });
 
   it('has() returns true for existing keys', () => {
@@ -135,6 +135,66 @@ describe('ByteLimitedCache', () => {
     expect(cache.size).toBe(1);
     cache.set('b', 'v2');
     expect(cache.size).toBe(2);
+  });
+
+  it('bounds distinct keys when values have a zero-byte estimate', () => {
+    const cache = new ByteLimitedCache<string>({
+      maxBytes: 32,
+      estimateSize: () => 0,
+    });
+
+    for (let index = 0; index < 100; index++) {
+      cache.set(`key-${index}`, '');
+    }
+
+    expect(cache.currentBytes).toBeLessThanOrEqual(cache.maxBytes);
+    expect(cache.size).toBeLessThan(100);
+    expect(cache.get('key-99')).toBe('');
+  });
+
+  it('rejects an oversized key without disturbing existing entries', () => {
+    const cache = new ByteLimitedCache<string>({
+      maxBytes: 10,
+      estimateSize: (value) => value.length,
+    });
+    cache.set('a', '1234');
+    cache.set('attacker-controlled-long-key', '');
+
+    expect(cache.get('a')).toBe('1234');
+    expect(cache.has('attacker-controlled-long-key')).toBe(false);
+    expect(cache.currentBytes).toBe(6);
+  });
+
+  it('accounts for key bytes and a minimum retained-entry cost', () => {
+    const cache = new ByteLimitedCache<string>({
+      maxBytes: 20,
+      estimateSize: (value) => value.length,
+    });
+
+    cache.set('ab', 'x');
+    cache.set('', '');
+    expect(cache.currentBytes).toBe(6);
+
+    cache.set('ab', 'xxxx');
+    expect(cache.currentBytes).toBe(9);
+  });
+
+  it('avoids overflowing accumulated byte accounting', () => {
+    const halfBudget = Number.MAX_VALUE / 2;
+    const cache = new ByteLimitedCache<string>({
+      maxBytes: Number.MAX_VALUE,
+      estimateSize: () => halfBudget,
+    });
+
+    cache.set('a', 'first');
+    cache.set('b', 'second');
+    cache.set('c', 'third');
+
+    expect(Number.isFinite(cache.currentBytes)).toBe(true);
+    expect(cache.currentBytes).toBeLessThanOrEqual(cache.maxBytes);
+    expect(cache.has('a')).toBe(false);
+    expect(cache.has('b')).toBe(true);
+    expect(cache.get('c')).toBe('third');
   });
 
   it.each([-1, Number.POSITIVE_INFINITY, Number.NaN])(

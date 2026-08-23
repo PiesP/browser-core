@@ -1,10 +1,12 @@
+import { estimateRetainedEntrySize } from './cache-entry-size.js';
+
 /**
  * A cache that evicts entries based on an estimated byte size limit.
  *
- * Each value's byte cost is computed via a user-supplied `estimateSize`
- * callback at insertion time. When the accumulated byte total exceeds
- * `maxBytes`, the least-recently-used entries are evicted until the
- * total is back under the limit.
+ * Each entry's byte cost combines its UTF-16 key storage, a user-supplied
+ * value estimate, and a positive minimum entry cost. When the accumulated
+ * byte total exceeds `maxBytes`, the least-recently-used entries are evicted
+ * until the total is back under the limit.
  *
  * Evicted entries are passed to the optional `onEvict` callback, so
  * callers can free associated resources.
@@ -59,7 +61,7 @@ export class ByteLimitedCache<V> {
     return this._map.size;
   }
 
-  /** Current estimated total bytes, as tracked by `estimateSize`. */
+  /** Current total estimated retained bytes for keys and values. */
   get currentBytes(): number {
     return this._currentBytes;
   }
@@ -93,10 +95,11 @@ export class ByteLimitedCache<V> {
    * @returns This cache (for chaining)
    */
   set(key: string, value: V): this {
-    const newSize = this._estimateSize(value);
-    if (!Number.isFinite(newSize) || newSize < 0) {
+    const valueSize = this._estimateSize(value);
+    if (!Number.isFinite(valueSize) || valueSize < 0) {
       throw new RangeError('estimateSize must return a finite, non-negative number');
     }
+    const newSize = estimateRetainedEntrySize(key, valueSize);
     if (newSize > this.maxBytes) return this;
 
     // Remove old entry if present
@@ -106,12 +109,14 @@ export class ByteLimitedCache<V> {
       this._map.delete(key);
     }
 
-    // Insert new entry
+    const evicted = this._evictToFit(newSize);
+
+    // Insert only after enough accounted capacity is available, avoiding an
+    // overflowing addition that cannot be repaired by later subtraction.
     this._map.set(key, { value, size: newSize });
     this._currentBytes += newSize;
 
-    // Evict until under limit
-    this._evictExcess();
+    this._notifyEvictions(evicted);
 
     return this;
   }
@@ -150,12 +155,13 @@ export class ByteLimitedCache<V> {
   }
 
   /**
-   * Evict entries from the LRU end until `_currentBytes <= maxBytes`.
-   * Calls `onEvict` for each evicted entry.
+   * Evict entries from the LRU end until `incomingSize` can be added without
+   * exceeding `maxBytes` or overflowing the accumulated byte total.
    */
-  private _evictExcess(): void {
+  private _evictToFit(incomingSize: number): Array<readonly [string, V]> {
     const evicted: Array<readonly [string, V]> = [];
-    while (this._currentBytes > this.maxBytes && this._map.size > 0) {
+    const availableBeforeInsert = this.maxBytes - incomingSize;
+    while (this._currentBytes > availableBeforeInsert && this._map.size > 0) {
       const firstKey = this._map.keys().next().value;
       if (firstKey === undefined) break;
 
@@ -165,8 +171,7 @@ export class ByteLimitedCache<V> {
       this._currentBytes -= entry.size;
       evicted.push([firstKey, entry.value]);
     }
-
-    this._notifyEvictions(evicted);
+    return evicted;
   }
 
   private _notifyEvictions(entries: ReadonlyArray<readonly [string, V]>): void {
