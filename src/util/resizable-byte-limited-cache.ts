@@ -1,4 +1,8 @@
-import { estimateRetainedEntrySize } from './cache-entry-size.js';
+import {
+  assertValidCacheByteSize,
+  estimateRetainedEntrySize,
+  hasRetainedEntryCapacity,
+} from './cache-entry-size.js';
 
 /**
  * An LRU cache bounded by both estimated byte usage and an optional entry count.
@@ -26,7 +30,7 @@ export class ResizableByteLimitedCache<V> {
     this._assertValidMaxBytes(maxBytes);
     if (
       maxEntries !== Number.POSITIVE_INFINITY &&
-      (!Number.isInteger(maxEntries) || maxEntries < 0)
+      (!Number.isSafeInteger(maxEntries) || maxEntries < 0)
     ) {
       throw new RangeError('maxEntries must be a non-negative integer');
     }
@@ -100,7 +104,7 @@ export class ResizableByteLimitedCache<V> {
     if (existing) evicted.push(existing.value);
 
     while (
-      (this._currentBytes + size > this._maxBytes ||
+      (!hasRetainedEntryCapacity(this._currentBytes, this._maxBytes, size) ||
         this._map.size >= this._maxEntries) &&
       this._map.size > 0
     ) {
@@ -156,15 +160,11 @@ export class ResizableByteLimitedCache<V> {
   }
 
   private _assertValidMaxBytes(maxBytes: number): void {
-    if (!Number.isFinite(maxBytes) || maxBytes < 0) {
-      throw new RangeError('maxBytes must be a finite, non-negative number');
-    }
+    assertValidCacheByteSize(maxBytes, 'maxBytes');
   }
 
   private _assertValidSize(size: number): void {
-    if (!Number.isFinite(size) || size < 0) {
-      throw new RangeError('estimateSize must return a finite, non-negative number');
-    }
+    assertValidCacheByteSize(size, 'estimateSize result');
   }
 
   private _remove(key: string): { value: V; size: number } | undefined {
