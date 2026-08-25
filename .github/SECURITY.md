@@ -29,6 +29,13 @@ Include, where possible:
 
 ## Development security
 
-- Dependabot monitors npm and GitHub Actions dependencies.
-- OSV Scanner and Semgrep run on pull requests and scheduled/manual scans.
-- CI actions are pinned to full commit SHAs.
+- Dependabot monitors direct npm and GitHub Actions dependencies according to
+  [`.github/dependabot.yaml`](dependabot.yaml).
+- The [Security Scanning workflow](workflows/security.yaml) runs OSV Scanner,
+  CodeQL, and Semgrep on the event types appropriate to each scanner, including
+  pull requests, pushes to `master`, scheduled runs, and manual runs.
+- GitHub Actions and scanner container images use immutable commit or digest
+  references.
+- [`pnpm-workspace.yaml`](../pnpm-workspace.yaml) rejects undeclared dependency
+  build scripts and exotic transitive sources; its allowlist is the source of
+  truth for permitted dependency builds.
