@@ -19,24 +19,18 @@ permissions:
   contents: read
 
 jobs:
-  dispatch:
-    name: Notify ${{ matrix.repository }}
+  validate:
+    name: Validate browser-core revision
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    strategy:
-      fail-fast: false
-      matrix:
-        repository:
-          - PiesP/wasm-motion-converter
-          - PiesP/xcom-enhanced-gallery
-          - PiesP/yt-live-chat-overlay
+    outputs:
+      core_sha: ${{ steps.revision.outputs.core_sha }}
     env:
-      GH_TOKEN: ${{ secrets.CONSUMER_UPDATE_TOKEN }}
-      CONSUMER_REPOSITORY: ${{ matrix.repository }}
       CORE_REPOSITORY: ${{ github.repository }}
       CORE_SHA: ${{ inputs.core_sha || github.sha }}
     steps:
       - name: Validate commit SHA
+        id: revision
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -58,6 +52,26 @@ jobs:
             exit 1
           fi
 
+          echo "core_sha=$CORE_SHA" >> "$GITHUB_OUTPUT"
+
+  dispatch:
+    name: Notify ${{ matrix.repository }}
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        repository:
+          - PiesP/wasm-motion-converter
+          - PiesP/xcom-enhanced-gallery
+          - PiesP/yt-live-chat-overlay
+    env:
+      GH_TOKEN: ${{ secrets.CONSUMER_UPDATE_TOKEN }}
+      CONSUMER_REPOSITORY: ${{ matrix.repository }}
+      CORE_REPOSITORY: ${{ github.repository }}
+      CORE_SHA: ${{ needs.validate.outputs.core_sha }}
+    steps:
       - name: Dispatch update event
         if: ${{ env.GH_TOKEN != '' }}
         run: |
