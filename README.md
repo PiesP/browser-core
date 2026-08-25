@@ -6,6 +6,7 @@
 
 | Import path | Exports | Description |
 |---|---|---|
+| `@piesp/browser-core` | All TypeScript runtime exports | Aggregated package entry point |
 | `@piesp/browser-core/async` | `sleep`, `debounce`, `withTimeout`, `createDeferred`, `clearSafe*` | Async control, timeout, deferred-promise, and timer cleanup utilities |
 | `@piesp/browser-core/design` | Quiet Instruments tokens, themes, and product identifiers | Framework-independent visual foundation |
 | `@piesp/browser-core/design/tokens.css` | Scoped `--pp-*` custom properties | Optional CSS contract for `.pp-design` hosts |
@@ -113,10 +114,14 @@ retained only for compatibility.
 
 ## Development
 
+Toolchain requirements and reproducible local pins are defined in the
+`engines`, `packageManager`, and `volta` fields of [`package.json`](package.json).
+
 ```bash
 pnpm install    # install dependencies
-pnpm check      # text hygiene, type, and compiler lint checks
+pnpm check      # text hygiene, generated design, type, and compiler lint checks
 pnpm test       # run tests
+pnpm verify     # run all checks and coverage-gated tests
 pnpm test:watch # watch mode
 ```
 
