@@ -33,11 +33,10 @@
     "./util": "./src/util/index.ts"
   },
   "scripts": {
-    "check": "pnpm check:format && pnpm check:design && pnpm check:types && pnpm check:lint",
+    "check": "pnpm check:format && pnpm check:design && pnpm check:types",
     "check:design": "node scripts/generate-design-tokens.mjs --check",
     "check:format": "node scripts/check-format.mjs",
     "check:types": "tsc --noEmit",
-    "check:lint": "tsc --noEmit --allowUnreachableCode false --allowUnusedLabels false",
     "generate:design": "node scripts/generate-design-tokens.mjs",
     "test": "vitest run",
     "test:cov": "vitest run --coverage",

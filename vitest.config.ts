@@ -5,14 +5,13 @@ export default defineConfig({
     globals: true,
     include: ['test/**/*.test.ts'],
     coverage: {
-      provider: 'v8',
       reporter: ['text', 'json-summary'],
       include: ['src/**/*.ts'],
       thresholds: {
-        statements: 80,
-        branches: 70,
-        functions: 75,
-        lines: 82,
+        statements: 93,
+        branches: 85,
+        functions: 94,
+        lines: 95,
       },
     },
   },
