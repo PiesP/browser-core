@@ -24,9 +24,10 @@ updates:
         update-types:
           - "minor"
           - "patch"
-      quality:
+      vitest:
         patterns:
           - "vitest"
+          - "@vitest/*"
         update-types:
           - "minor"
           - "patch"
