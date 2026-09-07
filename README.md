@@ -114,6 +114,8 @@ retained only for compatibility.
 
 ## Development
 
+This project is developed with assistance from AI tools.
+
 Toolchain requirements and reproducible local pins are defined in the
 `engines`, `packageManager`, and `volta` fields of [`package.json`](package.json).
 
