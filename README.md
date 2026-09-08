@@ -56,6 +56,22 @@ user-facing strings. `shouldHandleGlobalShortcut` protects text inputs,
 contenteditable surfaces, IME composition, and events already handled by a
 closer component. Products retain their own shortcut chords and translations.
 
+Control state has independent meanings: selection identifies the current choice,
+focus identifies keyboard input, and a proposed change remains pending until
+execution succeeds. Warnings explain what needs attention; blocked actions
+explain what must change. Keep these distinctions in text as well as color.
+Cancellation requests remain busy until cleanup settles. A browser download
+handoff confirms only that the request was passed to the browser.
+
+Validate these roles in each consumer's rendered controls, including selection
+with hover or keyboard focus, disabled controls, cancellation and error recovery.
+Use the consumer's supported themes, Forced Colors, narrow windows, zoom, and
+long translations. Check computed styles and keyboard interactions through the
+real product adapter: token contrast checks alone cannot detect cascade
+conflicts, translucent surfaces, clipped controls, or lost focus. Native clients
+can share these semantics with a static palette and platform controls; layouts
+and renderer implementations remain product-specific.
+
 This private source package is consumed by the workspace's TypeScript-aware
 bundlers. Its exports point to `.ts` source and are not a native Node runtime
 distribution.
