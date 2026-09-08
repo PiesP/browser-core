@@ -133,12 +133,7 @@ export class ResizableByteLimitedCache<V> {
 
   /** Remove a value without cleanup when ownership transfers elsewhere. */
   take(key: string): V | undefined {
-    const entry = this._map.get(key);
-    if (!entry) return undefined;
-
-    this._map.delete(key);
-    this._currentBytes -= entry.size;
-    return entry.value;
+    return this._remove(key)?.value;
   }
 
   /** Check whether a key exists without changing LRU order. */
