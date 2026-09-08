@@ -11,14 +11,14 @@ const textExtensions = new Set([
   '.yaml',
   '.yml',
 ]);
-const textFiles = execFileSync('git', ['ls-files', '-co', '--exclude-standard', '-z'], {
+const textFiles: string[] = execFileSync('git', ['ls-files', '-co', '--exclude-standard', '-z'], {
   encoding: 'utf8',
 })
   .split('\0')
   .filter(Boolean)
   .filter((file) => textExtensions.has(extname(file)))
   .filter(existsSync);
-const violations = [];
+const violations: string[] = [];
 
 for (const file of textFiles) {
   const contents = readFileSync(file, 'utf8');
@@ -32,7 +32,8 @@ for (const file of textFiles) {
 
   const lines = contents.split('\n');
   for (let index = 0; index < lines.length; index++) {
-    if (/[\t ]+$/.test(lines[index])) {
+    const line = lines[index];
+    if (line !== undefined && /[\t ]+$/.test(line)) {
       violations.push(`${file}:${index + 1}: trailing whitespace`);
     }
   }

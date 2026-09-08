@@ -14,7 +14,7 @@ const checkOnly = process.argv.includes('--check');
 
 const extensionName = 'org.piesp.quiet-instruments';
 const aliasPattern = /^\{([^{}]+)\}$/;
-const tokenTypes = new Set([
+const tokenTypeNames = [
   'color',
   'cubicBezier',
   'dimension',
@@ -23,7 +23,9 @@ const tokenTypes = new Set([
   'fontWeight',
   'number',
   'shadow',
-]);
+] as const;
+type TokenType = (typeof tokenTypeNames)[number];
+const tokenTypes: ReadonlySet<string> = new Set(tokenTypeNames);
 const semanticColorRoles = [
   'canvas',
   'surface',
@@ -36,8 +38,8 @@ const semanticColorRoles = [
   'warning',
   'danger',
   'info',
-];
-const genericFontFamilies = new Set([
+] as const;
+const genericFontFamilies: ReadonlySet<string> = new Set([
   'cursive',
   'emoji',
   'fangsong',
@@ -53,23 +55,89 @@ const genericFontFamilies = new Set([
   'ui-serif',
 ]);
 
-function fail(message) {
+interface DimensionValue {
+  readonly value: number;
+  readonly unit: 'px' | 'rem';
+}
+
+interface DurationValue {
+  readonly value: number;
+  readonly unit: 'ms' | 's';
+}
+
+interface ColorValue {
+  readonly components: readonly [number, number, number];
+  readonly alpha: number | undefined;
+  readonly hex: string;
+}
+
+interface ShadowValue {
+  readonly color: ColorValue;
+  readonly offsetX: DimensionValue;
+  readonly offsetY: DimensionValue;
+  readonly blur: DimensionValue;
+  readonly spread: DimensionValue;
+}
+
+type ResolvedToken =
+  | { readonly type: 'color'; readonly value: ColorValue }
+  | {
+      readonly type: 'cubicBezier';
+      readonly value: readonly [number, number, number, number];
+    }
+  | { readonly type: 'dimension'; readonly value: DimensionValue }
+  | { readonly type: 'duration'; readonly value: DurationValue }
+  | {
+      readonly type: 'fontFamily';
+      readonly value: string | readonly string[];
+    }
+  | { readonly type: 'fontWeight'; readonly value: number }
+  | { readonly type: 'number'; readonly value: number }
+  | { readonly type: 'shadow'; readonly value: ShadowValue };
+
+type ParsedTokenValue =
+  | { readonly kind: 'alias'; readonly targetPath: string }
+  | { readonly kind: 'concrete'; readonly token: ResolvedToken };
+
+interface CollectedToken {
+  readonly type: TokenType;
+  readonly parsed: ParsedTokenValue;
+}
+
+interface DesignExtension {
+  readonly family: 'Quiet Instruments';
+  readonly version: string;
+  readonly specVersion: '2025.10';
+  readonly themes: readonly ['light', 'dark'];
+  readonly products: readonly [string, ...string[]];
+  readonly contrastPairs: unknown;
+}
+
+function fail(message: string): never {
   throw new Error(`Design token validation failed: ${message}`);
 }
 
-function assert(condition, message) {
+function assert(condition: unknown, message: string): asserts condition {
   if (!condition) fail(message);
 }
 
-function isRecord(value) {
+function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function isFiniteNumber(value) {
+function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
+function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
-function validateName(name, parentPath) {
+function isTokenType(value: unknown): value is TokenType {
+  return typeof value === 'string' && tokenTypes.has(value);
+}
+
+function validateName(name: string, parentPath: string): void {
   assert(name.length > 0, `empty token name below ${parentPath || '<root>'}`);
   assert(!name.startsWith('$'), `${parentPath}.${name} starts with "$"`);
   assert(
@@ -78,30 +146,36 @@ function validateName(name, parentPath) {
   );
 }
 
-function validateDimension(value, path) {
+function parseDimension(value: unknown, path: string): DimensionValue {
   assert(isRecord(value), `${path} must be a dimension object`);
   assert(isFiniteNumber(value.value), `${path}.value must be finite`);
   assert(
     value.unit === 'px' || value.unit === 'rem',
     `${path}.unit must be "px" or "rem"`,
   );
+  return { value: value.value, unit: value.unit };
 }
 
-function colorToHex(value, path) {
+function parseColor(value: unknown, path: string): ColorValue {
   assert(isRecord(value), `${path} must be a color object`);
   assert(value.colorSpace === 'srgb', `${path} must use the sRGB color space`);
   assert(
-    Array.isArray(value.components) && value.components.length === 3,
+    isUnknownArray(value.components) && value.components.length === 3,
     `${path}.components must contain three channels`,
   );
 
-  const components = value.components;
-  for (const component of components) {
+  const [red, green, blue] = value.components;
+  for (const component of [red, green, blue]) {
     assert(
       isFiniteNumber(component) && component >= 0 && component <= 1,
       `${path}.components must be finite values from 0 to 1`,
     );
   }
+  assert(
+    isFiniteNumber(red) && isFiniteNumber(green) && isFiniteNumber(blue),
+    `${path}.components must be finite values from 0 to 1`,
+  );
+  const components: readonly [number, number, number] = [red, green, blue];
 
   const computedHex = `#${components
     .map((component) => Math.round(component * 255).toString(16).padStart(2, '0'))
@@ -124,32 +198,59 @@ function colorToHex(value, path) {
     );
   }
 
-  return computedHex;
+  return {
+    components: [red, green, blue],
+    alpha: value.alpha,
+    hex: computedHex,
+  };
 }
 
-function validateTokenValue(type, value, path) {
-  if (typeof value === 'string' && aliasPattern.test(value)) return;
+function parseTokenValue(
+  type: TokenType,
+  value: unknown,
+  path: string,
+): ParsedTokenValue {
+  const aliasMatch =
+    typeof value === 'string' ? aliasPattern.exec(value) : null;
+  if (aliasMatch) {
+    const targetPath = aliasMatch[1];
+    assert(targetPath !== undefined, `${path} has an invalid alias`);
+    return { kind: 'alias', targetPath };
+  }
 
   switch (type) {
     case 'color':
-      colorToHex(value, path);
-      return;
-    case 'cubicBezier':
+      return { kind: 'concrete', token: { type, value: parseColor(value, path) } };
+    case 'cubicBezier': {
       assert(
-        Array.isArray(value) &&
+        isUnknownArray(value) &&
           value.length === 4 &&
           value.every(isFiniteNumber),
         `${path} must contain four finite cubic-bezier values`,
       );
+      const [first, second, third, fourth] = value;
       assert(
-        value[0] >= 0 && value[0] <= 1 && value[2] >= 0 && value[2] <= 1,
+        isFiniteNumber(first) &&
+          isFiniteNumber(second) &&
+          isFiniteNumber(third) &&
+          isFiniteNumber(fourth),
+        `${path} must contain four finite cubic-bezier values`,
+      );
+      assert(
+        first >= 0 && first <= 1 && third >= 0 && third <= 1,
         `${path} cubic-bezier x coordinates must be from 0 to 1`,
       );
-      return;
+      return {
+        kind: 'concrete',
+        token: { type, value: [first, second, third, fourth] },
+      };
+    }
     case 'dimension':
-      validateDimension(value, path);
-      return;
-    case 'duration':
+      return {
+        kind: 'concrete',
+        token: { type, value: parseDimension(value, path) },
+      };
+    case 'duration': {
       assert(isRecord(value), `${path} must be a duration object`);
       assert(
         isFiniteNumber(value.value) && value.value >= 0,
@@ -159,55 +260,81 @@ function validateTokenValue(type, value, path) {
         value.unit === 'ms' || value.unit === 's',
         `${path}.unit must be "ms" or "s"`,
       );
-      return;
-    case 'fontFamily':
+      return {
+        kind: 'concrete',
+        token: { type, value: { value: value.value, unit: value.unit } },
+      };
+    }
+    case 'fontFamily': {
       assert(
         (typeof value === 'string' && value.length > 0) ||
-          (Array.isArray(value) &&
+          (isUnknownArray(value) &&
             value.length > 0 &&
             value.every((item) => typeof item === 'string' && item.length > 0)),
         `${path} must be a font family or a non-empty font family list`,
       );
-      return;
+      if (typeof value === 'string') {
+        return { kind: 'concrete', token: { type, value } };
+      }
+      const families = value.map((family) => {
+        assert(
+          typeof family === 'string' && family.length > 0,
+          `${path} must be a font family or a non-empty font family list`,
+        );
+        return family;
+      });
+      return { kind: 'concrete', token: { type, value: families } };
+    }
     case 'fontWeight':
       assert(
         isFiniteNumber(value) && value >= 1 && value <= 1000,
         `${path} must be a font weight from 1 to 1000`,
       );
-      return;
+      return { kind: 'concrete', token: { type, value } };
     case 'number':
       assert(isFiniteNumber(value), `${path} must be a finite number`);
-      return;
+      return { kind: 'concrete', token: { type, value } };
     case 'shadow': {
       assert(isRecord(value), `${path} must be a shadow object`);
-      colorToHex(value.color, `${path}.color`);
-      validateDimension(value.offsetX, `${path}.offsetX`);
-      validateDimension(value.offsetY, `${path}.offsetY`);
-      validateDimension(value.blur, `${path}.blur`);
-      validateDimension(value.spread, `${path}.spread`);
-      assert(value.blur.value >= 0, `${path}.blur must be non-negative`);
-      return;
+      const color = parseColor(value.color, `${path}.color`);
+      const offsetX = parseDimension(value.offsetX, `${path}.offsetX`);
+      const offsetY = parseDimension(value.offsetY, `${path}.offsetY`);
+      const blur = parseDimension(value.blur, `${path}.blur`);
+      const spread = parseDimension(value.spread, `${path}.spread`);
+      assert(blur.value >= 0, `${path}.blur must be non-negative`);
+      return {
+        kind: 'concrete',
+        token: {
+          type,
+          value: { color, offsetX, offsetY, blur, spread },
+        },
+      };
     }
-    default:
-      fail(`${path} uses unsupported type "${type}"`);
   }
 }
 
-function collectTokens(document) {
-  const tokens = new Map();
+function collectTokens(
+  document: Record<string, unknown>,
+): Map<string, CollectedToken> {
+  const tokens = new Map<string, CollectedToken>();
 
-  function visit(node, path, inheritedType) {
+  function visit(
+    node: unknown,
+    path: readonly string[],
+    inheritedType: TokenType | undefined,
+  ): void {
     const pathLabel = path.join('.');
     assert(isRecord(node), `${pathLabel || '<root>'} must be an object`);
 
-    const ownType = node.$type;
+    const ownType: unknown = node.$type;
+    let effectiveType = inheritedType;
     if (ownType !== undefined) {
       assert(
-        typeof ownType === 'string' && tokenTypes.has(ownType),
+        isTokenType(ownType),
         `${pathLabel || '<root>'} has unsupported $type`,
       );
+      effectiveType = ownType;
     }
-    const effectiveType = ownType ?? inheritedType;
 
     if (Object.hasOwn(node, '$value')) {
       assert(path.length > 0, 'the document root cannot be a token');
@@ -218,8 +345,10 @@ function collectTokens(document) {
           `${pathLabel} cannot contain child "${key}" beside $value`,
         );
       }
-      validateTokenValue(effectiveType, node.$value, pathLabel);
-      tokens.set(pathLabel, { type: effectiveType, value: node.$value });
+      tokens.set(pathLabel, {
+        type: effectiveType,
+        parsed: parseTokenValue(effectiveType, node.$value, pathLabel),
+      });
       return;
     }
 
@@ -235,10 +364,15 @@ function collectTokens(document) {
   return tokens;
 }
 
-function resolveTokens(tokens) {
-  const resolved = new Map();
+function resolveTokens(
+  tokens: ReadonlyMap<string, CollectedToken>,
+): Map<string, ResolvedToken> {
+  const resolved = new Map<string, ResolvedToken>();
 
-  function resolveToken(path, stack = []) {
+  function resolveToken(
+    path: string,
+    stack: readonly string[] = [],
+  ): ResolvedToken {
     const existing = resolved.get(path);
     if (existing) return existing;
 
@@ -246,15 +380,12 @@ function resolveTokens(tokens) {
     assert(token, `alias points to missing token "${path}"`);
     assert(!stack.includes(path), `alias cycle: ${[...stack, path].join(' -> ')}`);
 
-    const match =
-      typeof token.value === 'string' ? aliasPattern.exec(token.value) : null;
-    if (!match) {
-      const value = { type: token.type, value: token.value };
-      resolved.set(path, value);
-      return value;
+    if (token.parsed.kind === 'concrete') {
+      resolved.set(path, token.parsed.token);
+      return token.parsed.token;
     }
 
-    const targetPath = match[1];
+    const targetPath = token.parsed.targetPath;
     const target = tokens.get(targetPath);
     assert(target, `${path} points to missing token "${targetPath}"`);
     assert(
@@ -270,7 +401,7 @@ function resolveTokens(tokens) {
   return resolved;
 }
 
-function getExtension(document) {
+function getExtension(document: Record<string, unknown>): DesignExtension {
   const extensions = document.$extensions;
   assert(isRecord(extensions), 'the document requires $extensions');
   const extension = extensions[extensionName];
@@ -282,34 +413,59 @@ function getExtension(document) {
   );
   assert(extension.specVersion === '2025.10', 'unexpected DTCG spec version');
   assert(
-    Array.isArray(extension.themes) &&
+    isUnknownArray(extension.themes) &&
       extension.themes.length === 2 &&
       extension.themes[0] === 'light' &&
       extension.themes[1] === 'dark',
     'themes must be light and dark',
   );
   assert(
-    Array.isArray(extension.products) &&
+    isUnknownArray(extension.products) &&
       extension.products.length > 0 &&
       extension.products.every(
         (product) => typeof product === 'string' && product.length > 0,
       ),
     'products must be a non-empty string list',
   );
-  return extension;
+  const [firstProduct, ...remainingProducts] = extension.products;
+  assert(
+    typeof firstProduct === 'string' && firstProduct.length > 0,
+    'products must be a non-empty string list',
+  );
+  const products = remainingProducts.map((product) => {
+    assert(
+      typeof product === 'string' && product.length > 0,
+      'products must be a non-empty string list',
+    );
+    return product;
+  });
+  return {
+    family: extension.family,
+    version: extension.version,
+    specVersion: extension.specVersion,
+    themes: ['light', 'dark'],
+    products: [firstProduct, ...products],
+    contrastPairs: extension.contrastPairs,
+  };
 }
 
-function colorLuminance(value, path) {
-  colorToHex(value, path);
-  const channels = value.components.map((channel) =>
+function colorLuminance(value: ColorValue): number {
+  const [red, green, blue] = value.components.map((channel) =>
     channel <= 0.04045
       ? channel / 12.92
       : ((channel + 0.055) / 1.055) ** 2.4,
   );
-  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  assert(
+    red !== undefined && green !== undefined && blue !== undefined,
+    'color luminance requires three channels',
+  );
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
 }
 
-function validateFoundation(extension, resolved) {
+function validateFoundation(
+  extension: DesignExtension,
+  resolved: ReadonlyMap<string, ResolvedToken>,
+): void {
   for (const group of ['reference', 'system', 'component', 'product']) {
     assert(
       [...resolved.keys()].some((path) => path.startsWith(`${group}.`)),
@@ -338,7 +494,7 @@ function validateFoundation(extension, resolved) {
   }
 
   assert(
-    Array.isArray(extension.contrastPairs) && extension.contrastPairs.length > 0,
+    isUnknownArray(extension.contrastPairs) && extension.contrastPairs.length > 0,
     'contrastPairs must be a non-empty list',
   );
   for (const [index, pair] of extension.contrastPairs.entries()) {
@@ -359,11 +515,9 @@ function validateFoundation(extension, resolved) {
     assert(background.type === 'color', `${pair.background} is not a color`);
     const foregroundLuminance = colorLuminance(
       foreground.value,
-      pair.foreground,
     );
     const backgroundLuminance = colorLuminance(
       background.value,
-      pair.background,
     );
     const lighter = Math.max(foregroundLuminance, backgroundLuminance);
     const darker = Math.min(foregroundLuminance, backgroundLuminance);
@@ -375,20 +529,20 @@ function validateFoundation(extension, resolved) {
   }
 }
 
-function dimensionToCss(value) {
+function dimensionToCss(value: DimensionValue | DurationValue): string {
   return `${value.value}${value.unit}`;
 }
 
-function colorToCss(value, path) {
-  const hex = colorToHex(value, path);
+function colorToCss(value: ColorValue): string {
+  const hex = value.hex;
   const alpha = value.alpha ?? 1;
   if (alpha === 1) return hex;
   const channels = value.components.map((channel) => Math.round(channel * 255));
   return `rgb(${channels.join(' ')} / ${alpha})`;
 }
 
-function fontFamilyToCss(value) {
-  const families = Array.isArray(value) ? value : [value];
+function fontFamilyToCss(value: string | readonly string[]): string {
+  const families = typeof value === 'string' ? [value] : value;
   return families
     .map((family) =>
       genericFontFamilies.has(family)
@@ -398,10 +552,10 @@ function fontFamilyToCss(value) {
     .join(', ');
 }
 
-function tokenToCss(token, path) {
+function tokenToCss(token: ResolvedToken): string {
   switch (token.type) {
     case 'color':
-      return colorToCss(token.value, path);
+      return colorToCss(token.value);
     case 'cubicBezier':
       return `cubic-bezier(${token.value.join(', ')})`;
     case 'dimension':
@@ -418,26 +572,27 @@ function tokenToCss(token, path) {
         dimensionToCss(token.value.offsetY),
         dimensionToCss(token.value.blur),
         dimensionToCss(token.value.spread),
-        colorToCss(token.value.color, `${path}.color`),
+        colorToCss(token.value.color),
       ].join(' ');
-    default:
-      fail(`${path} cannot be converted to CSS`);
   }
 }
 
-function cssVariableForPath(path) {
+function cssVariableForPath(path: string): string {
   return `--pp-${path.replaceAll('.', '-')}`;
 }
 
-function generateTypeScript(extension, resolved) {
-  const tokenValues = {};
-  const cssVariables = {};
+function generateTypeScript(
+  extension: DesignExtension,
+  resolved: ReadonlyMap<string, ResolvedToken>,
+): string {
+  const tokenValues: Record<string, string> = {};
+  const cssVariables: Record<string, string> = {};
   for (const [path, token] of resolved) {
-    tokenValues[path] = tokenToCss(token, path);
+    tokenValues[path] = tokenToCss(token);
     cssVariables[path] = cssVariableForPath(path);
   }
 
-  return `// Generated by scripts/generate-design-tokens.mjs. Do not edit.\n\nexport const DESIGN_FAMILY = ${JSON.stringify(
+  return `// Generated by scripts/generate-design-tokens.ts. Do not edit.\n\nexport const DESIGN_FAMILY = ${JSON.stringify(
     {
       name: extension.family,
       version: extension.version,
@@ -448,26 +603,41 @@ function generateTypeScript(extension, resolved) {
   )} as const;\n\nexport const DESIGN_THEMES = ${JSON.stringify(extension.themes)} as const;\n\nexport const DESIGN_PRODUCTS = ${JSON.stringify(extension.products)} as const;\n\nexport const QUIET_INSTRUMENTS_TOKENS = ${JSON.stringify(tokenValues, null, 2)} as const;\n\nexport const QUIET_INSTRUMENTS_CSS_VARIABLES = ${JSON.stringify(cssVariables, null, 2)} as const;\n\nexport type DesignTheme = (typeof DESIGN_THEMES)[number];\nexport type DesignProduct = (typeof DESIGN_PRODUCTS)[number];\nexport type QuietInstrumentsTokenPath = keyof typeof QUIET_INSTRUMENTS_TOKENS;\n`;
 }
 
-function semanticDeclarations(theme) {
+function semanticDeclarations(theme: 'light' | 'dark'): string[] {
   return semanticColorRoles.map(
     (role) =>
       `  --pp-color-${role}: var(--pp-system-${theme}-color-${role});`,
   );
 }
 
-function productDeclarations(product, resolved) {
+function resolvedTokenAt(
+  resolved: ReadonlyMap<string, ResolvedToken>,
+  path: string,
+): ResolvedToken {
+  const token = resolved.get(path);
+  assert(token !== undefined, `missing resolved token "${path}"`);
+  return token;
+}
+
+function productDeclarations(
+  product: string,
+  resolved: ReadonlyMap<string, ResolvedToken>,
+): string[] {
   return [
-    `  --pp-product-accent-light: ${tokenToCss(resolved.get(`product.${product}.accent-light`), `product.${product}.accent-light`)};`,
-    `  --pp-product-on-accent-light: ${tokenToCss(resolved.get(`product.${product}.on-accent-light`), `product.${product}.on-accent-light`)};`,
-    `  --pp-product-accent-dark: ${tokenToCss(resolved.get(`product.${product}.accent-dark`), `product.${product}.accent-dark`)};`,
-    `  --pp-product-on-accent-dark: ${tokenToCss(resolved.get(`product.${product}.on-accent-dark`), `product.${product}.on-accent-dark`)};`,
+    `  --pp-product-accent-light: ${tokenToCss(resolvedTokenAt(resolved, `product.${product}.accent-light`))};`,
+    `  --pp-product-on-accent-light: ${tokenToCss(resolvedTokenAt(resolved, `product.${product}.on-accent-light`))};`,
+    `  --pp-product-accent-dark: ${tokenToCss(resolvedTokenAt(resolved, `product.${product}.accent-dark`))};`,
+    `  --pp-product-on-accent-dark: ${tokenToCss(resolvedTokenAt(resolved, `product.${product}.on-accent-dark`))};`,
   ];
 }
 
-function generateCss(extension, resolved) {
+function generateCss(
+  extension: DesignExtension,
+  resolved: ReadonlyMap<string, ResolvedToken>,
+): string {
   const rawDeclarations = [...resolved.entries()].map(
     ([path, token]) =>
-      `  ${cssVariableForPath(path)}: ${tokenToCss(token, path)};`,
+      `  ${cssVariableForPath(path)}: ${tokenToCss(token)};`,
   );
   const defaultProduct = extension.products[0];
   const productBlocks = extension.products
@@ -483,7 +653,7 @@ function generateCss(extension, resolved) {
     '  --pp-color-on-accent: var(--pp-product-on-accent-dark);',
   ].join('\n');
 
-  return `/* Generated by scripts/generate-design-tokens.mjs. Do not edit. */
+  return `/* Generated by scripts/generate-design-tokens.ts. Do not edit. */
 
 /* Custom properties are intentionally scoped to avoid host-page collisions. */
 .pp-design {
@@ -539,7 +709,7 @@ ${darkDeclarations
 `;
 }
 
-function validateGeneratedCss(css, extension) {
+function validateGeneratedCss(css: string, extension: DesignExtension): void {
   assert(
     !/(^|[\n,]\s*):root(?:\s|[,\{])/.test(css),
     'generated CSS must not target :root',
@@ -570,14 +740,14 @@ function validateGeneratedCss(css, extension) {
   }
 }
 
-function checkOrWrite(path, contents) {
+function checkOrWrite(path: string, contents: string): void {
   if (!checkOnly) {
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, contents);
     return;
   }
 
-  let existing;
+  let existing: string;
   try {
     existing = readFileSync(path, 'utf8');
   } catch {
@@ -590,7 +760,7 @@ function checkOrWrite(path, contents) {
 }
 
 try {
-  const document = JSON.parse(readFileSync(sourcePath, 'utf8'));
+  const document: unknown = JSON.parse(readFileSync(sourcePath, 'utf8'));
   assert(isRecord(document), 'the source root must be an object');
   const extension = getExtension(document);
   const tokens = collectTokens(document);
