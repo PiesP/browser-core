@@ -19,10 +19,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # google/osv-scanner-action image v2.3.8 (linux/amd64), resolved 2026-07-28.
+  # google/osv-scanner-action image v2.5.1 (linux/amd64), resolved 2026-09-09.
   # Pin the runtime image itself: the upstream action metadata references a
   # mutable version tag even when the action is pinned to a commit SHA.
-  OSV_SCANNER_IMAGE: "ghcr.io/google/osv-scanner-action@sha256:48406c58197201fe55e56615ad9d414f85063da320e204d0b0ed460fb3908dba"
+  OSV_SCANNER_IMAGE: "ghcr.io/google/osv-scanner-action@sha256:dcd947131d8d11b8d0964de6590661fb921a4ecbd7b90a7cb21083acfc3fd8cc"
 
 jobs:
   osv-scan-pr:
@@ -189,10 +189,10 @@ jobs:
     permissions:
       contents: read
       security-events: write
-    # semgrep/semgrep:1.171.0 — last checked: 2026-07-28
+    # semgrep/semgrep:1.176.0 — last checked: 2026-09-09
     # Check for updates: https://github.com/semgrep/semgrep/releases
     container:
-      image: semgrep/semgrep:1.171.0@sha256:296fc4912420833abfcf5090ec49a81bf1330bb61fc193cd09255f88b8267ba9
+      image: semgrep/semgrep:1.176.0@sha256:12672acdb0949e19f9f6a4c2b288edd0b404f268f0ca7738a2c06f372f50362e
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
