@@ -13,22 +13,44 @@ describe('ResizableByteLimitedCache', () => {
   });
 
   it('stores, retrieves, and accounts for values', () => {
+    expect(cache.size).toBe(0);
+    expect(cache.currentBytes).toBe(0);
+    expect(cache.maxBytes).toBe(100);
     expect(cache.set('key', 'hello')).toBe(true);
     expect(cache.get('key')).toBe('hello');
     expect(cache.size).toBe(1);
     expect(cache.currentBytes).toBe(11);
   });
 
-  it('evicts least-recently-used entries when the byte limit is exceeded', () => {
+  it.each(['get', 'touch'] as const)('promotes entries with %s before byte-limit eviction', (access) => {
     cache.set('a', 'a'.repeat(40));
     cache.set('b', 'b'.repeat(40));
-    cache.get('a');
+    cache[access]('a');
     cache.set('c', 'c'.repeat(40));
 
     expect(cache.has('a')).toBe(true);
     expect(cache.has('b')).toBe(false);
     expect(cache.has('c')).toBe(true);
     expect(cache.currentBytes).toBe(84);
+  });
+
+  it('leaves accounting and recency unchanged for lookups and missing-key operations', () => {
+    cache.set('a', 'a'.repeat(40));
+    cache.set('b', 'b'.repeat(40));
+
+    expect(cache.has('a')).toBe(true);
+    expect(cache.has('missing')).toBe(false);
+    expect(cache.get('missing')).toBeUndefined();
+    expect(cache.take('missing')).toBeUndefined();
+    expect(cache.delete('missing')).toBe(false);
+    cache.touch('missing');
+    expect(cache.size).toBe(2);
+    expect(cache.currentBytes).toBe(84);
+
+    cache.set('c', 'c'.repeat(40));
+    expect(cache.has('a')).toBe(false);
+    expect(cache.has('b')).toBe(true);
+    expect(cache.has('c')).toBe(true);
   });
 
   it('releases the previous value when replacing an entry', () => {
@@ -90,19 +112,22 @@ describe('ResizableByteLimitedCache', () => {
     expect(evicted).toEqual(['too large']);
   });
 
-  it('enforces the optional entry limit independently of bytes', () => {
+  it.each([
+    { maxEntries: 2, expectedSize: 2, retainsOldest: false },
+    { maxEntries: Number.POSITIVE_INFINITY, expectedSize: 3, retainsOldest: true },
+  ])('enforces an optional entry limit of $maxEntries', ({ maxEntries, expectedSize, retainsOldest }) => {
     const limitedCache = new ResizableByteLimitedCache<string>(
       100,
       estimateSize,
       undefined,
-      2,
+      maxEntries,
     );
     limitedCache.set('a', '1');
     limitedCache.set('b', '2');
     limitedCache.set('c', '3');
 
-    expect(limitedCache.size).toBe(2);
-    expect(limitedCache.has('a')).toBe(false);
+    expect(limitedCache.size).toBe(expectedSize);
+    expect(limitedCache.has('a')).toBe(retainsOldest);
   });
 
   it('shrinks at runtime and evicts the oldest entries', () => {
@@ -123,6 +148,32 @@ describe('ResizableByteLimitedCache', () => {
     expect(evicted).toEqual(['a'.repeat(40)]);
   });
 
+  it('retains values and their recency when the byte budget grows', () => {
+    const evicted: string[] = [];
+    const growingCache = new ResizableByteLimitedCache<string>(
+      100,
+      estimateSize,
+      (value) => evicted.push(value),
+    );
+    growingCache.set('a', 'a'.repeat(40));
+    growingCache.set('b', 'b'.repeat(40));
+    growingCache.get('a');
+
+    growingCache.resize(126);
+    expect(growingCache.maxBytes).toBe(126);
+    expect(growingCache.currentBytes).toBe(84);
+    expect(growingCache.size).toBe(2);
+    expect(evicted).toEqual([]);
+
+    growingCache.set('c', 'c'.repeat(40));
+    growingCache.set('d', 'd'.repeat(40));
+    expect(growingCache.has('b')).toBe(false);
+    expect(growingCache.has('a')).toBe(true);
+    expect(growingCache.has('c')).toBe(true);
+    expect(growingCache.has('d')).toBe(true);
+    expect(evicted).toEqual(['b'.repeat(40)]);
+  });
+
   it('transfers ownership with take without invoking cleanup', () => {
     const evicted: string[] = [];
     const ownedCache = new ResizableByteLimitedCache<string>(
@@ -139,11 +190,13 @@ describe('ResizableByteLimitedCache', () => {
 
   it('clears state before invoking cleanup callbacks', () => {
     let callbackSize = -1;
+    const evicted: string[] = [];
     const clearedCache = new ResizableByteLimitedCache<string>(
       100,
       estimateSize,
-      () => {
+      (value) => {
         callbackSize = clearedCache.size;
+        evicted.push(value);
       },
     );
     clearedCache.set('a', 'one');
@@ -153,6 +206,9 @@ describe('ResizableByteLimitedCache', () => {
 
     expect(callbackSize).toBe(0);
     expect(clearedCache.currentBytes).toBe(0);
+    expect(clearedCache.has('a')).toBe(false);
+    expect(clearedCache.has('b')).toBe(false);
+    expect(evicted).toEqual(['one', 'two']);
   });
 
   it('removes state before invoking a re-entrant deletion callback', () => {
@@ -179,6 +235,8 @@ describe('ResizableByteLimitedCache', () => {
     expect(() => throwingCache.delete('key')).toThrow('cleanup failed');
     expect(throwingCache.has('key')).toBe(false);
     expect(throwingCache.currentBytes).toBe(0);
+    expect(throwingCache.set('next', 'new')).toBe(true);
+    expect(throwingCache.currentBytes).toBe(11);
   });
 
   it('preserves a re-entrant replacement and its byte accounting', () => {
