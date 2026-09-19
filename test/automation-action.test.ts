@@ -35,7 +35,7 @@ function runtimeNotificationRunsFor(path: string): boolean {
 describe('central project setup action', () => {
   it('uses an immutable toolchain action and the consumer package manifest', () => {
     expect(action).toContain(
-      'uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2',
+      'uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b',
     );
     expect(action).toContain('package-json-file: package.json');
     expect(action).toContain('runtime: "node@${{ inputs.node-version }}"');
