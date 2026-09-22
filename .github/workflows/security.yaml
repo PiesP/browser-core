@@ -152,6 +152,33 @@ jobs:
 
       - name: Report newly introduced vulnerabilities
         run: |
+          set -euo pipefail
+          validation_log="$RUNNER_TEMP/osv-results/reporter-validation.log"
+          rm -f "$validation_log"
+          set +e
+          docker run --rm \
+            --entrypoint /root/osv-reporter \
+            --volume "$RUNNER_TEMP/osv-results:/results" \
+            --workdir /results \
+            "$OSV_SCANNER_IMAGE" \
+            --old=old-results.json \
+            --new=new-results.json \
+            --output-files=sarif:/dev/null \
+            --fail-on-vuln=false \
+            >"$validation_log" 2>&1
+          validation_status=$?
+          set -e
+          if ((validation_status != 0)); then
+            cat "$validation_log" >&2
+            echo "OSV reporter failed to validate its result inputs (exit $validation_status)." >&2
+            exit "$validation_status"
+          fi
+          if grep -Eq 'failed to (open|parse) (old|new) results at ' "$validation_log"; then
+            cat "$validation_log" >&2
+            echo "OSV reporter did not parse its result inputs." >&2
+            exit 1
+          fi
+
           docker run --rm \
             --entrypoint /root/osv-reporter \
             --volume "$RUNNER_TEMP/osv-results:/results" \
@@ -233,6 +260,32 @@ jobs:
 
       - name: Convert OSV results to SARIF and enforce the vulnerability gate
         run: |
+          set -euo pipefail
+          validation_log="$RUNNER_TEMP/osv-results/reporter-validation.log"
+          rm -f "$validation_log"
+          set +e
+          docker run --rm \
+            --entrypoint /root/osv-reporter \
+            --volume "$RUNNER_TEMP/osv-results:/results" \
+            --workdir /results \
+            "$OSV_SCANNER_IMAGE" \
+            --new=osv-results.json \
+            --output-files=sarif:/dev/null \
+            --fail-on-vuln=false \
+            >"$validation_log" 2>&1
+          validation_status=$?
+          set -e
+          if ((validation_status != 0)); then
+            cat "$validation_log" >&2
+            echo "OSV reporter failed to validate its result input (exit $validation_status)." >&2
+            exit "$validation_status"
+          fi
+          if grep -Eq 'failed to (open|parse) (old|new) results at ' "$validation_log"; then
+            cat "$validation_log" >&2
+            echo "OSV reporter did not parse its result input." >&2
+            exit 1
+          fi
+
           docker run --rm \
             --entrypoint /root/osv-reporter \
             --volume "$RUNNER_TEMP/osv-results:/results" \

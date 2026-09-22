@@ -65,6 +65,22 @@ done
 if [[ -n "$output_name" && -n "\${FAKE_SCAN_SOURCE:-}" ]]; then
   cp "$FAKE_SCAN_SOURCE" "$RUNNER_TEMP/osv-results/$output_name"
 fi
+entrypoint=''
+for argument in "$@"; do
+  case "$argument" in
+    --entrypoint) entrypoint='next' ;;
+    /root/osv-reporter)
+      if [[ "$entrypoint" == 'next' ]]; then entrypoint='/root/osv-reporter'; fi
+      ;;
+  esac
+done
+if [[ "$entrypoint" == '/root/osv-reporter' ]]; then
+  if grep -q '"packages":"not-an-array"' "$RUNNER_TEMP/osv-results/new-results.json" \
+    || grep -q '"packages":"not-an-array"' "$RUNNER_TEMP/osv-results/osv-results.json"; then
+    echo 'failed to open new results at /results/new-results.json: failed to parse' >&2
+  fi
+  exit "\${FAKE_REPORTER_STATUS:-0}"
+fi
 exit "\${FAKE_SCANNER_STATUS:-0}"
 `,
   );
@@ -88,6 +104,29 @@ function runScannerStep(
       ...process.env,
       FAKE_SCANNER_STATUS: String(scannerStatus),
       ...(source === undefined ? {} : { FAKE_SCAN_SOURCE: sourcePath }),
+      GITHUB_WORKSPACE: sandbox.root,
+      OSV_SCANNER_IMAGE: 'example/osv-scanner@sha256:test',
+      PATH: path,
+      RUNNER_TEMP: sandbox.runnerTemp,
+    },
+  });
+}
+
+function runReporterStep(
+  step: string,
+  sandbox: Sandbox,
+  reporterStatus = 0,
+  newResult = JSON.stringify({ results: [] }),
+): ReturnType<typeof spawnSync> {
+  writeFileSync(join(sandbox.resultDirectory, 'old-results.json'), JSON.stringify({ results: [] }));
+  writeFileSync(join(sandbox.resultDirectory, 'new-results.json'), newResult);
+  writeFileSync(join(sandbox.resultDirectory, 'osv-results.json'), newResult);
+  const path = `${sandbox.bin}:${process.env.PATH ?? ''}`;
+  return spawnSync('bash', ['-euo', 'pipefail', '-c', step], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      FAKE_REPORTER_STATUS: String(reporterStatus),
       GITHUB_WORKSPACE: sandbox.root,
       OSV_SCANNER_IMAGE: 'example/osv-scanner@sha256:test',
       PATH: path,
@@ -149,6 +188,40 @@ describe('OSV scanner workflow result boundary', () => {
       JSON.stringify({ results: [] }),
       127,
     );
+
+    expect(result.status).toBe(127);
+  });
+});
+
+describe('OSV reporter input boundary', () => {
+  const reporterSteps = [
+    'Report newly introduced vulnerabilities',
+    'Convert OSV results to SARIF and enforce the vulnerability gate',
+  ];
+
+  it.each(reporterSteps)('accepts valid reporter input for %s', (name) => {
+    const sandbox = createSandbox();
+    const result = runReporterStep(extractStepRun(name), sandbox);
+
+    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+  });
+
+  it.each(reporterSteps)('rejects malformed nested input even when the reporter exits successfully for %s', (name) => {
+    const sandbox = createSandbox();
+    const result = runReporterStep(
+      extractStepRun(name),
+      sandbox,
+      0,
+      JSON.stringify({ results: [{ packages: 'not-an-array' }] }),
+    );
+
+    expect(result.status, `${result.stdout}\n${result.stderr}`).not.toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('OSV reporter did not parse its result');
+  });
+
+  it.each(reporterSteps)('preserves reporter execution failures for %s', (name) => {
+    const sandbox = createSandbox();
+    const result = runReporterStep(extractStepRun(name), sandbox, 127);
 
     expect(result.status).toBe(127);
   });

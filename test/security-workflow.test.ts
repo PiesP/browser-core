@@ -57,4 +57,19 @@ describe('security workflow', () => {
       expect(step).toContain('report.get("results")');
     }
   });
+
+  it('fails closed when the pinned reporter cannot parse a result after shallow validation', () => {
+    const reporterSteps = [
+      'Report newly introduced vulnerabilities',
+      'Convert OSV results to SARIF and enforce the vulnerability gate',
+    ].map(extractStep);
+
+    for (const step of reporterSteps) {
+      expect(step).toContain('--fail-on-vuln=false');
+      expect(step).toContain('reporter-validation.log');
+      expect(step).toContain("grep -Eq 'failed to (open|parse) (old|new) results at '");
+      expect(step).toContain('OSV reporter did not parse its result');
+      expect(step).toContain('exit 1');
+    }
+  });
 });
