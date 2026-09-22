@@ -54,8 +54,9 @@ jobs:
           install -d -m 0700 "$RUNNER_TEMP/osv-results"
 
       - name: Scan dependencies before the PR
-        continue-on-error: true
         run: |
+          set -euo pipefail
+          scan_status=0
           docker run --rm \
             --env GOTOOLCHAIN=auto \
             --volume "$GITHUB_WORKSPACE:/src" \
@@ -66,7 +67,11 @@ jobs:
             --output-file=/results/old-results.json \
             -r \
             --lockfile=pnpm-lock.yaml \
-            .
+            . || scan_status=$?
+          if ((scan_status > 1)); then
+            echo "OSV scanner failed before producing a result (exit $scan_status)." >&2
+            exit "$scan_status"
+          fi
 
       - name: Checkout the PR result
         run: |
@@ -74,8 +79,9 @@ jobs:
           git switch --force --detach "$GITHUB_SHA"
 
       - name: Scan dependencies after the PR
-        continue-on-error: true
         run: |
+          set -euo pipefail
+          scan_status=0
           docker run --rm \
             --env GOTOOLCHAIN=auto \
             --volume "$GITHUB_WORKSPACE:/src" \
@@ -86,7 +92,11 @@ jobs:
             --output-file=/results/new-results.json \
             -r \
             --lockfile=pnpm-lock.yaml \
-            .
+            . || scan_status=$?
+          if ((scan_status > 1)); then
+            echo "OSV scanner failed before producing a result (exit $scan_status)." >&2
+            exit "$scan_status"
+          fi
 
       - name: Report newly introduced vulnerabilities
         run: |
@@ -123,10 +133,10 @@ jobs:
           persist-credentials: false
 
       - name: Run OSV scan
-        continue-on-error: true
         run: |
           set -euo pipefail
           install -d -m 0700 "$RUNNER_TEMP/osv-results"
+          scan_status=0
           docker run --rm \
             --env GOTOOLCHAIN=auto \
             --volume "$GITHUB_WORKSPACE:/src" \
@@ -137,7 +147,11 @@ jobs:
             --output-file=/results/osv-results.json \
             -r \
             --lockfile=pnpm-lock.yaml \
-            .
+            . || scan_status=$?
+          if ((scan_status > 1)); then
+            echo "OSV scanner failed before producing a result (exit $scan_status)." >&2
+            exit "$scan_status"
+          fi
 
       - name: Convert OSV results to SARIF and enforce the vulnerability gate
         run: |

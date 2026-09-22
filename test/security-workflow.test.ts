@@ -3,6 +3,24 @@ import { describe, expect, it } from 'vitest';
 import workflow from '../.github/workflows/security.yaml?raw';
 
 describe('security workflow', () => {
+  function extractStep(name: string): string {
+    const lines = workflow.split('\n');
+    const start = lines.findIndex((line) => line.trim() === `- name: ${name}`);
+    if (start < 0) throw new Error(`Workflow step not found: ${name}`);
+
+    const indent = lines[start]?.match(/^\s*/)?.[0].length ?? 0;
+    let end = start + 1;
+    while (end < lines.length) {
+      const line = lines[end] ?? '';
+      const lineIndent = line.match(/^\s*/)?.[0].length ?? 0;
+      if (line.trim() && lineIndent === indent && line.trim().startsWith('- name: ')) break;
+      if (line.trim() && lineIndent < indent) break;
+      end += 1;
+    }
+
+    return lines.slice(start, end).join('\n');
+  }
+
   it('runs full security scans after changes land on master', () => {
     expect(workflow).toContain('push:\n    branches: [master]');
     expect(workflow).toContain(
@@ -19,5 +37,20 @@ describe('security workflow', () => {
     expect(workflow).toContain('expect_success "CodeQL" "$CODEQL_RESULT"');
     expect(workflow).toContain('expect_success "Semgrep" "$SEMGREP_RESULT"');
     expect(workflow).toContain('expect_success "OSV full" "$OSV_FULL_RESULT"');
+  });
+
+  it('fails closed on scanner execution errors while preserving vulnerability results', () => {
+    const scannerSteps = [
+      'Scan dependencies before the PR',
+      'Scan dependencies after the PR',
+      'Run OSV scan',
+    ].map(extractStep);
+
+    for (const step of scannerSteps) {
+      expect(step).not.toContain('continue-on-error: true');
+      expect(step).toContain('scan_status=0');
+      expect(step).toContain('|| scan_status=$?');
+      expect(step).toContain('if ((scan_status > 1)); then');
+    }
   });
 });
