@@ -154,10 +154,16 @@ deployment workflows remain repository-local.
 ## Consumer updates
 
 The browser-based consumer repositories track this repository as the
-`packages/core` git submodule. Their update workflow checks for a newer
-`master` commit daily and can also be started manually.
+`packages/core` git submodule. Scheduled reconciliation and manual runs check
+for a newer `master` commit. Each consumer's `update-browser-core.yaml` owns
+its schedule and change filters:
 
-For immediate update PRs after a push, configure a repository secret named
+- [dropconvert](https://github.com/PiesP/wasm-motion-converter/blob/master/.github/workflows/update-browser-core.yaml)
+- [XCOM Enhanced Gallery](https://github.com/PiesP/xcom-enhanced-gallery/blob/master/.github/workflows/update-browser-core.yaml)
+- [YouTube Live Chat Overlay](https://github.com/PiesP/yt-live-chat-overlay/blob/master/.github/workflows/update-browser-core.yaml)
+
+For immediate update PRs after the runtime-source or dependency changes selected
+by [`notify-consumers.yaml`](.github/workflows/notify-consumers.yaml), configure a repository secret named
 `CONSUMER_UPDATE_TOKEN` with a GitHub App or fine-grained token that can create
 repository dispatch events in:
 
@@ -165,7 +171,7 @@ repository dispatch events in:
 - `PiesP/xcom-enhanced-gallery`
 - `PiesP/yt-live-chat-overlay`
 
-Without that secret, the daily polling workflow remains the fallback.
+Without that secret, scheduled reconciliation remains the fallback.
 
 ## License
 
