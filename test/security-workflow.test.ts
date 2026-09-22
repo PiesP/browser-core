@@ -51,6 +51,10 @@ describe('security workflow', () => {
       expect(step).toContain('scan_status=0');
       expect(step).toContain('|| scan_status=$?');
       expect(step).toContain('if ((scan_status > 1)); then');
+      expect(step).toContain('rm -f "$result_path"');
+      expect(step).toContain('RESULT_PATH="$result_path" python3 -I - <<\'PY\'');
+      expect(step).toContain('object_pairs_hook=reject_duplicate_keys');
+      expect(step).toContain('report.get("results")');
     }
   });
 });

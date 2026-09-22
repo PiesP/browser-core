@@ -56,6 +56,8 @@ jobs:
       - name: Scan dependencies before the PR
         run: |
           set -euo pipefail
+          result_path="$RUNNER_TEMP/osv-results/old-results.json"
+          rm -f "$result_path"
           scan_status=0
           docker run --rm \
             --env GOTOOLCHAIN=auto \
@@ -72,6 +74,30 @@ jobs:
             echo "OSV scanner failed before producing a result (exit $scan_status)." >&2
             exit "$scan_status"
           fi
+          RESULT_PATH="$result_path" python3 -I - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          def reject_duplicate_keys(pairs):
+              document = {}
+              for key, value in pairs:
+                  if key in document:
+                      raise ValueError(f"OSV result contains duplicate key: {key}")
+                  document[key] = value
+              return document
+
+          result_path = Path(os.environ["RESULT_PATH"])
+          if not result_path.is_file() or result_path.stat().st_size == 0:
+              raise ValueError(f"OSV scanner did not create a non-empty result: {result_path}")
+          with result_path.open("r", encoding="utf-8") as result_file:
+              report = json.load(result_file, object_pairs_hook=reject_duplicate_keys)
+          if not isinstance(report, dict):
+              raise ValueError("OSV result must be a JSON object")
+          results = report.get("results")
+          if not isinstance(results, list) or not all(isinstance(item, dict) for item in results):
+              raise ValueError("OSV result must contain an array of result objects")
+          PY
 
       - name: Checkout the PR result
         run: |
@@ -81,6 +107,8 @@ jobs:
       - name: Scan dependencies after the PR
         run: |
           set -euo pipefail
+          result_path="$RUNNER_TEMP/osv-results/new-results.json"
+          rm -f "$result_path"
           scan_status=0
           docker run --rm \
             --env GOTOOLCHAIN=auto \
@@ -97,6 +125,30 @@ jobs:
             echo "OSV scanner failed before producing a result (exit $scan_status)." >&2
             exit "$scan_status"
           fi
+          RESULT_PATH="$result_path" python3 -I - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          def reject_duplicate_keys(pairs):
+              document = {}
+              for key, value in pairs:
+                  if key in document:
+                      raise ValueError(f"OSV result contains duplicate key: {key}")
+                  document[key] = value
+              return document
+
+          result_path = Path(os.environ["RESULT_PATH"])
+          if not result_path.is_file() or result_path.stat().st_size == 0:
+              raise ValueError(f"OSV scanner did not create a non-empty result: {result_path}")
+          with result_path.open("r", encoding="utf-8") as result_file:
+              report = json.load(result_file, object_pairs_hook=reject_duplicate_keys)
+          if not isinstance(report, dict):
+              raise ValueError("OSV result must be a JSON object")
+          results = report.get("results")
+          if not isinstance(results, list) or not all(isinstance(item, dict) for item in results):
+              raise ValueError("OSV result must contain an array of result objects")
+          PY
 
       - name: Report newly introduced vulnerabilities
         run: |
@@ -136,6 +188,8 @@ jobs:
         run: |
           set -euo pipefail
           install -d -m 0700 "$RUNNER_TEMP/osv-results"
+          result_path="$RUNNER_TEMP/osv-results/osv-results.json"
+          rm -f "$result_path"
           scan_status=0
           docker run --rm \
             --env GOTOOLCHAIN=auto \
@@ -152,6 +206,30 @@ jobs:
             echo "OSV scanner failed before producing a result (exit $scan_status)." >&2
             exit "$scan_status"
           fi
+          RESULT_PATH="$result_path" python3 -I - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          def reject_duplicate_keys(pairs):
+              document = {}
+              for key, value in pairs:
+                  if key in document:
+                      raise ValueError(f"OSV result contains duplicate key: {key}")
+                  document[key] = value
+              return document
+
+          result_path = Path(os.environ["RESULT_PATH"])
+          if not result_path.is_file() or result_path.stat().st_size == 0:
+              raise ValueError(f"OSV scanner did not create a non-empty result: {result_path}")
+          with result_path.open("r", encoding="utf-8") as result_file:
+              report = json.load(result_file, object_pairs_hook=reject_duplicate_keys)
+          if not isinstance(report, dict):
+              raise ValueError("OSV result must be a JSON object")
+          results = report.get("results")
+          if not isinstance(results, list) or not all(isinstance(item, dict) for item in results):
+              raise ValueError("OSV result must contain an array of result objects")
+          PY
 
       - name: Convert OSV results to SARIF and enforce the vulnerability gate
         run: |
