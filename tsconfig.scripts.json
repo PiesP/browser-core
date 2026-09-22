@@ -23,5 +23,5 @@
     "forceConsistentCasingInFileNames": true,
     "types": ["node", "vitest/globals"]
   },
-  "include": ["scripts/**/*.ts", "test/scripts/**/*.ts"]
+  "include": ["scripts/**/*.ts", "test/scripts/**/*.ts", "test/raw-imports.d.ts"]
 }
