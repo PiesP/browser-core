@@ -1,178 +1,63 @@
 # @piesp/browser-core
 
-> Shared TypeScript utilities for PiesP browser-based projects.
+[한국어](./README.ko.md) | [日本語](./README.ja.md)
+
+Shared TypeScript utilities and design contracts for PiesP browser projects.
+
+This is a private source package. Its package exports point directly to `.ts`
+files and are consumed by TypeScript-aware workspace bundlers through exact-SHA
+`packages/core` gitlinks and `file:` dependencies. It is not published to npm
+and does not provide compiled output for native Node.js consumption.
 
 ## API
 
-| Import path | Exports | Description |
-|---|---|---|
-| `@piesp/browser-core` | All TypeScript runtime exports | Aggregated package entry point |
-| `@piesp/browser-core/async` | `sleep`, `debounce`, `withTimeout`, `createDeferred`, `clearSafe*` | Async control, timeout, deferred-promise, and timer cleanup utilities |
-| `@piesp/browser-core/design` | Quiet Instruments tokens, themes, and product identifiers | Framework-independent visual foundation |
-| `@piesp/browser-core/design/tokens.css` | Scoped `--pp-*` custom properties | Optional CSS contract for `.pp-design` hosts |
-| `@piesp/browser-core/design/tokens.json` | DTCG source tokens | Generator and design-tool source of truth |
-| `@piesp/browser-core/error` | `getErrorMessage`, abort detection/creation, `mergeAbortSignals`, `throwIfAborted` | Error handling utilities with abort/cancellation support |
-| `@piesp/browser-core/events` | `MessageBus`, `createEventEmitter`, `EventEmitter` | Typed synchronous publish/subscribe utilities |
-| `@piesp/browser-core/util` | IDs, clamps, guards, colors, LRU/byte caches, priority queue, scheduler wrappers | General-purpose browser and data-structure utilities |
-| `@piesp/browser-core/logging` | `Logger`, `LoggerFactory`, `createConsoleLogger`, `createNoopLogger` | Logging contracts and implementations |
-| `@piesp/browser-core/locale` | `detectLocale`, `normalizeLocale`, `formatFileSize`, `formatDuration` | Locale detection and number formatting utilities |
-
-## Usage
+| Import path | Main exports |
+| --- | --- |
+| `@piesp/browser-core` | All runtime exports |
+| `@piesp/browser-core/async` | Timers, debounce, timeouts, and deferred promises |
+| `@piesp/browser-core/error` | Error and cancellation helpers |
+| `@piesp/browser-core/events` | `MessageBus`, `createEventEmitter` |
+| `@piesp/browser-core/locale` | Locale detection and formatting |
+| `@piesp/browser-core/logging` | Logger contracts and console/no-op implementations |
+| `@piesp/browser-core/util` | Guards, collections, caches, colors, and scheduler helpers |
+| `@piesp/browser-core/design` | Quiet Instruments tokens and interaction contracts |
+| `@piesp/browser-core/design/tokens.css` | Scoped `.pp-design` custom properties |
+| `@piesp/browser-core/design/tokens.json` | DTCG design-token source |
 
 ```ts
-import { createDeferred, sleep } from '@piesp/browser-core/async';
-import { QUIET_INSTRUMENTS_TOKENS } from '@piesp/browser-core/design';
-import { createUserCancelledAbortError, isAbortError } from '@piesp/browser-core/error';
+import { sleep } from '@piesp/browser-core/async';
 import { MessageBus } from '@piesp/browser-core/events';
-import { ResizableByteLimitedCache, schedulerYield } from '@piesp/browser-core/util';
+
+const messages = new MessageBus<string>();
+const unsubscribe = messages.subscribe(console.log);
+messages.publish('ready');
+unsubscribe();
+
+await sleep(100);
 ```
 
-## Quiet Instruments design contract
-
-Quiet Instruments gives the products a shared construction language without
-making them visually identical. Neutral surfaces, typography, spacing, focus,
-motion, icon geometry, and status colors are common. WMC uses the Iris accent,
-XCOM Enhanced Gallery uses Tide, and YouTube Live Chat Overlay uses Flare.
-
-The DTCG-format JSON file is canonical. `pnpm generate:design` deterministically
-creates typed values and a reference stylesheet; `pnpm check:design` rejects
-stale generated files and invalid aliases, incomplete variants, or declared
-contrast pairs below their minimum ratio. The generated stylesheet never writes
-to `:root` or `html`. It applies only below `.pp-design`, selects a product with
-`data-pp-product="wmc|xeg|ytco"`, and selects `light`, `dark`, or system-following
-behavior with `data-pp-theme="light|dark|auto"`.
-
-Consumers should keep their existing public token names and adapt them to this
-contract. This is especially important for injected extension UI: do not import
-the stylesheet globally into a host page. Canvas code and runtime-generated CSS
-can consume the typed token values instead.
-
-The design entry point also provides framework-independent interaction
-contracts. `DESIGN_ICON_CONTRACT` fixes a 24-unit rounded-stroke geometry while
-leaving each product free to choose its own symbols. `OperationState` separates
-starting, running, completed, failed, and cancelled work so a success check is
-never shown before completion; its presentation map deliberately contains no
-user-facing strings. `shouldHandleGlobalShortcut` protects text inputs,
-contenteditable surfaces, IME composition, and events already handled by a
-closer component. Products retain their own shortcut chords and translations.
-
-Control state has independent meanings: selection identifies the current choice,
-focus identifies keyboard input, and a proposed change remains pending until
-execution succeeds. Warnings explain what needs attention; blocked actions
-explain what must change. Keep these distinctions in text as well as color.
-Cancellation requests remain busy until cleanup settles. A browser download
-handoff confirms only that the request was passed to the browser.
-
-Validate these roles in each consumer's rendered controls, including selection
-with hover or keyboard focus, disabled controls, cancellation and error recovery.
-Use the consumer's supported themes, Forced Colors, narrow windows, zoom, and
-long translations. Check computed styles and keyboard interactions through the
-real product adapter: token contrast checks alone cannot detect cascade
-conflicts, translucent surfaces, clipped controls, or lost focus. Native clients
-can share these semantics with a static palette and platform controls; layouts
-and renderer implementations remain product-specific.
-
-This private source package is consumed by the workspace's TypeScript-aware
-bundlers. Its exports point to `.ts` source and are not a native Node runtime
-distribution.
-
-## Async and event error contracts
-
-`withTimeout` invokes `onTimeout` in the timer task. If the callback returns a
-promise, settlement waits for it and a callback rejection becomes the returned
-promise's rejection. Pre-existing and mid-flight aborts both reject the returned
-promise with an `AbortError`.
-
-`throwIfAborted` rethrows the exact `AbortSignal.reason`, including custom
-non-DOMException values. `createAbortError` preserves an optional original
-cause, while `createUserCancelledAbortError` creates a reason recognized by
-`getUserCancelledAbortErrorFromSignal`.
-
-`MessageBus.publish` is synchronous. It snapshots subscribers, delivers to all
-of them, and then rethrows the first synchronous error. Promise-returning
-subscribers are consumed to avoid unhandled rejections, but cause `publish` to
-throw `TypeError`. Use and await `publishAsync` for asynchronous subscribers;
-it waits for every subscriber and rejects with the first error in subscription
-order.
-
-## Locale contract
-
-The locale API supports `en`, `ko`, `ja`, `zh-CN`, `es`, and `ar`.
-`normalizeLocale` matches supported tags case-insensitively, maps supported
-language-region variants to their base locale, and returns `null` when no
-supported locale matches. `detectLocale` checks explicitly injected language
-sources without consulting browser globals. With no injected source, it checks
-the platform UI language, `navigator.languages`, and `navigator.language` in
-that order, then falls back to `en` unless a different `defaultLocale` is
-provided.
-
-File sizes and durations use `Intl.NumberFormat` for locale-specific digits,
-grouping, and decimal separators. Negative finite durations are normalized to
-zero. File sizes must be finite and non-negative, and durations must be finite;
-invalid values throw `RangeError`.
-
-## Cache and scheduler contracts
-
-`ByteLimitedCache` is a fixed-budget LRU cache. Both cache variants include
-UTF-16 key storage, the caller-provided value estimate, and a positive minimum
-cost for every entry in retained-cost accounting. An entry larger than the
-entire budget is rejected without evicting existing entries.
-`ResizableByteLimitedCache` adds runtime resizing, an optional entry-count cap,
-ownership transfer through `take`, and cleanup callbacks for every removed
-resource. Both caches require byte limits and size estimates to be non-negative
-safe integers so every retained byte remains representable in their accounting.
-
-`schedulerYield` and `schedulerPostTask` prefer the browser Scheduler API and
-fall back to timers. Fallback tasks preserve abort reasons, and async callback
-results are flattened into the returned promise. New budget-aware loops should
-await `yieldIfOverBudgetAsync`; the synchronous `yieldIfOverBudget` marker is
-retained only for compatibility.
+See [API contracts](./docs/API.md) and the
+[Quiet Instruments design contract](./docs/DESIGN.md) for detailed behavior.
 
 ## Development
 
-This project is developed with assistance from AI tools.
-
-Toolchain requirements and reproducible local pins are defined in the
-`engines`, `packageManager`, and `volta` fields of [`package.json`](package.json).
+The required Node.js and pnpm versions are defined in
+[`package.json`](./package.json).
 
 ```bash
-pnpm install    # install dependencies
-pnpm check      # text hygiene, generated design, type, and compiler lint checks
-pnpm test       # run tests
-pnpm verify     # run all checks and coverage-gated tests
-pnpm test:watch # watch mode
+pnpm install
+pnpm check
+pnpm test
+pnpm verify
 ```
 
-## Shared automation
+Reusable consumer CI setup is documented separately in
+[`automation/README.md`](./automation/README.md).
 
-Unprivileged CI setup shared by consumer repositories lives under
-[`automation/`](automation/README.md). Consumers reference those actions by a
-full browser-core commit SHA that is independent from their runtime
-`packages/core` gitlink. Privileged approval, security scanning, release, and
-deployment workflows remain repository-local.
+This project is developed with assistance from AI tools.
 
-## Consumer updates
+## Links
 
-The browser-based consumer repositories track this repository as the
-`packages/core` git submodule. Scheduled reconciliation and manual runs check
-for a newer `master` commit. Each consumer's `update-browser-core.yaml` owns
-its schedule and change filters:
-
-- [dropconvert](https://github.com/PiesP/wasm-motion-converter/blob/master/.github/workflows/update-browser-core.yaml)
-- [XCOM Enhanced Gallery](https://github.com/PiesP/xcom-enhanced-gallery/blob/master/.github/workflows/update-browser-core.yaml)
-- [YouTube Live Chat Overlay](https://github.com/PiesP/yt-live-chat-overlay/blob/master/.github/workflows/update-browser-core.yaml)
-
-For immediate update PRs after the runtime-source or dependency changes selected
-by [`notify-consumers.yaml`](.github/workflows/notify-consumers.yaml), configure a repository secret named
-`CONSUMER_UPDATE_TOKEN` with a GitHub App or fine-grained token that can create
-repository dispatch events in:
-
-- `PiesP/wasm-motion-converter`
-- `PiesP/xcom-enhanced-gallery`
-- `PiesP/yt-live-chat-overlay`
-
-Without that secret, scheduled reconciliation remains the fallback.
-
-## License
-
-MIT
+- [Security policy](./.github/SECURITY.md)
+- [Issues](https://github.com/PiesP/browser-core/issues)
+- [License](./LICENSE)
