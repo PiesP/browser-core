@@ -148,7 +148,9 @@ export function yieldIfOverBudget(
 }
 
 function getAbortReason(signal: AbortSignal | undefined): unknown {
-  return signal?.reason ?? new DOMException('The operation was aborted.', 'AbortError');
+  return signal?.aborted
+    ? signal.reason
+    : new DOMException('The operation was aborted.', 'AbortError');
 }
 
 /**
