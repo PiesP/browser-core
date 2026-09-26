@@ -79,6 +79,16 @@ describe('schedulerPostTask', () => {
     ).rejects.toBe(reason);
   });
 
+  it('preserves an explicit null reason for a pre-aborted fallback task', async () => {
+    vi.stubGlobal('scheduler', undefined);
+    const controller = new AbortController();
+    controller.abort(null);
+
+    await expect(
+      schedulerPostTask(() => 'unreachable', { signal: controller.signal }),
+    ).rejects.toBeNull();
+  });
+
   it('cancels a pending fallback task', async () => {
     vi.stubGlobal('scheduler', undefined);
     vi.useFakeTimers();
@@ -93,6 +103,23 @@ describe('schedulerPostTask', () => {
     controller.abort(reason);
 
     await expect(task).rejects.toBe(reason);
+    await vi.runAllTimersAsync();
+    expect(callback).not.toHaveBeenCalled();
+  });
+
+  it('preserves an explicit null reason when aborting a pending fallback task', async () => {
+    vi.stubGlobal('scheduler', undefined);
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    const callback = vi.fn();
+    const task = schedulerPostTask(callback, {
+      priority: 'background',
+      signal: controller.signal,
+    });
+
+    controller.abort(null);
+
+    await expect(task).rejects.toBeNull();
     await vi.runAllTimersAsync();
     expect(callback).not.toHaveBeenCalled();
   });
