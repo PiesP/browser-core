@@ -30,6 +30,9 @@ Thumbs.db
 
 # Local AI instructions
 AGENTS.md
+CODE_STANDARDS.md
+TESTING.md
+.github/copilot-instructions.md
 CODEX_WORKFLOW.md
 CLAUDE.md
 GEMINI.md
