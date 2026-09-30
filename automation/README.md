@@ -35,8 +35,8 @@ Reusable automation in this repository must not:
 - publish releases, approve pull requests, or merge changes;
 - replace trusted-base installation in secret-bearing security workflows.
 
-Dependabot approval and merge jobs, Codex Security bootstrap and scanning, release
-publication, deployment, and project-specific browser build orchestration remain
+Dependabot approval and merge jobs, release publication, deployment, and
+project-specific browser build orchestration remain
 in each consumer repository.
 
 ## Versioning and rollout
