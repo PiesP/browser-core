@@ -54,5 +54,15 @@ remaining consumers. Rollback is a one-line change to the previously validated
 automation SHA.
 
 Changes under `automation/**` intentionally do not trigger the runtime
-`Notify consumers` workflow. Runtime notifications remain limited to source and
-package dependency changes that require a gitlink update.
+`Notify consumers` workflow. The workflow's path filter watches source, package,
+lockfile, and workspace configuration changes. The impact action then skips
+development-only revisions before dispatching consumer updates.
+
+The `consumer-impact` action compares two browser-core commits in an existing
+`packages/core` clone and outputs `impact=true` when source, package contract,
+runtime dependencies, or unknown configuration could affect consumers. It
+returns `false` for automation-only changes and for development dependency or
+tool pin changes whose lockfile has no runtime dependency graph. An unavailable
+or unrelated base commit returns `true` to preserve orphaned-gitlink recovery.
+The CLI is also callable as
+`node automation/actions/consumer-impact/classify.mjs packages/core BASE_SHA HEAD_SHA`.
