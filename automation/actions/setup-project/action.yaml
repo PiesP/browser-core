@@ -3,17 +3,24 @@ description: Configure the consumer-pinned toolchain and install locked dependen
 
 inputs:
   node-version:
-    description: Node.js version passed to the pinned setup action
-    required: true
+    description: Optional runtime override for explicit compatibility testing; defaults to package.json volta.node
+    required: false
 
 runs:
   using: composite
   steps:
+    - name: Resolve the manifest-pinned runtime
+      id: runtime
+      shell: bash
+      env:
+        NODE_VERSION_OVERRIDE: ${{ inputs.node-version }}
+      run: node "$GITHUB_ACTION_PATH/resolve-runtime.mjs"
+
     - name: Install pnpm and Node.js
       uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # v2.1.0
       with:
         package-json-file: package.json
-        runtime: "node@${{ inputs.node-version }}"
+        runtime: "node@${{ steps.runtime.outputs.version }}"
         cache: true
         install: false
 

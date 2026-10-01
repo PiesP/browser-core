@@ -38,7 +38,9 @@ describe('central project setup action', () => {
       'uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b',
     );
     expect(action).toContain('package-json-file: package.json');
-    expect(action).toContain('runtime: "node@${{ inputs.node-version }}"');
+    expect(action).toContain('runtime: "node@${{ steps.runtime.outputs.version }}"');
+    expect(action).toContain('node "$GITHUB_ACTION_PATH/resolve-runtime.mjs"');
+    expect(action).toContain('required: false');
     expect(action).toContain('cache: true');
     expect(action).toContain('install: false');
   });

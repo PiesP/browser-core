@@ -20,14 +20,24 @@ jobs:
     timeout-minutes: 15
     strategy:
       matrix:
-        node-version: [22, 26]
+        # Keep the older-runtime compatibility lane distinct from the official pin.
+        node-version: [22, manifest]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Resolve official or compatibility runtime
+        id: runtime
+        env:
+          MATRIX_NODE_VERSION: ${{ matrix.node-version }}
+        run: |
+          if [[ "$MATRIX_NODE_VERSION" != manifest ]]; then
+            export NODE_VERSION_OVERRIDE="$MATRIX_NODE_VERSION"
+          fi
+          node automation/actions/setup-project/resolve-runtime.mjs
       - name: Install the manifest-pinned package manager and matrix runtime
         uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
         with:
           package-json-file: package.json
-          runtime: "node@${{ matrix.node-version }}"
+          runtime: "node@${{ steps.runtime.outputs.version }}"
           cache: true
           install: false
       - run: pnpm install --frozen-lockfile --no-runtime
