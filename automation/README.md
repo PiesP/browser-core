@@ -67,5 +67,9 @@ consumes those files. Lockfile changes are skipped only when the package has no
 runtime dependencies. Unknown paths and configuration remain impactful. An
 unavailable or unrelated base commit returns `true` to preserve orphaned-gitlink
 recovery.
+Source symlinks and parent-relative source references conservatively make
+development-path changes impactful. The classifier does not resolve arbitrary
+dynamic imports or custom path aliases; adding one requires extending this
+policy before its target can be safely skipped.
 The CLI is also callable as
 `node automation/actions/consumer-impact/classify.mjs packages/core BASE_SHA HEAD_SHA`.

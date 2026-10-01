@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -108,6 +108,7 @@ describe('browser-core consumer impact', () => {
   it.each([
     ['exports', { '.': './src/index.ts', './fixture': './test/runtime-entry.ts' }, 'test/runtime-entry.ts'],
     ['bin', { browserCore: './scripts/entry.mjs' }, 'scripts/entry.mjs'],
+    ['imports', { '#runtime': './scripts/runtime.mjs' }, 'scripts/runtime.mjs'],
   ])('detects changed development paths used by %s', (field, value, path) => {
     const { repository } = fixture();
     write(repository, 'package.json', JSON.stringify({
@@ -131,6 +132,24 @@ describe('browser-core consumer impact', () => {
     write(repository, 'scripts/install.mjs', 'process.stdout.write("old");\n');
     const base = commit(repository);
     write(repository, 'scripts/install.mjs', 'process.stdout.write("new");\n');
+    expect(classify(repository, base, commit(repository))).toBe('true');
+  });
+
+  it('detects a changed target of a source symlink', () => {
+    const { repository } = fixture();
+    write(repository, 'test/runtime-entry.ts', 'export const value = 1;\n');
+    symlinkSync('../test/runtime-entry.ts', join(repository, 'src/linked.ts'));
+    const base = commit(repository);
+    write(repository, 'test/runtime-entry.ts', 'export const value = 2;\n');
+    expect(classify(repository, base, commit(repository))).toBe('true');
+  });
+
+  it('detects a changed relative import outside the source tree', () => {
+    const { repository } = fixture();
+    write(repository, 'src/index.ts', "export { value } from '../test/runtime-entry.ts';\n");
+    write(repository, 'test/runtime-entry.ts', 'export const value = 1;\n');
+    const base = commit(repository);
+    write(repository, 'test/runtime-entry.ts', 'export const value = 2;\n');
     expect(classify(repository, base, commit(repository))).toBe('true');
   });
 

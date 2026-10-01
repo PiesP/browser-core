@@ -61,6 +61,7 @@ function isReviewedDevelopmentPath(path) {
 function hasExternalEntrypoint(pkg) {
   const targets = [
     pkg.exports,
+    pkg.imports,
     pkg.main,
     pkg.module,
     pkg.types,
@@ -92,6 +93,17 @@ function hasInstallLifecycle(pkg) {
     .some((name) => Object.hasOwn(scripts, name));
 }
 
+function hasSourceEscape(sha) {
+  const entries = git(['ls-tree', '-r', '-z', sha, '--', 'src']);
+  if (entries.split('\0').some((entry) => entry.startsWith('120000 '))) return true;
+  try {
+    git(['grep', '-q', '-F', '../', sha, '--', 'src']);
+    return true;
+  } catch (error) {
+    return error.status !== 1;
+  }
+}
+
 function affectsConsumers() {
   if (!hasCommit(head)) throw new Error(`Head commit is unavailable: ${head}`);
   if (!hasCommit(base)) return true;
@@ -113,6 +125,7 @@ function affectsConsumers() {
     const current = packageAt(head);
     if (hasContractChange(previous, current)) return true;
     if ([previous, current].some((pkg) => hasExternalEntrypoint(pkg) || hasInstallLifecycle(pkg))) return true;
+    if (hasSourceEscape(base) || hasSourceEscape(head)) return true;
     return paths.includes('pnpm-lock.yaml') &&
       (hasRuntimeDependencies(previous) || hasRuntimeDependencies(current));
   } catch {
