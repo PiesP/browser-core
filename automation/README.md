@@ -12,16 +12,21 @@ commit SHA:
 ```yaml
 - name: Setup project
   uses: PiesP/browser-core/automation/actions/setup-project@0123456789abcdef0123456789abcdef01234567
-  with:
-    node-version: 26
 ```
 
 The setup action reads the consumer's root `package.json`, installs its declared
-pnpm version and requested Node.js runtime, enables the pnpm cache, and runs
+pnpm version and exact `volta.node` runtime, enables the pnpm cache, and runs
 `pnpm install --frozen-lockfile --no-runtime`. Disabling runtime installation in
 the dependency step ensures the preceding pinned setup action remains the only
 runtime owner. The action does not accept executable commands, paths, references,
 URLs, or secrets as inputs.
+
+An optional numeric `node-version` input is reserved for explicitly identified
+compatibility jobs. Product CI, deep analysis, and release builds omit it so
+the existing consumer manifest remains the single official version source.
+Official builds fail before dependency installation when the manifest pin is
+missing or non-exact. Compatibility overrides intentionally select a separate
+numeric runtime without requiring that official pin.
 
 ## Trust boundary
 
