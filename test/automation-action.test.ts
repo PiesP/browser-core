@@ -45,19 +45,31 @@ describe('central project setup action', () => {
     expect(action).toContain('install: false');
   });
 
-  it('installs exactly the locked consumer dependency graph', () => {
-    expect(action).toContain('run: pnpm install --frozen-lockfile --no-runtime');
+  it('configures the pinned runtime before optional locked dependency installation', () => {
+    const inputs = action.slice(action.indexOf('inputs:'), action.indexOf('\nruns:'));
+    const runtimeIndex = action.indexOf('name: Resolve the manifest-pinned runtime');
+    const setupIndex = action.indexOf('name: Install pnpm and Node.js');
+    const installIndex = action.indexOf('name: Install locked dependencies');
+    const installStep = action.slice(installIndex);
+
+    expect(inputs).toMatch(/  install-dependencies:\n(?:    .+\n)*    default: 'true'/);
+    expect(runtimeIndex).toBeGreaterThan(-1);
+    expect(setupIndex).toBeGreaterThan(runtimeIndex);
+    expect(installIndex).toBeGreaterThan(setupIndex);
+    expect(action.slice(runtimeIndex, installIndex)).not.toMatch(/^\s*if:/m);
+    expect(installStep).toContain("if: ${{ inputs.install-dependencies == 'true' }}");
+    expect(installStep).toContain('run: pnpm install --frozen-lockfile --no-runtime');
     expect(action).not.toMatch(/^\s*run: (?:npm|yarn) install/m);
     expect(action).not.toContain('pnpm update');
   });
 
-  it('exposes only the typed runtime-version input and no secret surface', () => {
+  it('exposes only the runtime and dependency-install inputs and no secret surface', () => {
     const inputs = action.slice(action.indexOf('inputs:'), action.indexOf('\nruns:'));
     const inputNames = [...inputs.matchAll(/^  ([a-z][a-z-]+):$/gm)].map(
       ([, name]) => name,
     );
 
-    expect(inputNames).toEqual(['node-version']);
+    expect(inputNames).toEqual(['node-version', 'install-dependencies']);
     expect(action).not.toContain('secrets:');
     expect(action).not.toMatch(/^  (command|path|ref|script|url):$/m);
   });

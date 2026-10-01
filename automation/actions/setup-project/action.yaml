@@ -5,6 +5,10 @@ inputs:
   node-version:
     description: Optional runtime override for explicit compatibility testing; defaults to package.json volta.node
     required: false
+  install-dependencies:
+    description: Install locked dependencies after configuring the pinned runtime
+    required: false
+    default: 'true'
 
 runs:
   using: composite
@@ -25,5 +29,6 @@ runs:
         install: false
 
     - name: Install locked dependencies
+      if: ${{ inputs.install-dependencies == 'true' }}
       shell: bash
       run: pnpm install --frozen-lockfile --no-runtime
