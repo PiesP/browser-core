@@ -54,9 +54,10 @@ remaining consumers. Rollback is a one-line change to the previously validated
 automation SHA.
 
 Changes under `automation/**` intentionally do not trigger the runtime
-`Notify consumers` workflow. The workflow's path filter watches source, package,
-lockfile, and workspace configuration changes. The impact action then skips
-development-only revisions before dispatching consumer updates.
+`Notify consumers` workflow when they are the only changed paths. All other
+pushes reach the impact action so changes to runtime targets outside `src/`
+cannot be missed. The action skips reviewed development-only revisions before
+dispatching consumer updates.
 
 The `consumer-impact` action compares two browser-core commits in an existing
 `packages/core` clone and outputs `impact=true` when source, package contract,

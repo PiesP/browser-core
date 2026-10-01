@@ -3,11 +3,8 @@ name: Notify consumers
 on:
   push:
     branches: [master]
-    paths:
-      - "src/**"
-      - package.json
-      - pnpm-lock.yaml
-      - pnpm-workspace.yaml
+    paths-ignore:
+      - "automation/**"
   workflow_dispatch:
     inputs:
       core_sha:
