@@ -15,11 +15,27 @@ commit SHA:
 ```
 
 The setup action reads the consumer's root `package.json`, installs its declared
-pnpm version and exact `volta.node` runtime, enables the pnpm cache, and runs
-`pnpm install --frozen-lockfile --no-runtime`. Disabling runtime installation in
-the dependency step ensures the preceding pinned setup action remains the only
-runtime owner. The action does not accept executable commands, paths, references,
-URLs, or secrets as inputs.
+pnpm version and exact `volta.node` runtime, enables the pnpm cache, and by
+default runs `pnpm install --frozen-lockfile --no-runtime`. Disabling runtime
+installation in the dependency step ensures the preceding pinned setup action
+remains the only runtime owner. The action does not accept executable commands,
+paths, references, URLs, or secrets as inputs.
+
+For tooling that must run before the dependency install, such as deep-cache
+marker checks, set `install-dependencies: 'false'` and call the action again with
+the default after those checks. The runtime and package manager are configured
+before the first action returns, independently of the later dependency install:
+
+```yaml
+- name: Setup pinned runtime
+  uses: PiesP/browser-core/automation/actions/setup-project@0123456789abcdef0123456789abcdef01234567
+  with:
+    install-dependencies: 'false'
+- name: Check cache marker
+  run: node scripts/check-cache-marker.ts
+- name: Setup project dependencies
+  uses: PiesP/browser-core/automation/actions/setup-project@0123456789abcdef0123456789abcdef01234567
+```
 
 An optional numeric `node-version` input is reserved for explicitly identified
 compatibility jobs. Product CI, deep analysis, and release builds omit it so
