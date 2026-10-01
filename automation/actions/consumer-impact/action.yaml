@@ -1,0 +1,29 @@
+name: Classify browser-core consumer impact
+description: Compare browser-core commits in the existing packages/core clone
+
+inputs:
+  base-sha:
+    description: Previous browser-core commit SHA
+    required: true
+  head-sha:
+    description: Target browser-core commit SHA
+    required: true
+
+outputs:
+  impact:
+    description: Whether a consumer gitlink update may affect the product
+    value: ${{ steps.classify.outputs.impact }}
+
+runs:
+  using: composite
+  steps:
+    - name: Classify the existing browser-core clone
+      id: classify
+      shell: bash
+      env:
+        BASE_SHA: ${{ inputs.base-sha }}
+        HEAD_SHA: ${{ inputs.head-sha }}
+      run: |
+        set -euo pipefail
+        impact="$(node "$GITHUB_ACTION_PATH/classify.mjs" packages/core "$BASE_SHA" "$HEAD_SHA")"
+        echo "impact=$impact" >> "$GITHUB_OUTPUT"

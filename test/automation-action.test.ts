@@ -69,7 +69,19 @@ describe('runtime and automation release boundaries', () => {
   });
 
   it('does not dispatch runtime gitlink updates for automation-only changes', () => {
+    expect(parsePathFilters(runtimeNotifications, 'paths')).toEqual([]);
+    expect(parsePathFilters(runtimeNotifications, 'paths-ignore')).toEqual(['automation/**']);
     expect(runtimeNotificationRunsFor('automation/actions/setup-project/action.yaml')).toBe(false);
     expect(runtimeNotificationRunsFor('src/error/get-error-message.ts')).toBe(true);
+    for (const path of [
+      'test/scripts/consumer-impact.test.ts',
+      '.github/workflows/ci.yaml',
+      'scripts/check-format.ts',
+      'tsconfig.json',
+      'docs/API.md',
+      'unknown.config.mjs',
+    ]) {
+      expect(runtimeNotificationRunsFor(path)).toBe(true);
+    }
   });
 });
