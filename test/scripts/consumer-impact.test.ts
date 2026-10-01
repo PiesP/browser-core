@@ -73,10 +73,93 @@ describe('browser-core consumer impact', () => {
     expect(classify(repository, base, commit(repository))).toBe('false');
   });
 
+  it('skips mixed development tooling, tests, and docs changes', () => {
+    const { repository, base } = fixture();
+    write(repository, 'package.json', JSON.stringify({
+      name: '@piesp/browser-core',
+      exports: { '.': './src/index.ts' },
+      devDependencies: { vitest: '5.0.0' },
+    }));
+    write(repository, 'pnpm-lock.yaml', 'lockfileVersion: 9\n# development graph changed\n');
+    write(repository, 'test/util.test.ts', 'test("development", () => {});\n');
+    write(repository, '.github/workflows/ci.yaml', 'name: CI\n');
+    write(repository, 'scripts/check-format.ts', 'export {};\n');
+    write(repository, 'tsconfig.json', '{}\n');
+    write(repository, 'vitest.config.ts', 'export default {};\n');
+    write(repository, 'docs/API.md', 'Development notes\n');
+    write(repository, 'README.md', 'Documentation\n');
+    expect(classify(repository, base, commit(repository))).toBe('false');
+  });
+
   it('detects source and mixed changes', () => {
     const { repository, base } = fixture();
     write(repository, 'src/index.ts', 'export const value = 2;\n');
     write(repository, 'automation/README.md', 'Updated setup instructions\n');
+    expect(classify(repository, base, commit(repository))).toBe('true');
+  });
+
+  it('detects a source file moved into automation', () => {
+    const { repository, base } = fixture();
+    mkdirSync(join(repository, 'automation'), { recursive: true });
+    git(repository, 'mv', 'src/index.ts', 'automation/index.ts');
+    expect(classify(repository, base, commit(repository))).toBe('true');
+  });
+
+  it.each([
+    ['exports', { '.': './src/index.ts', './fixture': './test/runtime-entry.ts' }, 'test/runtime-entry.ts'],
+    ['bin', { browserCore: './scripts/entry.mjs' }, 'scripts/entry.mjs'],
+  ])('detects changed development paths used by %s', (field, value, path) => {
+    const { repository } = fixture();
+    write(repository, 'package.json', JSON.stringify({
+      name: '@piesp/browser-core',
+      exports: { '.': './src/index.ts' },
+      [field]: value,
+    }));
+    write(repository, path, 'export const value = 1;\n');
+    const base = commit(repository);
+    write(repository, path, 'export const value = 2;\n');
+    expect(classify(repository, base, commit(repository))).toBe('true');
+  });
+
+  it('detects development files when a package lifecycle script runs during installation', () => {
+    const { repository } = fixture();
+    write(repository, 'package.json', JSON.stringify({
+      name: '@piesp/browser-core',
+      exports: { '.': './src/index.ts' },
+      scripts: { install: 'node scripts/install.mjs' },
+    }));
+    write(repository, 'scripts/install.mjs', 'process.stdout.write("old");\n');
+    const base = commit(repository);
+    write(repository, 'scripts/install.mjs', 'process.stdout.write("new");\n');
+    expect(classify(repository, base, commit(repository))).toBe('true');
+  });
+
+  it('detects lockfile changes when an exported development path may use the changed graph', () => {
+    const { repository } = fixture();
+    write(repository, 'package.json', JSON.stringify({
+      name: '@piesp/browser-core',
+      exports: { '.': './test/runtime-entry.ts' },
+    }));
+    write(repository, 'test/runtime-entry.ts', 'export const value = 1;\n');
+    const base = commit(repository);
+    write(repository, 'pnpm-lock.yaml', 'lockfileVersion: 9\n# graph changed\n');
+    expect(classify(repository, base, commit(repository))).toBe('true');
+  });
+
+  it('detects development dependencies when an install hook may use them', () => {
+    const { repository } = fixture();
+    write(repository, 'package.json', JSON.stringify({
+      name: '@piesp/browser-core',
+      exports: { '.': './src/index.ts' },
+      scripts: { prepare: 'node scripts/prepare.mjs' },
+    }));
+    const base = commit(repository);
+    write(repository, 'package.json', JSON.stringify({
+      name: '@piesp/browser-core',
+      exports: { '.': './src/index.ts' },
+      scripts: { prepare: 'node scripts/prepare.mjs' },
+      devDependencies: { generator: '1.0.0' },
+    }));
     expect(classify(repository, base, commit(repository))).toBe('true');
   });
 
@@ -114,6 +197,12 @@ describe('browser-core consumer impact', () => {
     const head = commit(repository);
     expect(classify(repository, base, head)).toBe('true');
     expect(classify(repository, '0'.repeat(40), head)).toBe('true');
+  });
+
+  it('treats an unreviewed tool configuration as impactful', () => {
+    const { repository, base } = fixture();
+    write(repository, 'eslint.config.mjs', 'export default [];\n');
+    expect(classify(repository, base, commit(repository))).toBe('true');
   });
 
   it('treats a divergent base as impactful even when only development files differ', () => {

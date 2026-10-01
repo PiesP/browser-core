@@ -61,8 +61,11 @@ development-only revisions before dispatching consumer updates.
 The `consumer-impact` action compares two browser-core commits in an existing
 `packages/core` clone and outputs `impact=true` when source, package contract,
 runtime dependencies, or unknown configuration could affect consumers. It
-returns `false` for automation-only changes and for development dependency or
-tool pin changes whose lockfile has no runtime dependency graph. An unavailable
-or unrelated base commit returns `true` to preserve orphaned-gitlink recovery.
+returns `false` for automation-only changes and for reviewed development-only
+paths, package fields, and tool pins when no package entrypoint or install hook
+consumes those files. Lockfile changes are skipped only when the package has no
+runtime dependencies. Unknown paths and configuration remain impactful. An
+unavailable or unrelated base commit returns `true` to preserve orphaned-gitlink
+recovery.
 The CLI is also callable as
 `node automation/actions/consumer-impact/classify.mjs packages/core BASE_SHA HEAD_SHA`.

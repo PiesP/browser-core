@@ -49,6 +49,49 @@ function hasContractChange(previous, current) {
   );
 }
 
+function isReviewedDevelopmentPath(path) {
+  return path.startsWith('automation/') ||
+    path.startsWith('test/') ||
+    path.startsWith('docs/') ||
+    path.startsWith('.github/') ||
+    path.startsWith('scripts/') ||
+    ['README.md', 'README.ko.md', 'README.ja.md', 'tsconfig.json', 'tsconfig.scripts.json', 'vitest.config.ts'].includes(path);
+}
+
+function hasExternalEntrypoint(pkg) {
+  const targets = [
+    pkg.exports,
+    pkg.main,
+    pkg.module,
+    pkg.types,
+    pkg.typings,
+    pkg.bin,
+    pkg.browser,
+    pkg.typesVersions,
+  ];
+  if (pkg.browser !== null && typeof pkg.browser === 'object' && !Array.isArray(pkg.browser)) {
+    targets.push(...Object.keys(pkg.browser).filter((key) => key.startsWith('.')));
+  }
+
+  function outsideSource(value) {
+    if (value === undefined || value === null) return false;
+    if (typeof value === 'string') return !/^(?:\.\/)?src\//.test(value);
+    if (Array.isArray(value)) return value.some(outsideSource);
+    if (typeof value === 'object') return Object.values(value).some(outsideSource);
+    return true;
+  }
+
+  return targets.some(outsideSource);
+}
+
+function hasInstallLifecycle(pkg) {
+  const scripts = pkg.scripts;
+  if (scripts === undefined) return false;
+  if (scripts === null || typeof scripts !== 'object' || Array.isArray(scripts)) return true;
+  return ['preinstall', 'install', 'postinstall', 'prepare', 'prepublish', 'prepublishOnly', 'prepack', 'postpack']
+    .some((name) => Object.hasOwn(scripts, name));
+}
+
 function affectsConsumers() {
   if (!hasCommit(head)) throw new Error(`Head commit is unavailable: ${head}`);
   if (!hasCommit(base)) return true;
@@ -58,18 +101,18 @@ function affectsConsumers() {
     return true;
   }
 
-  const paths = git(['diff', '--no-ext-diff', '--name-only', '-z', base, head])
+  const paths = git(['diff', '--no-ext-diff', '--no-renames', '--name-only', '-z', base, head])
     .split('\0')
     .filter(Boolean);
   if (paths.length === 0) return false;
   if (paths.some((path) => path.startsWith('src/'))) return true;
-  if (paths.some((path) => !path.startsWith('automation/') && path !== 'package.json' && path !== 'pnpm-lock.yaml')) return true;
+  if (paths.some((path) => !isReviewedDevelopmentPath(path) && path !== 'package.json' && path !== 'pnpm-lock.yaml')) return true;
 
-  if (!paths.includes('package.json') && !paths.includes('pnpm-lock.yaml')) return false;
   try {
     const previous = packageAt(base);
     const current = packageAt(head);
     if (hasContractChange(previous, current)) return true;
+    if ([previous, current].some((pkg) => hasExternalEntrypoint(pkg) || hasInstallLifecycle(pkg))) return true;
     return paths.includes('pnpm-lock.yaml') &&
       (hasRuntimeDependencies(previous) || hasRuntimeDependencies(current));
   } catch {
