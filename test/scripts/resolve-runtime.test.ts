@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -7,9 +7,16 @@ import { describe, expect, it } from 'vitest';
 const script = resolve('automation/actions/setup-project/resolve-runtime.mjs');
 
 function run(node: unknown, override = ''): string {
+  return runManifest(JSON.stringify({ volta: { node } }), override);
+}
+
+function runManifest(manifest: string | undefined, override = ''): string {
   const fixture = mkdtempSync(join(tmpdir(), 'core-runtime-'));
+  const manifestPath = join(fixture, 'package.json');
+  const lockfilePath = join(fixture, 'pnpm-lock.yaml');
   try {
-    writeFileSync(join(fixture, 'package.json'), JSON.stringify({ volta: { node } }));
+    if (manifest !== undefined) writeFileSync(manifestPath, manifest);
+    writeFileSync(lockfilePath, 'consumer lockfile sentinel\n');
     const output = join(fixture, 'output');
     execFileSync(process.execPath, [script], {
       cwd: fixture,
@@ -18,6 +25,9 @@ function run(node: unknown, override = ''): string {
     });
     return readFileSync(output, 'utf8');
   } finally {
+    expect(existsSync(manifestPath)).toBe(manifest !== undefined);
+    if (manifest !== undefined) expect(readFileSync(manifestPath, 'utf8')).toBe(manifest);
+    expect(readFileSync(lockfilePath, 'utf8')).toBe('consumer lockfile sentinel\n');
     rmSync(fixture, { recursive: true, force: true });
   }
 }
@@ -41,5 +51,13 @@ describe('official runtime selection', () => {
   it.each(['latest', 'node@26', '26\nextra=value', 'https://example.com']) (
     'rejects a nonnumeric compatibility override: %s',
     (override) => expect(() => run('26.9.0', override)).toThrow(),
+  );
+
+  it.each([undefined, '{invalid json']) (
+    'fails closed on a missing or invalid consumer manifest: %s',
+    (manifest) => {
+      expect(() => runManifest(manifest)).toThrow();
+      expect(() => runManifest(manifest, '22')).toThrow();
+    },
   );
 });

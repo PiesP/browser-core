@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import runtimeNotifications from '../.github/workflows/notify-consumers.yaml?raw';
+import ci from '../.github/workflows/ci.yaml?raw';
 import action from '../automation/actions/setup-project/action.yaml?raw';
 import runtimePackageJson from '../package.json?raw';
 
@@ -37,7 +38,10 @@ describe('central project setup action', () => {
     expect(action).toContain(
       'uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b',
     );
-    expect(action).toContain('package-json-file: package.json');
+    expect(action).toContain('working-directory: .');
+    expect(action).not.toContain('package-json-file:');
+    expect(ci).toContain('working-directory: .');
+    expect(ci).not.toContain('package-json-file:');
     expect(action).toContain('runtime: "node@${{ steps.runtime.outputs.version }}"');
     expect(action).toContain('node "$GITHUB_ACTION_PATH/resolve-runtime.mjs"');
     expect(action).toContain('required: false');
@@ -72,6 +76,16 @@ describe('central project setup action', () => {
     expect(inputNames).toEqual(['node-version', 'install-dependencies']);
     expect(action).not.toContain('secrets:');
     expect(action).not.toMatch(/^  (command|path|ref|script|url):$/m);
+  });
+
+  it('requires the consumer smoke job alongside both existing runtime lanes', () => {
+    expect(ci).toContain('node-version: [22, manifest]');
+    expect(ci).toContain('needs: [quality, setup-smoke]');
+    expect(ci).toContain('uses: ./.setup-action/automation/actions/setup-project');
+    expect(ci).toContain("install-dependencies: 'false'");
+    expect(ci).toContain('sha256sum --check fixture.sha256');
+    expect(ci).toContain('test ! -e node_modules');
+    expect(ci).toContain('test "$SETUP_RESULT" = success');
   });
 });
 

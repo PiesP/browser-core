@@ -36,7 +36,7 @@ jobs:
       - name: Install the manifest-pinned package manager and matrix runtime
         uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
         with:
-          package-json-file: package.json
+          working-directory: .
           runtime: "node@${{ steps.runtime.outputs.version }}"
           cache: true
           install: false
@@ -46,14 +46,76 @@ jobs:
       - name: Run coverage-gated tests
         run: pnpm test:cov
 
+  setup-smoke:
+    name: Consumer setup smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: .setup-action
+          persist-credentials: false
+      - name: Prepare a distinct consumer manifest and frozen local dependency
+        run: |
+          node --input-type=module <<'JS'
+          import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
+          const core = JSON.parse(readFileSync('.setup-action/package.json', 'utf8'));
+          writeFileSync('package.json', JSON.stringify({
+            private: true, packageManager: 'pnpm@11.25.0',
+            volta: { node: '24.15.0' },
+            dependencies: { 'setup-smoke-fixture': 'link:./fixture-package' },
+          }) + '\n');
+          if (core.packageManager === 'pnpm@11.25.0' || core.volta.node === '24.15.0') {
+            throw new Error('Smoke fixture toolchain must differ from browser-core');
+          }
+          mkdirSync('fixture-package');
+          writeFileSync('fixture-package/package.json', JSON.stringify({
+            name: 'setup-smoke-fixture', version: '1.0.0', main: 'index.cjs',
+          }) + '\n');
+          writeFileSync('fixture-package/index.cjs', 'module.exports = 42;\n');
+          writeFileSync('pnpm-lock.yaml', `lockfileVersion: '9.0'\nsettings:\n  autoInstallPeers: true\n  excludeLinksFromLockfile: false\nimporters:\n  .:\n    dependencies:\n      setup-smoke-fixture:\n        specifier: link:./fixture-package\n        version: link:fixture-package\n`);
+          copyFileSync('.setup-action/pnpm-workspace.yaml', 'pnpm-workspace.yaml');
+          JS
+          sha256sum package.json pnpm-lock.yaml pnpm-workspace.yaml > fixture.sha256
+      - name: Setup consumer runtime without dependencies
+        uses: ./.setup-action/automation/actions/setup-project
+        with:
+          install-dependencies: 'false'
+      - name: Verify consumer selection and absence of dependency installation
+        run: |
+          test "$(node --version)" = v24.15.0
+          test "$(pnpm --version)" = "$(node -p 'JSON.parse(require("fs").readFileSync("package.json", "utf8")).packageManager.split("@")[1]')"
+          test ! -e node_modules
+          sha256sum --check fixture.sha256
+      - name: Install the consumer frozen dependency graph
+        uses: ./.setup-action/automation/actions/setup-project
+      - name: Verify normal installation without manifest or lockfile writes
+        run: |
+          test "$(node --version)" = v24.15.0
+          node -e 'if (require("setup-smoke-fixture") !== 42) process.exit(1)'
+          sha256sum --check fixture.sha256
+          find node_modules -type f -exec sha256sum {} + > installed.sha256
+      - name: Setup the explicit compatibility runtime without reinstalling
+        uses: ./.setup-action/automation/actions/setup-project
+        with:
+          node-version: '22'
+          install-dependencies: 'false'
+      - name: Verify the compatibility override and unchanged consumer files
+        run: |
+          node -e 'if (!process.versions.node.startsWith("22.")) process.exit(1)'
+          node -e 'if (require("setup-smoke-fixture") !== 42) process.exit(1)'
+          sha256sum --check fixture.sha256
+          sha256sum --check installed.sha256
+
   quality-gate:
     name: quality
     if: ${{ always() }}
-    needs: [quality]
+    needs: [quality, setup-smoke]
     runs-on: ubuntu-24.04
     timeout-minutes: 1
     steps:
       - name: Require every Node.js quality job to pass
         env:
           QUALITY_RESULT: ${{ needs.quality.result }}
-        run: test "$QUALITY_RESULT" = success
+          SETUP_RESULT: ${{ needs.setup-smoke.result }}
+        run: test "$QUALITY_RESULT" = success && test "$SETUP_RESULT" = success
