@@ -61,10 +61,13 @@ jobs:
           import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
           const core = JSON.parse(readFileSync('.setup-action/package.json', 'utf8'));
           writeFileSync('package.json', JSON.stringify({
-            private: true, packageManager: core.packageManager,
+            private: true, packageManager: 'pnpm@11.25.0',
             volta: { node: '24.15.0' },
             dependencies: { 'setup-smoke-fixture': 'link:./fixture-package' },
           }) + '\n');
+          if (core.packageManager === 'pnpm@11.25.0' || core.volta.node === '24.15.0') {
+            throw new Error('Smoke fixture toolchain must differ from browser-core');
+          }
           mkdirSync('fixture-package');
           writeFileSync('fixture-package/package.json', JSON.stringify({
             name: 'setup-smoke-fixture', version: '1.0.0', main: 'index.cjs',
