@@ -114,7 +114,7 @@ describe('shared consumer OSV workflow CLI', () => {
     expect(good.status, good.stderr).toBe(0);
     expect(readFileSync(join(f.results, 'new-results.json'), 'utf8')).toBe(`${overlay}\n`);
     const bad = run(f, 'scan-new', 'overlay', { FAKE_SCAN_DOCUMENT: '{' });
-    expect(bad.status).toBe(1);
+    expect(bad.status).toBe(2);
     expect(existsSync(join(f.results, 'new-results.json'))).toBe(false);
   });
 
@@ -122,7 +122,7 @@ describe('shared consumer OSV workflow CLI', () => {
     const f = fixture();
     const invalidOverlay = overlay.replace('"severity":[]', '"severity":{}');
     expect(run(f, 'scan-full', 'consumer', { FAKE_SCAN_DOCUMENT: invalidOverlay }).status).toBe(0);
-    expect(run(f, 'scan-full', 'overlay', { FAKE_SCAN_DOCUMENT: invalidOverlay }).status).toBe(1);
+    expect(run(f, 'scan-full', 'overlay', { FAKE_SCAN_DOCUMENT: invalidOverlay }).status).toBe(2);
     expect(existsSync(join(f.results, 'osv-results.json'))).toBe(false);
   });
 
@@ -139,7 +139,14 @@ describe('shared consumer OSV workflow CLI', () => {
       expect(parseResult.stdout).toContain(`failed to ${verb} new results`);
     }
     const missing = fixture();
-    expect(run(missing, 'scan-full').status).toBe(1);
+    expect(run(missing, 'scan-full').status).toBe(2);
+    for (const document of ['', '{', '{"results":[],"results":[]}']) {
+      const malformed = fixture();
+      const result = run(malformed, 'scan-full', 'consumer', { FAKE_SCAN_DOCUMENT: document });
+      expect(result.status).toBe(2);
+      expect(existsSync(join(malformed.results, 'osv-results.json'))).toBe(false);
+      expect(existsSync(malformed.output)).toBe(false);
+    }
   });
 
   it('propagates a child signal and keeps the raw log available', () => {

@@ -116,9 +116,14 @@ function scan(mode: Extract<Mode, 'scan-old' | 'scan-new' | 'scan-full'>, profil
     return 2;
   }
   if (rawReport.status !== 0) return rawReport.status;
-  const details = statSync(rawPath);
-  if (!details.isFile() || details.size === 0) throw new Error(`OSV scanner did not create a non-empty result: ${rawPath}`);
-  validateOsvFile(rawPath, profile, normalizedPath);
+  try {
+    const details = statSync(rawPath);
+    if (!details.isFile() || details.size === 0) throw new Error(`OSV scanner did not create a non-empty result: ${rawPath}`);
+    validateOsvFile(rawPath, profile, normalizedPath);
+  } catch (error) {
+    console.error(`Invalid OSV scanner output: ${error instanceof Error ? error.message : String(error)}`);
+    return 2;
+  }
   return 0;
 }
 

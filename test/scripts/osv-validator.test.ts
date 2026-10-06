@@ -129,6 +129,23 @@ describe('dependency-free OSV CLI', () => {
     expect(result.status, result.stderr).toBe(0);
     expect(readFileSync(output, 'utf8')).toBe(`${raw}\n`);
   });
+  it('preserves consumer findings with nullable aliases and unknown metadata', () => {
+    const report = {
+      results: [{
+        source: { type: 'lockfile', path: '/src/pnpm-lock.yaml' },
+        packages: [{
+          package: { ecosystem: 'npm', name: 'example', version: '1.0.0' },
+          vulnerabilities: [{ id: 'GHSA-example', summary: 'retained' }],
+          groups: [{ ids: ['GHSA-example'], aliases: null }],
+        }],
+      }],
+      extra_metadata: { retained: true },
+    };
+    const { input, output } = fixture(JSON.stringify(report));
+    const result = run(input, output);
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(readFileSync(output, 'utf8'))).toEqual(report);
+  });
   it('supports check-only without touching input or other files', () => {
     const { root, input } = fixture();
     const before = readFileSync(input);
@@ -143,7 +160,11 @@ describe('dependency-free OSV CLI', () => {
     expect(run(input, undefined, 'minimal').status).toBe(0);
   });
   it.each([
-    '', '{', '[]', '{}', '{"results":null}', '{"results":[null]}',
+    '', '{', '[]', '{}', '{"results":null}', '{"results":{}}', '{"results":[null]}',
+    '{"results":[{"packages":[]}]}',
+    '{"results":[{"source":{"type":"lockfile","path":"/src/a"},"packages":[{"package":{},"vulnerabilities":{},"groups":[]}]}]}',
+    '{"results":[{"source":{"type":"lockfile","path":"/src/a"},"packages":[{"package":{},"vulnerabilities":[{}],"groups":[]}]}]}',
+    '{"results":[{"source":{"type":"lockfile","path":"/src/a"},"packages":[{"package":{},"vulnerabilities":[],"groups":[{"ids":["x"],"aliases":42}]}]}]}',
     '{"results":[],"results":[]}', '{"results":[],"metric":NaN}',
     '{"results":[],"metric":1e400}',
     '{"results":[{"source":{},"packages":[]}]}',
