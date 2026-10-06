@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -258,6 +258,25 @@ describe('repository-local OSV workflow CLI', () => {
     const result = run(f, 'summary', { EVENT_NAME: 'merge_group' });
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('Unsupported security workflow event: merge_group');
+    expect(readFileSync(f.summary, 'utf8')).toContain('## Security scan results');
+  });
+
+  it('runs a symlink entrypoint when Node preserves its main path', () => {
+    const f = fixture();
+    const scripts = join(f.root, 'scripts/security');
+    mkdirSync(scripts, { recursive: true });
+    copyFileSync(entry, join(scripts, 'osv-workflow.ts'));
+    cpSync(resolve(import.meta.dirname, '../../automation/security'), join(f.root, 'automation/security'), { recursive: true });
+    const linked = join(scripts, 'linked-workflow.ts');
+    symlinkSync('osv-workflow.ts', linked);
+    const result = spawnSync(process.execPath, ['--preserve-symlinks-main', linked, 'summary'], {
+      encoding: 'utf8',
+      env: {
+        ...process.env, EVENT_NAME: 'pull_request', GITHUB_STEP_SUMMARY: f.summary,
+        OSV_PR_RESULT: 'success', CODEQL_RESULT: 'success', SEMGREP_RESULT: 'success',
+      },
+    });
+    expect(result.status, result.stderr).toBe(0);
     expect(readFileSync(f.summary, 'utf8')).toContain('## Security scan results');
   });
 
