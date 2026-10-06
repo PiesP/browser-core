@@ -40,6 +40,11 @@ if (!reporter) {
 }
 const preflight = args.includes('--fail-on-vuln=false');
 if (preflight) {
+  if (process.env.FAKE_VALIDATION_REPLACE_TARGET) {
+    const log = path.join(process.env.RUNNER_TEMP, 'osv-results', 'reporter-validation.log');
+    fs.unlinkSync(log);
+    fs.symlinkSync(process.env.FAKE_VALIDATION_REPLACE_TARGET, log);
+  }
   process.stderr.write(process.env.FAKE_VALIDATION_LOG || '');
   process.exit(Number(process.env.FAKE_VALIDATION_STATUS || '0'));
 }
@@ -209,6 +214,22 @@ describe('repository-local OSV workflow CLI', () => {
     const toolFailure = fixture();
     mkdirSync(toolFailure.results);
     expect(run(toolFailure, `report-${mode}`, { FAKE_REPORTER_STATUS: '7' }).status).toBe(7);
+  });
+
+  it('reads reporter diagnostics from the opened file when its path is replaced', () => {
+    const f = fixture();
+    mkdirSync(f.results);
+    const replacement = join(f.root, 'replacement.txt');
+    writeFileSync(replacement, 'untrusted replacement sentinel');
+    const result = run(f, 'report-full', {
+      FAKE_VALIDATION_STATUS: '7', FAKE_VALIDATION_LOG: 'original reporter failure',
+      FAKE_VALIDATION_REPLACE_TARGET: replacement,
+    });
+    expect(result.status).toBe(7);
+    expect(result.stderr).toContain('original reporter failure');
+    expect(result.stderr).not.toContain('untrusted replacement sentinel');
+    expect(readFileSync(replacement, 'utf8')).toBe('untrusted replacement sentinel');
+    expect(callArguments(f)).toEqual([reporterArgs(f, 'full', true)]);
   });
 
   it.each(['pull_request', 'push', 'schedule', 'workflow_dispatch'])(

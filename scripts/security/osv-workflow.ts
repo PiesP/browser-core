@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, chmodSync, closeSync, openSync, readFileSync, realpathSync, statSync, unlinkSync, mkdirSync } from 'node:fs';
+import { appendFileSync, chmodSync, closeSync, fstatSync, openSync, readSync, realpathSync, statSync, unlinkSync, mkdirSync } from 'node:fs';
 import { constants } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -102,11 +102,21 @@ function report(mode: Report): number {
   const directory = resultDirectory();
   const logPath = join(directory, 'reporter-validation.log');
   removeStaleFile(logPath);
-  const descriptor = openSync(logPath, 'w', 0o600);
+  const descriptor = openSync(logPath, 'wx+', 0o600);
   let validationStatus: number;
-  try { validationStatus = docker(reporterArguments(mode, true, directory), descriptor); }
+  let log: string;
+  try {
+    validationStatus = docker(reporterArguments(mode, true, directory), descriptor);
+    const buffer = Buffer.alloc(fstatSync(descriptor).size);
+    let position = 0;
+    while (position < buffer.length) {
+      const count = readSync(descriptor, buffer, position, buffer.length - position, position);
+      if (count === 0) throw new Error('Reporter validation log was truncated during reading.');
+      position += count;
+    }
+    log = buffer.toString('utf8');
+  }
   finally { closeSync(descriptor); }
-  const log = readFileSync(logPath, 'utf8');
   const noun = mode === 'pr' ? 'inputs' : 'input';
   if (validationStatus !== 0) {
     process.stderr.write(log);
