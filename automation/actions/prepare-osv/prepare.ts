@@ -1,4 +1,4 @@
-import { appendFileSync, chmodSync, closeSync, lstatSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, chmodSync, closeSync, constants, fstatSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -26,8 +26,12 @@ export function main(args: readonly string[]): number {
     chmodSync(destination, 0o700);
     for (const name of sourceNames) {
       const source = join(sourceDirectory, name);
-      if (!lstatSync(source).isFile()) throw new Error(`Provider OSV source is not a regular file: ${name}`);
-      const bytes = readFileSync(source);
+      const input = openSync(source, constants.O_RDONLY | constants.O_NOFOLLOW);
+      let bytes: Buffer;
+      try {
+        if (!fstatSync(input).isFile()) throw new Error(`Provider OSV source is not a regular file: ${name}`);
+        bytes = readFileSync(input);
+      } finally { closeSync(input); }
       const output = openSync(join(destination, name), 'wx', 0o600);
       try { writeFileSync(output, bytes); }
       finally { closeSync(output); }

@@ -108,6 +108,33 @@ describe('prepare OSV helper action', () => {
     expect(readdirSync(f.runner)).toEqual([]);
   });
 
+  it('reads the opened provider file when its path is replaced during copying', () => {
+    const f = fixture();
+    const source = join(f.source, 'consumer-workflow.ts');
+    const result = spawnSync(process.execPath, ['--input-type=module', '-e', `
+      import fs from 'node:fs';
+      import { syncBuiltinESMExports } from 'node:module';
+      const originalOpen = fs.openSync;
+      fs.openSync = (path, ...args) => {
+        const fd = originalOpen(path, ...args);
+        if (path === ${JSON.stringify(source)}) {
+          fs.renameSync(path, path + '.opened');
+          fs.writeFileSync(path, 'replacement bytes');
+        }
+        return fd;
+      };
+      syncBuiltinESMExports();
+      process.argv[1] = ${JSON.stringify(f.providerEntry)};
+      await import(${JSON.stringify(pathToFileURL(f.providerEntry).href)});
+    `], {
+      cwd: f.workspace, encoding: 'utf8',
+      env: { ...process.env, RUNNER_TEMP: f.runner, GITHUB_OUTPUT: f.output },
+    });
+    expect(result.status, result.stderr).toBe(0);
+    expect(readFileSync(source, 'utf8')).toBe('replacement bytes');
+    expect(readFileSync(helperPath(f), 'utf8')).toBe('trusted provider consumer-workflow.ts\n');
+  });
+
   it('does not authorize a partial copy when output writing fails', () => {
     const f = fixture();
     mkdirSync(f.output);
