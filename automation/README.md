@@ -38,6 +38,11 @@ official pin; their CLI fixtures cover runtime behavior. Hosted CI remains the
 authority for the runner's bootstrap Node and the Node 22 compatibility lane.
 Hosted consumer pilot evidence is recorded below, separately from provider fixtures.
 
+These JavaScript exceptions are `resolve-runtime.mjs`, `classify.mjs` and
+`prepare-setup-smoke.mjs`. In contrast, `prepare-osv/prepare.ts` is dependency-free
+TypeScript executed after manifest-pinned Node setup; it is not a pre-runtime
+JavaScript exception.
+
 The retained languages have explicit stage boundaries:
 
 | Exception or adapter | Reason | Review trigger |
@@ -126,8 +131,11 @@ Runtime gitlinks and automation references are independent pins and may point to
 different browser-core commits. Automation changes are rolled out by updating the
 full SHA in one consumer first, validating that consumer's final commit with its
 local publication gate and required remote workflows, and then updating the
-remaining consumers. Rollback is a one-line change to the previously validated
-automation SHA.
+remaining consumers. OSV rollback depends on the adoption stage: undoing the first
+adoption restores the consumer's prior validator/callers/tests, while a compatible
+provider rollback updates all applicable Action references together. Follow the
+consumer-owned procedure in [Verified provider and consumer pilot](#verified-provider-and-consumer-pilot);
+neither operation changes runtime gitlinks or authorizes publication/settings changes.
 
 Changes under `automation/**` intentionally do not trigger the runtime
 `Notify consumers` workflow when they are the only changed paths. All other
@@ -252,11 +260,21 @@ it is not counted as a completed review.
 | `setup-project` Action | `279124fa998847bd0184d2de12bdaadcd6d2f969` | Same Action |
 | OSV helper | Trusted-base local Python validator and inline workflow policy | `prepare-osv@9a9471ad301e439bcd1ebc52334cf6b4399510e7` |
 
-The first-adoption rollback is a protected PR reverting the gallery's OSV
-adoption commit and restoring the validator, callers and tests together. Keep
-the runtime gitlink and the independently adopted setup/tool metadata pins.
-For later provider updates, replace both OSV Action references with the previous
-verified full SHA and run the consumer's required gates before landing.
+To undo first OSV adoption, use a consumer-owned protected PR to restore its local
+validator, all affected workflow callers and associated tests together from that
+consumer's recorded pre-adoption revision. Use its existing
+`docs/osv-workflow.md` coverage map and preserve unrelated later edits; a provider
+pin alone cannot restore the prior contract, and a blanket revert of one adoption
+commit is not a universal recovery procedure. The gallery pilot above records one
+consumer's adoption, not a shared restore revision for all consumers. Keep runtime
+gitlinks, setup-project pins and independently adopted tool metadata unchanged.
+
+For a later compatible provider rollback, update all applicable OSV Action
+references (currently two per consumer) to the same previously reviewed full SHA.
+Verify local workflow composition, the selected schema/profile and real CLI
+fixtures, then the hosted scanner/report/upload checks under the consumer's
+protected-PR gates. An incompatible provider contract may also require coordinated
+caller changes. Consumer permissions and publication policy remain consumer-owned.
 No rollback, publication or runtime gitlink update is performed by this document.
 
 The same reviewed inventory method counts maintained automation files,
