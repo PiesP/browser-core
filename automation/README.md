@@ -117,3 +117,49 @@ dynamic imports or custom path aliases; adding one requires extending this
 policy before its target can be safely skipped.
 The CLI is also callable as
 `node automation/actions/consumer-impact/classify.mjs packages/core BASE_SHA HEAD_SHA`.
+
+## OSV result validation
+
+`automation/security/validate-osv.ts` is a dependency-free Node-direct CLI:
+
+```sh
+node automation/security/validate-osv.ts --input raw.json --output validated.json --profile consumer
+node automation/security/validate-osv.ts --input validated.json --profile overlay
+```
+
+The maintained Node matrix supports direct erasable TypeScript. The CLI reads
+only its explicit input, writes an optional validated output, and returns `2`
+on parse, schema or I/O failure. Importing its modules does not run the CLI.
+`test/scripts/osv-validator.test.ts` exercises the production entrypoint,
+including symlink invocation, malformed/mixed records, integer precision,
+input/output aliases, stale outputs and replacement failures. Node-specific
+type checking belongs to `tsconfig.scripts.json`.
+
+`strict-json.ts` rejects malformed JSON, duplicate decoded keys, non-finite
+constants and overflowing floats. It preserves integers beyond Number's exact
+range as `bigint` and retains the original validated JSON lexemes in file
+outputs. Unknown metadata is preserved; formatting is not canonicalized.
+The integer conversion limit matches the existing Python validator's default
+4300-digit bound. `osv-report.ts` owns only document/schema checks:
+
+| Profile | Contract |
+| --- | --- |
+| `minimal` | Core's shallow object root and array of result objects; the pinned reporter separately checks nested inputs. Check-only mode does not certify Unicode serialization. |
+| `consumer` | Converter/gallery source, package, vulnerability ID and group structure, with unknown fields retained. |
+| `overlay` | The consumer contract plus overlay's optional vulnerability metadata field types. |
+
+Consumer/overlay check-only calls apply the same Unicode serialization checks
+as output mode. Output mode rejects input/output aliases before removing an
+old output, including symlinks and hardlinks; invalid input removes a stale
+distinct output. Successful replacement uses an exclusively created private
+temporary file in the output directory, then an atomic rename. No successful
+output remains after a validation failure. Callers retain responsibility for
+their scanner exit status, reporter/SARIF gates and isolated result directory.
+
+The core inline validators and consumer Python callers require separate
+workflow adoption; adding this module alone does not remove those runtimes.
+Trusted security jobs must obtain the complete module set from an independently
+reviewed immutable automation commit selected by trusted workflow/base policy.
+Candidate artifacts and PR-controlled helpers must never select or supply that
+code. Runtime gitlinks, scan selection, permissions, secrets and publication
+remain outside this helper's contract.
