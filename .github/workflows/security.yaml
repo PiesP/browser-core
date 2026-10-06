@@ -48,56 +48,36 @@ jobs:
           set -euo pipefail
           git switch --force --detach "$BASE_SHA"
 
-      - name: Prepare isolated OSV result directory
+      - name: Setup trusted Node runtime without dependencies
+        uses: PiesP/browser-core/automation/actions/setup-project@279124fa998847bd0184d2de12bdaadcd6d2f969
+        with:
+          install-dependencies: 'false'
+
+      - name: Materialize immutable OSV helper outside the checkout
+        env:
+          TRUSTED_HELPER_SHA: e80334d25dd4edb18703d63153ef7630daf4d04b
         run: |
           set -euo pipefail
-          install -d -m 0700 "$RUNNER_TEMP/osv-results"
+          umask 077
+          helper_root="$RUNNER_TEMP/trusted-helper"
+          if [[ -e "$helper_root" || -L "$helper_root" ]]; then
+            echo "Trusted OSV helper root already exists." >&2
+            exit 1
+          fi
+          mkdir -m 0700 "$helper_root"
+          mkdir -m 0700 "$helper_root/scripts" "$helper_root/scripts/security" \
+            "$helper_root/automation" "$helper_root/automation/security"
+          git cat-file -e "$TRUSTED_HELPER_SHA^{commit}"
+          for helper in \
+            scripts/security/osv-workflow.ts \
+            automation/security/strict-json.ts \
+            automation/security/osv-report.ts \
+            automation/security/validate-osv.ts; do
+            git show "$TRUSTED_HELPER_SHA:$helper" > "$helper_root/$helper"
+          done
 
       - name: Scan dependencies before the PR
-        run: |
-          set -euo pipefail
-          result_path="$RUNNER_TEMP/osv-results/old-results.json"
-          rm -f "$result_path"
-          scan_status=0
-          docker run --rm \
-            --env GOTOOLCHAIN=auto \
-            --volume "$GITHUB_WORKSPACE:/src" \
-            --volume "$RUNNER_TEMP/osv-results:/results" \
-            --workdir /src \
-            "$OSV_SCANNER_IMAGE" \
-            --format=json \
-            --output-file=/results/old-results.json \
-            -r \
-            --lockfile=pnpm-lock.yaml \
-            . || scan_status=$?
-          if ((scan_status > 1)); then
-            echo "OSV scanner failed before producing a result (exit $scan_status)." >&2
-            exit "$scan_status"
-          fi
-          RESULT_PATH="$result_path" python3 -I - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          def reject_duplicate_keys(pairs):
-              document = {}
-              for key, value in pairs:
-                  if key in document:
-                      raise ValueError(f"OSV result contains duplicate key: {key}")
-                  document[key] = value
-              return document
-
-          result_path = Path(os.environ["RESULT_PATH"])
-          if not result_path.is_file() or result_path.stat().st_size == 0:
-              raise ValueError(f"OSV scanner did not create a non-empty result: {result_path}")
-          with result_path.open("r", encoding="utf-8") as result_file:
-              report = json.load(result_file, object_pairs_hook=reject_duplicate_keys)
-          if not isinstance(report, dict):
-              raise ValueError("OSV result must be a JSON object")
-          results = report.get("results")
-          if not isinstance(results, list) or not all(isinstance(item, dict) for item in results):
-              raise ValueError("OSV result must contain an array of result objects")
-          PY
+        run: node "$RUNNER_TEMP/trusted-helper/scripts/security/osv-workflow.ts" scan-old
 
       - name: Checkout the PR result
         run: |
@@ -105,90 +85,10 @@ jobs:
           git switch --force --detach "$GITHUB_SHA"
 
       - name: Scan dependencies after the PR
-        run: |
-          set -euo pipefail
-          result_path="$RUNNER_TEMP/osv-results/new-results.json"
-          rm -f "$result_path"
-          scan_status=0
-          docker run --rm \
-            --env GOTOOLCHAIN=auto \
-            --volume "$GITHUB_WORKSPACE:/src" \
-            --volume "$RUNNER_TEMP/osv-results:/results" \
-            --workdir /src \
-            "$OSV_SCANNER_IMAGE" \
-            --format=json \
-            --output-file=/results/new-results.json \
-            -r \
-            --lockfile=pnpm-lock.yaml \
-            . || scan_status=$?
-          if ((scan_status > 1)); then
-            echo "OSV scanner failed before producing a result (exit $scan_status)." >&2
-            exit "$scan_status"
-          fi
-          RESULT_PATH="$result_path" python3 -I - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          def reject_duplicate_keys(pairs):
-              document = {}
-              for key, value in pairs:
-                  if key in document:
-                      raise ValueError(f"OSV result contains duplicate key: {key}")
-                  document[key] = value
-              return document
-
-          result_path = Path(os.environ["RESULT_PATH"])
-          if not result_path.is_file() or result_path.stat().st_size == 0:
-              raise ValueError(f"OSV scanner did not create a non-empty result: {result_path}")
-          with result_path.open("r", encoding="utf-8") as result_file:
-              report = json.load(result_file, object_pairs_hook=reject_duplicate_keys)
-          if not isinstance(report, dict):
-              raise ValueError("OSV result must be a JSON object")
-          results = report.get("results")
-          if not isinstance(results, list) or not all(isinstance(item, dict) for item in results):
-              raise ValueError("OSV result must contain an array of result objects")
-          PY
+        run: node "$RUNNER_TEMP/trusted-helper/scripts/security/osv-workflow.ts" scan-new
 
       - name: Report newly introduced vulnerabilities
-        run: |
-          set -euo pipefail
-          validation_log="$RUNNER_TEMP/osv-results/reporter-validation.log"
-          rm -f "$validation_log"
-          set +e
-          docker run --rm \
-            --entrypoint /root/osv-reporter \
-            --volume "$RUNNER_TEMP/osv-results:/results" \
-            --workdir /results \
-            "$OSV_SCANNER_IMAGE" \
-            --old=old-results.json \
-            --new=new-results.json \
-            --output-files=sarif:/dev/null \
-            --fail-on-vuln=false \
-            >"$validation_log" 2>&1
-          validation_status=$?
-          set -e
-          if ((validation_status != 0)); then
-            cat "$validation_log" >&2
-            echo "OSV reporter failed to validate its result inputs (exit $validation_status)." >&2
-            exit "$validation_status"
-          fi
-          if grep -Eq 'failed to (open|parse) (old|new) results at ' "$validation_log"; then
-            cat "$validation_log" >&2
-            echo "OSV reporter did not parse its result inputs." >&2
-            exit 1
-          fi
-
-          docker run --rm \
-            --entrypoint /root/osv-reporter \
-            --volume "$RUNNER_TEMP/osv-results:/results" \
-            --workdir /results \
-            "$OSV_SCANNER_IMAGE" \
-            --old=old-results.json \
-            --new=new-results.json \
-            --output-files=sarif:osv-results.sarif \
-            '--output-files=gh-annotations:#stderr' \
-            --fail-on-vuln=true
+        run: node "$RUNNER_TEMP/trusted-helper/scripts/security/osv-workflow.ts" report-pr
 
       - name: Upload OSV SARIF to GitHub Security
         if: ${{ !cancelled() }}
@@ -209,91 +109,42 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
 
-      - name: Run OSV scan
+      - name: Setup trusted Node runtime without dependencies
+        uses: PiesP/browser-core/automation/actions/setup-project@279124fa998847bd0184d2de12bdaadcd6d2f969
+        with:
+          install-dependencies: 'false'
+
+      - name: Materialize immutable OSV helper outside the checkout
+        env:
+          TRUSTED_HELPER_SHA: e80334d25dd4edb18703d63153ef7630daf4d04b
         run: |
           set -euo pipefail
-          install -d -m 0700 "$RUNNER_TEMP/osv-results"
-          result_path="$RUNNER_TEMP/osv-results/osv-results.json"
-          rm -f "$result_path"
-          scan_status=0
-          docker run --rm \
-            --env GOTOOLCHAIN=auto \
-            --volume "$GITHUB_WORKSPACE:/src" \
-            --volume "$RUNNER_TEMP/osv-results:/results" \
-            --workdir /src \
-            "$OSV_SCANNER_IMAGE" \
-            --format=json \
-            --output-file=/results/osv-results.json \
-            -r \
-            --lockfile=pnpm-lock.yaml \
-            . || scan_status=$?
-          if ((scan_status > 1)); then
-            echo "OSV scanner failed before producing a result (exit $scan_status)." >&2
-            exit "$scan_status"
-          fi
-          RESULT_PATH="$result_path" python3 -I - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          def reject_duplicate_keys(pairs):
-              document = {}
-              for key, value in pairs:
-                  if key in document:
-                      raise ValueError(f"OSV result contains duplicate key: {key}")
-                  document[key] = value
-              return document
-
-          result_path = Path(os.environ["RESULT_PATH"])
-          if not result_path.is_file() or result_path.stat().st_size == 0:
-              raise ValueError(f"OSV scanner did not create a non-empty result: {result_path}")
-          with result_path.open("r", encoding="utf-8") as result_file:
-              report = json.load(result_file, object_pairs_hook=reject_duplicate_keys)
-          if not isinstance(report, dict):
-              raise ValueError("OSV result must be a JSON object")
-          results = report.get("results")
-          if not isinstance(results, list) or not all(isinstance(item, dict) for item in results):
-              raise ValueError("OSV result must contain an array of result objects")
-          PY
-
-      - name: Convert OSV results to SARIF and enforce the vulnerability gate
-        run: |
-          set -euo pipefail
-          validation_log="$RUNNER_TEMP/osv-results/reporter-validation.log"
-          rm -f "$validation_log"
-          set +e
-          docker run --rm \
-            --entrypoint /root/osv-reporter \
-            --volume "$RUNNER_TEMP/osv-results:/results" \
-            --workdir /results \
-            "$OSV_SCANNER_IMAGE" \
-            --new=osv-results.json \
-            --output-files=sarif:/dev/null \
-            --fail-on-vuln=false \
-            >"$validation_log" 2>&1
-          validation_status=$?
-          set -e
-          if ((validation_status != 0)); then
-            cat "$validation_log" >&2
-            echo "OSV reporter failed to validate its result input (exit $validation_status)." >&2
-            exit "$validation_status"
-          fi
-          if grep -Eq 'failed to (open|parse) (old|new) results at ' "$validation_log"; then
-            cat "$validation_log" >&2
-            echo "OSV reporter did not parse its result input." >&2
+          umask 077
+          helper_root="$RUNNER_TEMP/trusted-helper"
+          if [[ -e "$helper_root" || -L "$helper_root" ]]; then
+            echo "Trusted OSV helper root already exists." >&2
             exit 1
           fi
+          mkdir -m 0700 "$helper_root"
+          mkdir -m 0700 "$helper_root/scripts" "$helper_root/scripts/security" \
+            "$helper_root/automation" "$helper_root/automation/security"
+          git cat-file -e "$TRUSTED_HELPER_SHA^{commit}"
+          for helper in \
+            scripts/security/osv-workflow.ts \
+            automation/security/strict-json.ts \
+            automation/security/osv-report.ts \
+            automation/security/validate-osv.ts; do
+            git show "$TRUSTED_HELPER_SHA:$helper" > "$helper_root/$helper"
+          done
 
-          docker run --rm \
-            --entrypoint /root/osv-reporter \
-            --volume "$RUNNER_TEMP/osv-results:/results" \
-            --workdir /results \
-            "$OSV_SCANNER_IMAGE" \
-            --output-files=sarif:osv-results.sarif \
-            --new=osv-results.json \
-            --fail-on-vuln=true
+      - name: Run OSV scan
+        run: node "$RUNNER_TEMP/trusted-helper/scripts/security/osv-workflow.ts" scan-full
+
+      - name: Convert OSV results to SARIF and enforce the vulnerability gate
+        run: node "$RUNNER_TEMP/trusted-helper/scripts/security/osv-workflow.ts" report-full
 
       - name: Upload OSV SARIF to GitHub Security
         if: ${{ !cancelled() }}
@@ -372,6 +223,40 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Checkout immutable security helper manifest
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: e80334d25dd4edb18703d63153ef7630daf4d04b
+          persist-credentials: false
+
+      - name: Setup trusted Node runtime without dependencies
+        uses: PiesP/browser-core/automation/actions/setup-project@279124fa998847bd0184d2de12bdaadcd6d2f969
+        with:
+          install-dependencies: 'false'
+
+      - name: Materialize immutable OSV helper outside the checkout
+        env:
+          TRUSTED_HELPER_SHA: e80334d25dd4edb18703d63153ef7630daf4d04b
+        run: |
+          set -euo pipefail
+          umask 077
+          helper_root="$RUNNER_TEMP/trusted-helper"
+          if [[ -e "$helper_root" || -L "$helper_root" ]]; then
+            echo "Trusted OSV helper root already exists." >&2
+            exit 1
+          fi
+          mkdir -m 0700 "$helper_root"
+          mkdir -m 0700 "$helper_root/scripts" "$helper_root/scripts/security" \
+            "$helper_root/automation" "$helper_root/automation/security"
+          git cat-file -e "$TRUSTED_HELPER_SHA^{commit}"
+          for helper in \
+            scripts/security/osv-workflow.ts \
+            automation/security/strict-json.ts \
+            automation/security/osv-report.ts \
+            automation/security/validate-osv.ts; do
+            git show "$TRUSTED_HELPER_SHA:$helper" > "$helper_root/$helper"
+          done
+
       - name: Summarize and validate event-specific scans
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -379,43 +264,4 @@ jobs:
           OSV_FULL_RESULT: ${{ needs.osv-scan-full.result }}
           CODEQL_RESULT: ${{ needs.codeql.result }}
           SEMGREP_RESULT: ${{ needs.semgrep.result }}
-        run: |
-          set -euo pipefail
-
-          {
-            echo "## Security scan results"
-            echo
-            echo "| Check | Result |"
-            echo "| --- | --- |"
-            echo "| OSV PR diff | $OSV_PR_RESULT |"
-            echo "| OSV full | $OSV_FULL_RESULT |"
-            echo "| CodeQL | $CODEQL_RESULT |"
-            echo "| Semgrep | $SEMGREP_RESULT |"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          failed=0
-          expect_success() {
-            local label="$1"
-            local result="$2"
-            if [[ "$result" != "success" ]]; then
-              echo "Expected $label to succeed for $EVENT_NAME, got: $result" >&2
-              failed=1
-            fi
-          }
-
-          expect_success "CodeQL" "$CODEQL_RESULT"
-          expect_success "Semgrep" "$SEMGREP_RESULT"
-          case "$EVENT_NAME" in
-            pull_request)
-              expect_success "OSV PR diff" "$OSV_PR_RESULT"
-              ;;
-            push|schedule|workflow_dispatch)
-              expect_success "OSV full" "$OSV_FULL_RESULT"
-              ;;
-            *)
-              echo "Unsupported security workflow event: $EVENT_NAME" >&2
-              failed=1
-              ;;
-          esac
-
-          exit "$failed"
+        run: node "$RUNNER_TEMP/trusted-helper/scripts/security/osv-workflow.ts" summary

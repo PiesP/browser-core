@@ -27,33 +27,22 @@ jobs:
       CORE_REPOSITORY: ${{ github.repository }}
       CORE_SHA: ${{ inputs.core_sha || github.sha }}
     steps:
+      - name: Check out notification workflow source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: master
+          persist-credentials: false
+
+      - name: Setup pinned notification runtime
+        uses: PiesP/browser-core/automation/actions/setup-project@279124fa998847bd0184d2de12bdaadcd6d2f969
+        with:
+          install-dependencies: 'false'
+
       - name: Validate commit SHA
         id: revision
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          if [[ ! "$CORE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error::core_sha must be a 40-character lowercase commit SHA"
-            exit 1
-          fi
-
-          RESOLVED_SHA="$(gh api "/repos/$CORE_REPOSITORY/commits/$CORE_SHA" --jq .sha)"
-          if [[ "$RESOLVED_SHA" != "$CORE_SHA" ]]; then
-            echo "::error::core_sha does not resolve to the requested commit"
-            exit 1
-          fi
-
-          COMPARE_STATUS="$(gh api "/repos/$CORE_REPOSITORY/compare/$CORE_SHA...master" --jq .status)"
-          if [[ "$COMPARE_STATUS" != "ahead" && "$COMPARE_STATUS" != "identical" ]]; then
-            echo "::error::core_sha must be reachable from browser-core master (status: $COMPARE_STATUS)"
-            exit 1
-          fi
-
-          echo "core_sha=$CORE_SHA" >> "$GITHUB_OUTPUT"
-
-      - name: Check out the notification action
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        run: node scripts/notify-consumers.ts validate
 
       - name: Check out the validated browser-core revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -83,28 +72,31 @@ jobs:
           - PiesP/xcom-enhanced-gallery
           - PiesP/yt-live-chat-overlay
     env:
-      GH_TOKEN: ${{ secrets.CONSUMER_UPDATE_TOKEN }}
+      CONSUMER_UPDATE_TOKEN_CONFIGURED: ${{ secrets.CONSUMER_UPDATE_TOKEN != '' && 'true' || 'false' }}
       CONSUMER_REPOSITORY: ${{ matrix.repository }}
       CORE_REPOSITORY: ${{ github.repository }}
       CORE_SHA: ${{ needs.validate.outputs.core_sha }}
     steps:
+      - name: Check out notification workflow source
+        if: ${{ env.CONSUMER_UPDATE_TOKEN_CONFIGURED == 'true' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: master
+          persist-credentials: false
+
+      - name: Setup pinned notification runtime
+        if: ${{ env.CONSUMER_UPDATE_TOKEN_CONFIGURED == 'true' }}
+        uses: PiesP/browser-core/automation/actions/setup-project@279124fa998847bd0184d2de12bdaadcd6d2f969
+        with:
+          install-dependencies: 'false'
+
       - name: Dispatch update event
-        if: ${{ env.GH_TOKEN != '' }}
-        run: |
-          set -euo pipefail
-          gh api --method POST \
-            "/repos/$CONSUMER_REPOSITORY/dispatches" \
-            --input - <<EOF
-          {
-            "event_type": "browser-core-updated",
-            "client_payload": {
-              "core_repository": "$CORE_REPOSITORY",
-              "core_sha": "$CORE_SHA"
-            }
-          }
-          EOF
+        if: ${{ env.CONSUMER_UPDATE_TOKEN_CONFIGURED == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.CONSUMER_UPDATE_TOKEN }}
+        run: node scripts/notify-consumers.ts dispatch
 
       - name: Explain scheduled fallback
-        if: ${{ env.GH_TOKEN == '' }}
+        if: ${{ env.CONSUMER_UPDATE_TOKEN_CONFIGURED != 'true' }}
         run: |
           echo "::warning::CONSUMER_UPDATE_TOKEN is not configured. Consumer repositories will discover this commit on their scheduled runs."

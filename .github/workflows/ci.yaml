@@ -24,6 +24,9 @@ jobs:
         node-version: [22, manifest]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Workflow execution fixtures restore published helper commits from Git.
+          fetch-depth: 0
       - name: Resolve official or compatibility runtime
         id: runtime
         env:
