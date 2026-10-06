@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
-import { extname } from 'node:path';
+import { extname, resolve } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 const textExtensions = new Set([
   '.css',
@@ -11,35 +12,41 @@ const textExtensions = new Set([
   '.yaml',
   '.yml',
 ]);
-const textFiles: string[] = execFileSync('git', ['ls-files', '-co', '--exclude-standard', '-z'], {
-  encoding: 'utf8',
-})
-  .split('\0')
-  .filter(Boolean)
-  .filter((file) => textExtensions.has(extname(file)))
-  .filter(existsSync);
-const violations: string[] = [];
+export function checkFormat(): string[] {
+  const textFiles: string[] = execFileSync('git', ['ls-files', '-co', '--exclude-standard', '-z'], {
+    encoding: 'utf8',
+  })
+    .split('\0')
+    .filter(Boolean)
+    .filter((file) => textExtensions.has(extname(file)))
+    .filter(existsSync);
+  const violations: string[] = [];
 
-for (const file of textFiles) {
-  const contents = readFileSync(file, 'utf8');
+  for (const file of textFiles) {
+    const contents = readFileSync(file, 'utf8');
 
-  if (contents.includes('\r')) {
-    violations.push(`${file}: contains CR line endings`);
-  }
-  if (contents.length > 0 && !contents.endsWith('\n')) {
-    violations.push(`${file}: missing final newline`);
-  }
+    if (contents.includes('\r')) {
+      violations.push(`${file}: contains CR line endings`);
+    }
+    if (contents.length > 0 && !contents.endsWith('\n')) {
+      violations.push(`${file}: missing final newline`);
+    }
 
-  const lines = contents.split('\n');
-  for (let index = 0; index < lines.length; index++) {
-    const line = lines[index];
-    if (line !== undefined && /[\t ]+$/.test(line)) {
-      violations.push(`${file}:${index + 1}: trailing whitespace`);
+    const lines = contents.split('\n');
+    for (let index = 0; index < lines.length; index++) {
+      const line = lines[index];
+      if (line !== undefined && /[\t ]+$/.test(line)) {
+        violations.push(`${file}:${index + 1}: trailing whitespace`);
+      }
     }
   }
+  return violations;
 }
 
-if (violations.length > 0) {
-  console.error(violations.join('\n'));
-  process.exitCode = 1;
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+  const violations = checkFormat();
+  if (violations.length > 0) {
+    console.error(violations.join('\n'));
+    process.exitCode = 1;
+  }
 }

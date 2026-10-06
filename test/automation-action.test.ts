@@ -84,7 +84,9 @@ describe('central project setup action', () => {
     expect(ci).toContain('uses: ./.setup-action/automation/actions/setup-project');
     expect(ci).toContain("install-dependencies: 'false'");
     expect(ci).toContain('sha256sum --check fixture.sha256');
-    expect(ci).toContain('test ! -e node_modules');
+    expect(ci).toContain(
+      'node .setup-action/automation/scripts/verify-setup-smoke.ts prepared',
+    );
     expect(ci).toContain('test "$SETUP_RESULT" = success');
   });
 });

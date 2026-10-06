@@ -4,6 +4,28 @@ This directory contains reusable, unprivileged automation for the browser-core
 consumer repositories. It is distributed independently from the
 `@piesp/browser-core` runtime package and its consumer gitlinks.
 
+## Maintained tooling catalog
+
+| Surface | Owner and runtime | Reason |
+| --- | --- | --- |
+| `pnpm check`, `check:format`, `check:design`, `check:types`, `generate:design`, `test`, `test:cov`, `verify` | `package.json`; Node-direct TypeScript in `scripts/`, TypeScript/Vitest for tests | Local source checks and token generation; `tsconfig.scripts.json` checks Node-direct tools and script tests separately from browser source. |
+| `.githooks/pre-commit`, `.githooks/pre-push` | Minimal Bash adapters to `scripts/git-hook.ts` | Git invokes executable hook files; TypeScript holds the tested branch/ref policy and runs only when a hook is invoked. |
+| `automation/actions/setup-project` | Composite Action; `resolve-runtime.mjs` on runner Node | Runtime resolution precedes pinned Node/pnpm installation and dependency installation. It uses only Node built-ins. |
+| `automation/actions/consumer-impact` | Composite Action; `classify.mjs` on runner Node | `notify-consumers.yaml` invokes it after checkout, before any pinned runtime or dependency install. Its Git subprocess compares the existing clone. |
+| `automation/scripts/prepare-setup-smoke.mjs` | CI setup smoke on runner Node | Creates the distinct consumer fixture before setup; it uses only Node built-ins. |
+| `automation/scripts/verify-setup-smoke.ts` | CI setup smoke after pinned runtime selection | Checks the consumer pin, install boundary, and linked dependency on the existing Node 24/22 lanes. Shell retains fixture and installed-file SHA checks. |
+| `.github/workflows/ci.yaml`, `notify-consumers.yaml`, `security.yaml` | GitHub workflow YAML and shell steps | Own job permissions, events, runtime ordering, CI gates, notification dispatch, and scanner orchestration. `security.yaml` still has three inline Python result validators pending a separate contract and trust review. |
+| `test/scripts/*.test.ts`, `test/automation-action.test.ts`, `test/security-workflow.test.ts` | Vitest TypeScript | Exercise CLI subprocesses, Git hook fixtures, Action metadata, and workflow contracts. |
+
+The setup order is runner-provided Node → manifest/override resolution → pinned
+Node and pnpm installation → optional frozen dependency installation → consumer
+tool execution. `install-dependencies: 'false'` stops after toolchain setup.
+The pre-runtime `.mjs` files must not import project dependencies or require
+TypeScript execution. Review each exception if a caller moves after guaranteed
+pin selection, the supported runner Node contract changes, or the Node 22/24
+compatibility matrix changes. A conversion must pass a clean bootstrap with no
+`node_modules` and the existing compatibility jobs first.
+
 ## Consumer contract
 
 Consumers reference actions from this repository with an immutable 40-character

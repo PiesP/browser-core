@@ -1,15 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-branch="$(git symbolic-ref --quiet --short HEAD || true)"
-case "$branch" in
-  master|main)
-    echo "Direct commits on '$branch' are blocked. Create a codex/* work branch first." >&2
-    exit 1
-    ;;
-  "")
-    echo "Commits from a detached HEAD are blocked. Create a work branch first." >&2
-    exit 1
-    ;;
-esac
-
+hook_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+exec node "$hook_dir/../scripts/git-hook.ts" pre-commit "$@"

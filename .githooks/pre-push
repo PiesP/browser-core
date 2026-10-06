@@ -1,11 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-while read -r _local_ref _local_sha remote_ref _remote_sha; do
-  case "$remote_ref" in
-    refs/heads/master|refs/heads/main)
-      echo "Direct default-branch pushes are blocked. Push a work branch and use a protected pull request." >&2
-      exit 1
-      ;;
-  esac
-done
+hook_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+exec node "$hook_dir/../scripts/git-hook.ts" pre-push "$@"

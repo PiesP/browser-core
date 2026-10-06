@@ -1,22 +1,32 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
   copyFileSync,
+  chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const checkFormatScript = resolve(repositoryRoot, 'scripts/check-format.ts');
 const generateDesignTokensScript = resolve(
   repositoryRoot,
   'scripts/generate-design-tokens.ts',
+);
+const gitHookScript = resolve(repositoryRoot, 'scripts/git-hook.ts');
+const prepareSmokeScript = resolve(
+  repositoryRoot, 'automation/scripts/prepare-setup-smoke.mjs',
+);
+const verifySmokeScript = resolve(
+  repositoryRoot, 'automation/scripts/verify-setup-smoke.ts',
 );
 const sourceTokens = resolve(
   repositoryRoot,
@@ -100,6 +110,82 @@ afterEach(() => {
   for (const fixture of fixtureDirectories.splice(0)) {
     rmSync(fixture, { recursive: true, force: true });
   }
+});
+
+test('ordinary helper imports do not execute their CLIs', () => {
+  const fixture = createFixtureRepository();
+  const commandDirectory = join(fixture, 'commands');
+  mkdirSync(commandDirectory);
+  writeFileSync(join(commandDirectory, 'git'), '#!/bin/sh\ntouch git-invoked\n');
+  chmodSync(join(commandDirectory, 'git'), 0o755);
+  const modules = [
+    checkFormatScript,
+    generateDesignTokensScript,
+    gitHookScript,
+    prepareSmokeScript,
+    verifySmokeScript,
+  ];
+  const result = spawnSync(process.execPath, [
+    '--input-type=module', '-e',
+    `await Promise.all(${JSON.stringify(modules.map((path) => pathToFileURL(path).href))}.map((url) => import(url)))`,
+  ], {
+    cwd: fixture,
+    encoding: 'utf8',
+    env: { ...process.env, PATH: `${commandDirectory}:${process.env.PATH ?? ''}` },
+  });
+  expect(result.status).toBe(0);
+  expect(result.stdout).toBe('');
+  expect(result.stderr).toBe('');
+  expect(existsSync(join(fixture, 'git-invoked'))).toBe(false);
+  expect(readdirSync(fixture).sort()).toEqual(['.git', 'commands']);
+});
+
+test('pre-runtime setup fixture preserves the consumer manifest and frozen link', () => {
+  const fixture = createFixtureRepository();
+  const result = runScript(prepareSmokeScript, fixture);
+  expect(result.status).toBe(0);
+  expect(JSON.parse(readFileSync(join(fixture, 'package.json'), 'utf8'))).toEqual({
+    private: true,
+    packageManager: 'pnpm@11.25.0',
+    volta: { node: '24.15.0' },
+    dependencies: { 'setup-smoke-fixture': 'link:./fixture-package' },
+  });
+  expect(readFileSync(join(fixture, 'pnpm-lock.yaml'), 'utf8'))
+    .toContain('version: link:fixture-package');
+  expect(readFileSync(join(fixture, 'fixture-package/index.cjs'), 'utf8'))
+    .toBe('module.exports = 42;\n');
+  expect(readFileSync(join(fixture, 'pnpm-workspace.yaml'), 'utf8')).toBe(
+    readFileSync(resolve(repositoryRoot, 'pnpm-workspace.yaml'), 'utf8'),
+  );
+});
+
+test('setup smoke verifier enforces runtime, install boundary, and fixture value', () => {
+  const fixture = createFixtureRepository();
+  expect(runScript(prepareSmokeScript, fixture).status).toBe(0);
+  const verify = (phase: string, version: string, pnpmVersion = '11.25.0') =>
+    spawnSync(process.execPath, [
+      '--input-type=module', '-e',
+      `import { verifySetupSmoke } from ${JSON.stringify(pathToFileURL(verifySmokeScript).href)}; verifySetupSmoke(${JSON.stringify(phase)}, ${JSON.stringify(version)}, ${JSON.stringify(pnpmVersion)});`,
+    ], { cwd: fixture, encoding: 'utf8' });
+
+  expect(verify('prepared', '24.15.0').status).toBe(0);
+  expect(verify('prepared', '24.15.0', '11.26.0').status).toBe(1);
+  expect(verify('prepared', '26.9.0').status).toBe(1);
+
+  mkdirSync(join(fixture, 'node_modules/setup-smoke-fixture'), { recursive: true });
+  writeFileSync(
+    join(fixture, 'node_modules/setup-smoke-fixture/index.js'),
+    'module.exports = 42;\n',
+  );
+  expect(verify('prepared', '24.15.0').status).toBe(1);
+  expect(verify('installed', '24.15.0').status).toBe(0);
+  expect(verify('compatibility', '22.22.2').status).toBe(0);
+  expect(verify('compatibility', '24.15.0').status).toBe(1);
+  writeFileSync(
+    join(fixture, 'node_modules/setup-smoke-fixture/index.js'),
+    'module.exports = 41;\n',
+  );
+  expect(verify('installed', '24.15.0').status).toBe(1);
 });
 
 describe('format checker CLI', () => {
