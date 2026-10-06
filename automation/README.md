@@ -12,6 +12,7 @@ consumer repositories. It is distributed independently from the
 | `.githooks/pre-commit`, `.githooks/pre-push`; Bash adapters to `scripts/git-hook.ts` | Git hook opt-in, Node, current branch or pre-push stdin refs | Exit status and rejection diagnostic; no writes | `test/scripts/git-hooks.test.ts` exercises executable hooks in temporary Git repositories |
 | `automation/actions/setup-project`; composite Action and runner-Node `resolve-runtime.mjs` | Consumer root manifest, optional numeric override, `GITHUB_OUTPUT`; runner Node before pinned toolchain | Resolver writes `version` to `GITHUB_OUTPUT`; Action installs pinned Node/pnpm and optionally frozen dependencies | `test/scripts/resolve-runtime.test.ts`, Action contract tests, CI setup smoke |
 | `automation/actions/consumer-impact`; composite Action and runner-Node `classify.mjs` | Existing `packages/core` Git clone and two 40-character SHAs; no installed dependencies | Git subprocess reads commits; Action writes `impact` to `GITHUB_OUTPUT` | `test/scripts/consumer-impact.test.ts`, notification workflow contract tests |
+| `automation/actions/prepare-osv`; input-free composite Action and pinned-Node `prepare.ts` | Immutable provider Action SHA, manifest-pinned Node already selected, trusted `RUNNER_TEMP` and `GITHUB_OUTPUT` | Copies only the four provider-owned OSV TypeScript modules into a new private runner directory and outputs `helper-path` after complete success | `test/scripts/prepare-osv-helper.test.ts` exercises the real CLI, Action metadata, fixed copy, cleanup and import behavior |
 | `automation/scripts/prepare-setup-smoke.mjs`; runner-Node CI fixture helper | Checked-out `.setup-action` source, empty consumer workspace, no arguments or dependencies | Writes consumer manifest, linked package, frozen lockfile, and workspace file | Script CLI tests; CI hashes fixture files before and after setup |
 | `automation/scripts/verify-setup-smoke.ts`; pinned-Node CI verifier | Phase, consumer manifest, optional `PNPM_VERSION`, linked fixture after install | Exit status only; checks selected runtime, install boundary, and dependency value | Script behavior tests; CI runs prepared, installed, and Node 22 compatibility phases |
 | `automation/security/validate-osv.ts`; dependency-free Node TypeScript | Explicit input/output paths and schema profile after supported runtime setup | Read/validate JSON; optional atomic validated output, no writes on import | `test/scripts/osv-validator.test.ts`; see the OSV contract below |
@@ -73,6 +74,16 @@ the existing consumer manifest remains the single official version source.
 Official builds fail before dependency installation when the manifest pin is
 missing or non-exact. Compatibility overrides intentionally select a separate
 numeric runtime without requiring that official pin.
+
+After the consumer's manifest-pinned Node setup with
+`install-dependencies: 'false'`, a trusted security workflow can call
+`PiesP/browser-core/automation/actions/prepare-osv@<reviewed-full-SHA>`.
+The input-free Action reads its own immutable provider source, copies the fixed
+OSV module closure to a new `0700` directory under `RUNNER_TEMP` with `0600`
+files, and emits `helper-path` only after the copy completes. A failed copy
+removes only that new directory. The caller owns scan selection, scanner image,
+profile, and runner cleanup. The Action does not read the candidate workspace,
+install dependencies, or update the consumer's runtime gitlink.
 
 ## Trust boundary
 
