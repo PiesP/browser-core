@@ -16,6 +16,7 @@ consumer repositories. It is distributed independently from the
 | `automation/scripts/verify-setup-smoke.ts`; pinned-Node CI verifier | Phase, consumer manifest, optional `PNPM_VERSION`, linked fixture after install | Exit status only; checks selected runtime, install boundary, and dependency value | Script behavior tests; CI runs prepared, installed, and Node 22 compatibility phases |
 | `automation/security/validate-osv.ts`; dependency-free Node TypeScript | Explicit input/output paths and schema profile after supported runtime setup | Read/validate JSON; optional atomic validated output, no writes on import | `test/scripts/osv-validator.test.ts`; see the OSV contract below |
 | `scripts/notify-consumers.ts`; repository-local Node TypeScript CLI | Default-branch checkout, pinned Node, `CORE_SHA`, repository names, `gh` and `GH_TOKEN` in the invoking step | `validate` queries commit and master ancestry before appending one `core_sha` output; `dispatch` sends the fixed event to one selected consumer; imports have no side effects | `test/scripts/notify-consumers.test.ts`, `test/notify-consumers.test.ts` |
+| `scripts/security/osv-workflow.ts`; repository-local pinned-Node TypeScript helper, pending workflow adoption | Fixed `scan-old`, `scan-new`, `scan-full`, `report-pr`, `report-full`, or `summary` mode; trusted workflow environment and existing Docker image | Scans remove stale results and validate non-empty minimal OSV JSON; reporter performs one parse preflight before one SARIF/fail-on-vuln call; summary appends the existing table then enforces event-specific jobs | `test/scripts/osv-workflow.test.ts` uses the real CLI and a fake Docker executable; Node 22 syntax/runtime checks before adoption |
 | `.github/workflows/ci.yaml`, `notify-consumers.yaml`, `security.yaml`; GitHub YAML and bounded shell | GitHub event, trusted checkout, job context, runner tools | Own checks, dispatch, artifacts, permissions, and scanner orchestration | Workflow contract tests and hosted jobs; `security.yaml` has three inline Python result validators awaiting trusted adoption of the shared module |
 | `test/scripts/*.test.ts`, `test/automation-action.test.ts`, `test/security-workflow.test.ts`; Vitest TypeScript | Installed test dependencies and disposable Git/workflow fixtures | Assertions and temporary fixture writes | `pnpm test`, coverage gate in `pnpm verify` |
 
@@ -160,6 +161,12 @@ their scanner exit status, reporter/SARIF gates and isolated result directory.
 
 The core inline validators and consumer Python callers require separate
 workflow adoption; adding this module alone does not remove those runtimes.
+The repository-local OSV workflow helper is also staged without changing
+`security.yaml`. Its minimal parser rejects non-finite values in unknown JSON
+metadata that Python's permissive default previously accepted. This is
+intentional fail-closed hardening; all current scan selection, status,
+reporter, and summary authority remains with the unchanged workflow until a
+later, reviewed, immutable-helper adoption.
 Trusted security jobs must obtain the complete module set from an independently
 reviewed immutable automation commit selected by trusted workflow/base policy.
 Candidate artifacts and PR-controlled helpers must never select or supply that
