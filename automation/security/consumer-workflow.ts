@@ -76,7 +76,7 @@ function loggedDocker(arguments_: readonly string[], path: string): { status: nu
 }
 
 function reporterRejectedInput(log: string): boolean {
-  return /^failed to open (old|new) results at /mu.test(log);
+  return /^failed to (open|parse) (old|new) results at /mu.test(log);
 }
 
 function resultDirectory(): string {

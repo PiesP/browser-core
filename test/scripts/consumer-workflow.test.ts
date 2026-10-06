@@ -23,7 +23,7 @@ function fixture(): Fixture {
   const output = join(root, 'github-output.txt');
   mkdirSync(bin);
   const script = join(bin, 'docker');
-  writeFileSync(script, `#!/usr/bin/env node
+  writeFileSync(script, `#!${process.execPath}
 const fs = require('node:fs');
 const path = require('node:path');
 const args = process.argv.slice(2);
@@ -58,7 +58,7 @@ process.exit(Number(process.env.FAKE_REPORT_STATUS || 0));
 }
 
 function run(f: Fixture, mode: string, profile = 'consumer', overrides: Record<string, string> = {}) {
-  return spawnSync(process.execPath, [entry, mode, profile], {
+  return spawnSync(process.execPath, ['--experimental-strip-types', entry, mode, profile], {
     cwd: f.root, encoding: 'utf8',
     env: {
       ...process.env,
@@ -132,10 +132,12 @@ describe('shared consumer OSV workflow CLI', () => {
     expect(calls(failed)).toHaveLength(1);
     const raw = fixture();
     expect(run(raw, 'scan-full', 'consumer', { FAKE_SCAN_DOCUMENT: consumer, FAKE_RAW_STATUS: '7' }).status).toBe(7);
-    const parse = fixture();
-    const parseResult = run(parse, 'scan-full', 'consumer', { FAKE_SCAN_DOCUMENT: consumer, FAKE_RAW_LOG: 'failed to open new results at /results/x\n' });
-    expect(parseResult.status).toBe(2);
-    expect(parseResult.stdout).toContain('failed to open new results');
+    for (const verb of ['open', 'parse']) {
+      const parse = fixture();
+      const parseResult = run(parse, 'scan-full', 'consumer', { FAKE_SCAN_DOCUMENT: consumer, FAKE_RAW_LOG: `failed to ${verb} new results at /results/x\n` });
+      expect(parseResult.status).toBe(2);
+      expect(parseResult.stdout).toContain(`failed to ${verb} new results`);
+    }
     const missing = fixture();
     expect(run(missing, 'scan-full').status).toBe(1);
   });
@@ -205,10 +207,12 @@ describe('shared consumer OSV workflow CLI', () => {
     save(failure, 'osv-results.json', consumer);
     expect(run(failure, 'report-full', 'consumer', { FAKE_REPORT_STATUS: '7', FAKE_SARIF: sarif }).status).toBe(7);
     expect(existsSync(failure.output)).toBe(false);
-    const rejected = fixture();
-    save(rejected, 'osv-results.json', consumer);
-    expect(run(rejected, 'report-full', 'consumer', { FAKE_REPORT_LOG: 'failed to open new results at /results/x\n', FAKE_SARIF: sarif }).status).toBe(2);
-    expect(existsSync(rejected.output)).toBe(false);
+    for (const verb of ['open', 'parse']) {
+      const rejected = fixture();
+      save(rejected, 'osv-results.json', consumer);
+      expect(run(rejected, 'report-full', 'consumer', { FAKE_REPORT_LOG: `failed to ${verb} new results at /results/x\n`, FAKE_SARIF: sarif }).status).toBe(2);
+      expect(existsSync(rejected.output)).toBe(false);
+    }
   });
 
   it('does not authorize a failed output write or trust a replaced final log pathname', () => {
