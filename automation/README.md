@@ -14,7 +14,8 @@ consumer repositories. It is distributed independently from the
 | `automation/actions/consumer-impact`; composite Action and runner-Node `classify.mjs` | Existing `packages/core` Git clone and two 40-character SHAs; no installed dependencies | Git subprocess reads commits; Action writes `impact` to `GITHUB_OUTPUT` | `test/scripts/consumer-impact.test.ts`, notification workflow contract tests |
 | `automation/scripts/prepare-setup-smoke.mjs`; runner-Node CI fixture helper | Checked-out `.setup-action` source, empty consumer workspace, no arguments or dependencies | Writes consumer manifest, linked package, frozen lockfile, and workspace file | Script CLI tests; CI hashes fixture files before and after setup |
 | `automation/scripts/verify-setup-smoke.ts`; pinned-Node CI verifier | Phase, consumer manifest, optional `PNPM_VERSION`, linked fixture after install | Exit status only; checks selected runtime, install boundary, and dependency value | Script behavior tests; CI runs prepared, installed, and Node 22 compatibility phases |
-| `.github/workflows/ci.yaml`, `notify-consumers.yaml`, `security.yaml`; GitHub YAML and shell | GitHub event, trusted checkout, job context, runner tools | Own checks, dispatch, artifacts, permissions, and scanner orchestration | Workflow contract tests and hosted jobs; `security.yaml` has three inline Python result validators pending separate contract and trust review |
+| `automation/security/validate-osv.ts`; dependency-free Node TypeScript | Explicit input/output paths and schema profile after supported runtime setup | Read/validate JSON; optional atomic validated output, no writes on import | `test/scripts/osv-validator.test.ts`; see the OSV contract below |
+| `.github/workflows/ci.yaml`, `notify-consumers.yaml`, `security.yaml`; GitHub YAML and shell | GitHub event, trusted checkout, job context, runner tools | Own checks, dispatch, artifacts, permissions, and scanner orchestration | Workflow contract tests and hosted jobs; `security.yaml` has three inline Python result validators awaiting trusted adoption of the shared module |
 | `test/scripts/*.test.ts`, `test/automation-action.test.ts`, `test/security-workflow.test.ts`; Vitest TypeScript | Installed test dependencies and disposable Git/workflow fixtures | Assertions and temporary fixture writes | `pnpm test`, coverage gate in `pnpm verify` |
 
 The setup order is runner-provided Node → manifest/override resolution → pinned
@@ -153,7 +154,7 @@ as output mode. Output mode rejects input/output aliases before removing an
 old output, including symlinks and hardlinks; invalid input removes a stale
 distinct output. Successful replacement uses an exclusively created private
 temporary file in the output directory, then an atomic rename. No successful
-output remains after a validation failure. Callers retain responsibility for
+distinct output is created from malformed report data. Callers retain responsibility for
 their scanner exit status, reporter/SARIF gates and isolated result directory.
 
 The core inline validators and consumer Python callers require separate
