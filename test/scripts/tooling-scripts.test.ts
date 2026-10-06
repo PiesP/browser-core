@@ -8,6 +8,7 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
+  symlinkSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
@@ -28,6 +29,11 @@ const prepareSmokeScript = resolve(
 const verifySmokeScript = resolve(
   repositoryRoot, 'automation/scripts/verify-setup-smoke.ts',
 );
+const preRuntimeScripts = [
+  resolve(repositoryRoot, 'automation/actions/setup-project/resolve-runtime.mjs'),
+  resolve(repositoryRoot, 'automation/actions/consumer-impact/classify.mjs'),
+  prepareSmokeScript,
+];
 const sourceTokens = resolve(
   repositoryRoot,
   'src/design/quiet-instruments.tokens.json',
@@ -138,6 +144,45 @@ test('ordinary helper imports do not execute their CLIs', () => {
   expect(result.stderr).toBe('');
   expect(existsSync(join(fixture, 'git-invoked'))).toBe(false);
   expect(readdirSync(fixture).sort()).toEqual(['.git', 'commands']);
+});
+
+test('pre-runtime JavaScript parses on supported Node without dependencies', () => {
+  for (const script of preRuntimeScripts) {
+    const result = spawnSync(process.execPath, ['--check', script], {
+      encoding: 'utf8',
+    });
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+  }
+});
+
+test('pre-runtime fixture rejects unknown arguments before writing', () => {
+  const fixture = createFixtureRepository();
+  const result = runScript(prepareSmokeScript, fixture, ['--help']);
+  expect(result.status).toBe(1);
+  expect(result.stderr).toContain('does not accept arguments');
+  expect(readdirSync(fixture)).toEqual(['.git']);
+});
+
+test('direct CLI execution still works through symlinks', () => {
+  const formatFixture = createFixtureRepository();
+  const formatLink = join(formatFixture, 'check-format.ts');
+  symlinkSync(checkFormatScript, formatLink);
+  writeFileSync(join(formatFixture, 'bad.md'), 'missing newline');
+  expect(runScript(formatLink, formatFixture).stderr)
+    .toContain('bad.md: missing final newline');
+
+  const designFixture = createDesignFixture();
+  const designLink = join(designFixture, 'generate-linked.ts');
+  symlinkSync(join(designFixture, 'scripts/generate-design-tokens.ts'), designLink);
+  expect(runScript(designLink, designFixture).stdout)
+    .toContain('Generated 109 design tokens.');
+
+  const smokeFixture = createFixtureRepository();
+  const smokeLink = join(smokeFixture, 'prepare-linked.mjs');
+  symlinkSync(prepareSmokeScript, smokeLink);
+  expect(runScript(smokeLink, smokeFixture).status).toBe(0);
+  expect(existsSync(join(smokeFixture, 'pnpm-lock.yaml'))).toBe(true);
 });
 
 test('pre-runtime setup fixture preserves the consumer manifest and frozen link', () => {

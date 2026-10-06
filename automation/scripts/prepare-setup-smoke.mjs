@@ -1,5 +1,4 @@
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 export function prepareSetupSmoke() {
@@ -21,6 +20,12 @@ export function prepareSetupSmoke() {
   copyFileSync(fileURLToPath(new URL('../../pnpm-workspace.yaml', import.meta.url)), 'pnpm-workspace.yaml');
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+if (
+  process.argv[1] && existsSync(process.argv[1]) &&
+  realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1])
+) {
+  if (process.argv.length !== 2) {
+    throw new Error('Setup smoke fixture does not accept arguments');
+  }
   prepareSetupSmoke();
 }

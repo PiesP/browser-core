@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import { extname, resolve } from 'node:path';
-import { existsSync, readFileSync } from 'node:fs';
+import { extname } from 'node:path';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const textExtensions = new Set([
@@ -43,7 +43,10 @@ export function checkFormat(): string[] {
   return violations;
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+if (
+  process.argv[1] && existsSync(process.argv[1]) &&
+  realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1])
+) {
   const violations = checkFormat();
   if (violations.length > 0) {
     console.error(violations.join('\n'));
