@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import workflow from '../.github/workflows/security.yaml?raw';
 
+const trustedSha = 'e80334d25dd4edb18703d63153ef7630daf4d04b';
+const helper = '"$RUNNER_TEMP/trusted-helper/scripts/security/osv-workflow.ts"';
+
 describe('security workflow', () => {
   function extractStep(name: string): string {
     const lines = workflow.split('\n');
@@ -34,42 +37,67 @@ describe('security workflow', () => {
   it('requires every event-specific scan through a summary gate', () => {
     expect(workflow).toContain('security-summary:');
     expect(workflow).toContain('needs: [osv-scan-pr, osv-scan-full, codeql, semgrep]');
-    expect(workflow).toContain('expect_success "CodeQL" "$CODEQL_RESULT"');
-    expect(workflow).toContain('expect_success "Semgrep" "$SEMGREP_RESULT"');
-    expect(workflow).toContain('expect_success "OSV full" "$OSV_FULL_RESULT"');
+    expect(extractStep('Summarize and validate event-specific scans')).toContain(`run: node ${helper} summary`);
+    expect(workflow).toContain('CODEQL_RESULT: ${{ needs.codeql.result }}');
+    expect(workflow).toContain('SEMGREP_RESULT: ${{ needs.semgrep.result }}');
+    expect(workflow).toContain('OSV_FULL_RESULT: ${{ needs.osv-scan-full.result }}');
   });
 
-  it('fails closed on scanner execution errors while preserving vulnerability results', () => {
-    const scannerSteps = [
-      'Scan dependencies before the PR',
-      'Scan dependencies after the PR',
-      'Run OSV scan',
-    ].map(extractStep);
-
-    for (const step of scannerSteps) {
-      expect(step).not.toContain('continue-on-error: true');
-      expect(step).toContain('scan_status=0');
-      expect(step).toContain('|| scan_status=$?');
-      expect(step).toContain('if ((scan_status > 1)); then');
-      expect(step).toContain('rm -f "$result_path"');
-      expect(step).toContain('RESULT_PATH="$result_path" python3 -I - <<\'PY\'');
-      expect(step).toContain('object_pairs_hook=reject_duplicate_keys');
-      expect(step).toContain('report.get("results")');
+  it('materializes the complete reviewed helper outside the checkout in every caller', () => {
+    const bootstrapSteps = workflow.split('      - name: Materialize immutable OSV helper outside the checkout');
+    expect(bootstrapSteps).toHaveLength(4);
+    for (const block of bootstrapSteps.slice(1)) {
+      const bootstrap = block.split('\n      - name: ')[0] ?? '';
+      expect(bootstrap).toContain(`TRUSTED_HELPER_SHA: ${trustedSha}`);
+      expect(bootstrap).toContain('umask 077');
+      expect(bootstrap).toContain('helper_root="$RUNNER_TEMP/trusted-helper"');
+      expect(bootstrap).toContain('mkdir -m 0700 "$helper_root"');
+      expect(bootstrap).toContain('git cat-file -e "$TRUSTED_HELPER_SHA^{commit}"');
+      expect(bootstrap).toContain('git show "$TRUSTED_HELPER_SHA:$helper" > "$helper_root/$helper"');
+      for (const path of [
+        'scripts/security/osv-workflow.ts',
+        'automation/security/strict-json.ts',
+        'automation/security/osv-report.ts',
+        'automation/security/validate-osv.ts',
+      ]) expect(bootstrap).toContain(path);
+      expect(bootstrap).not.toContain('GITHUB_WORKSPACE');
     }
   });
 
-  it('fails closed when the pinned reporter cannot parse a result after shallow validation', () => {
-    const reporterSteps = [
-      'Report newly introduced vulnerabilities',
-      'Convert OSV results to SARIF and enforce the vulnerability gate',
-    ].map(extractStep);
-
-    for (const step of reporterSteps) {
-      expect(step).toContain('--fail-on-vuln=false');
-      expect(step).toContain('reporter-validation.log');
-      expect(step).toContain("grep -Eq 'failed to (open|parse) (old|new) results at '");
-      expect(step).toContain('OSV reporter did not parse its result');
-      expect(step).toContain('exit 1');
+  it('sets the trusted runtime before TypeScript and keeps scan order and SARIF uploads', () => {
+    const setup = 'uses: PiesP/browser-core/automation/actions/setup-project@279124fa998847bd0184d2de12bdaadcd6d2f969';
+    expect(workflow.split(setup)).toHaveLength(4);
+    expect(workflow.split("install-dependencies: 'false'")).toHaveLength(4);
+    expect(workflow.indexOf('git switch --force --detach "$BASE_SHA"'))
+      .toBeLessThan(workflow.indexOf('Setup trusted Node runtime'));
+    expect(workflow.indexOf('Setup trusted Node runtime'))
+      .toBeLessThan(workflow.indexOf('Materialize immutable OSV helper'));
+    expect(workflow.indexOf('Scan dependencies before the PR'))
+      .toBeLessThan(workflow.indexOf('git switch --force --detach "$GITHUB_SHA"'));
+    expect(workflow.indexOf('git switch --force --detach "$GITHUB_SHA"'))
+      .toBeLessThan(workflow.indexOf('Scan dependencies after the PR'));
+    expect(extractStep('Scan dependencies before the PR')).toContain(`run: node ${helper} scan-old`);
+    expect(extractStep('Scan dependencies after the PR')).toContain(`run: node ${helper} scan-new`);
+    expect(extractStep('Run OSV scan')).toContain(`run: node ${helper} scan-full`);
+    expect(extractStep('Report newly introduced vulnerabilities')).toContain(`run: node ${helper} report-pr`);
+    expect(extractStep('Convert OSV results to SARIF and enforce the vulnerability gate'))
+      .toContain(`run: node ${helper} report-full`);
+    expect(extractStep('Checkout immutable security helper manifest')).toContain(`ref: ${trustedSha}`);
+    expect(workflow.split('fetch-depth: 0')).toHaveLength(3);
+    expect(workflow.split('sarif_file: ${{ runner.temp }}/osv-results/osv-results.sarif'))
+      .toHaveLength(3);
+    for (const name of ['Scan dependencies before the PR', 'Scan dependencies after the PR', 'Run OSV scan']) {
+      expect(extractStep(name)).not.toContain('continue-on-error: true');
     }
+  });
+
+  it('keeps workflow scan and summary policy in the trusted TypeScript CLI', () => {
+    expect(workflow).not.toContain('python3 -I');
+    expect(workflow).not.toContain('scan_status=');
+    expect(workflow).not.toContain('validation_status=');
+    expect(workflow).not.toContain('expect_success()');
+    expect(workflow).toContain('needs: [osv-scan-pr, osv-scan-full, codeql, semgrep]');
+    expect(workflow).toContain('queries: security-extended');
+    expect(workflow).toContain('semgrep scan \\');
   });
 });
