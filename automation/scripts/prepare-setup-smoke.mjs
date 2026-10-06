@@ -1,7 +1,16 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 export function prepareSetupSmoke() {
+  for (const path of ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'fixture-package']) {
+    try {
+      lstatSync(path);
+    } catch (error) {
+      if (error.code === 'ENOENT') continue;
+      throw error;
+    }
+    throw new Error(`Setup smoke fixture would overwrite an existing path: ${path}`);
+  }
   const core = JSON.parse(readFileSync(fileURLToPath(new URL('../../package.json', import.meta.url)), 'utf8'));
   if (core.packageManager === 'pnpm@11.25.0' || core.volta.node === '24.15.0') {
     throw new Error('Smoke fixture toolchain must differ from browser-core');

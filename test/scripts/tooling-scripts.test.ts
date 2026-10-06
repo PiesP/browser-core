@@ -164,6 +164,25 @@ test('pre-runtime fixture rejects unknown arguments before writing', () => {
   expect(readdirSync(fixture)).toEqual(['.git']);
 });
 
+test.each(['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'fixture-package']) (
+  'pre-runtime fixture preserves an existing reserved path: %s', (path) => {
+    const fixture = createFixtureRepository();
+    writeFileSync(join(fixture, path), 'existing content\n');
+    const result = runScript(prepareSmokeScript, fixture);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('would overwrite an existing path');
+    expect(readFileSync(join(fixture, path), 'utf8')).toBe('existing content\n');
+    expect(readdirSync(fixture).sort()).toEqual(['.git', path].sort());
+  },
+);
+
+test('pre-runtime fixture refuses a dangling reserved symlink before writing', () => {
+  const fixture = createFixtureRepository();
+  symlinkSync(join(fixture, 'absent-target'), join(fixture, 'pnpm-lock.yaml'));
+  expect(runScript(prepareSmokeScript, fixture).status).toBe(1);
+  expect(readdirSync(fixture).sort()).toEqual(['.git', 'pnpm-lock.yaml']);
+});
+
 test('direct CLI execution still works through symlinks', () => {
   const formatFixture = createFixtureRepository();
   const formatLink = join(formatFixture, 'check-format.ts');
