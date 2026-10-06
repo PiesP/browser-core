@@ -16,8 +16,8 @@ consumer repositories. It is distributed independently from the
 | `automation/scripts/verify-setup-smoke.ts`; pinned-Node CI verifier | Phase, consumer manifest, optional `PNPM_VERSION`, linked fixture after install | Exit status only; checks selected runtime, install boundary, and dependency value | Script behavior tests; CI runs prepared, installed, and Node 22 compatibility phases |
 | `automation/security/validate-osv.ts`; dependency-free Node TypeScript | Explicit input/output paths and schema profile after supported runtime setup | Read/validate JSON; optional atomic validated output, no writes on import | `test/scripts/osv-validator.test.ts`; see the OSV contract below |
 | `scripts/notify-consumers.ts`; repository-local Node TypeScript CLI | Default-branch checkout, pinned Node, `CORE_SHA`, repository names, `gh` and `GH_TOKEN` in the invoking step | `validate` queries commit and master ancestry before appending one `core_sha` output; `dispatch` sends the fixed event to one selected consumer; imports have no side effects | `test/scripts/notify-consumers.test.ts`, `test/notify-consumers.test.ts` |
-| `scripts/security/osv-workflow.ts`; repository-local pinned-Node TypeScript helper, pending workflow adoption | Fixed `scan-old`, `scan-new`, `scan-full`, `report-pr`, `report-full`, or `summary` mode; trusted workflow environment and existing Docker image | Scans remove stale results and validate non-empty minimal OSV JSON; reporter performs one parse preflight before one SARIF/fail-on-vuln call; summary appends the existing table then enforces event-specific jobs | `test/scripts/osv-workflow.test.ts` uses the real CLI and a fake Docker executable; Node 22 syntax/runtime checks before adoption |
-| `.github/workflows/ci.yaml`, `notify-consumers.yaml`, `security.yaml`; GitHub YAML and bounded shell | GitHub event, trusted checkout, job context, runner tools | Own checks, dispatch, artifacts, permissions, and scanner orchestration | Workflow contract tests and hosted jobs; `security.yaml` has three inline Python result validators awaiting trusted adoption of the shared module |
+| `scripts/security/osv-workflow.ts`; repository-local pinned-Node TypeScript helper | Fixed `scan-old`, `scan-new`, `scan-full`, `report-pr`, `report-full`, or `summary` mode; immutable reviewed helper files in runner temporary storage, trusted workflow environment and existing Docker image | Scans remove stale results and validate non-empty minimal OSV JSON; reporter performs one parse preflight before one SARIF/fail-on-vuln call; summary appends the existing table then enforces event-specific jobs | `test/scripts/osv-workflow.test.ts` and `test/scripts/security-workflow-execution.test.ts` exercise the CLI and actual workflow run commands with fake Docker; hosted security jobs remain the end-to-end gate |
+| `.github/workflows/ci.yaml`, `notify-consumers.yaml`, `security.yaml`; GitHub YAML and bounded shell | GitHub event, trusted checkout, job context, runner tools | Own checks, dispatch, artifacts, permissions, scanner image, and immutable-helper bootstrap. `security.yaml` retains base/head checkout and private file materialization in Bash; its three inline Python validators and scan/report/summary Bash policy have moved to the trusted TypeScript CLI. | Workflow contract and run-block fixture tests, then hosted jobs |
 | `test/scripts/*.test.ts`, `test/automation-action.test.ts`, `test/security-workflow.test.ts`; Vitest TypeScript | Installed test dependencies and disposable Git/workflow fixtures | Assertions and temporary fixture writes | `pnpm test`, coverage gate in `pnpm verify` |
 
 The setup order is runner-provided Node → manifest/override resolution → pinned
@@ -31,8 +31,7 @@ compatibility matrix changes. A conversion must pass a clean bootstrap with no
 The three retained `.mjs` files receive a Node syntax check under the local
 official pin; their CLI fixtures cover runtime behavior. Hosted CI remains the
 authority for the runner's bootstrap Node and the Node 22 compatibility lane.
-This catalog leaves security-validator extraction and consumer pilot evidence
-open for the later issue stages.
+Consumer pilot evidence remains a separate rollout stage.
 
 ## Consumer contract
 
@@ -159,16 +158,19 @@ temporary file in the output directory, then an atomic rename. No successful
 distinct output is created from malformed report data. Callers retain responsibility for
 their scanner exit status, reporter/SARIF gates and isolated result directory.
 
-The core inline validators and consumer Python callers require separate
-workflow adoption; adding this module alone does not remove those runtimes.
-The repository-local OSV workflow helper is also staged without changing
-`security.yaml`. Its minimal parser rejects non-finite values in unknown JSON
-metadata that Python's permissive default previously accepted. This is
-intentional fail-closed hardening; all current scan selection, status,
-reporter, and summary authority remains with the unchanged workflow until a
-later, reviewed, immutable-helper adoption.
-Trusted security jobs must obtain the complete module set from an independently
-reviewed immutable automation commit selected by trusted workflow/base policy.
-Candidate artifacts and PR-controlled helpers must never select or supply that
-code. Runtime gitlinks, scan selection, permissions, secrets and publication
-remain outside this helper's contract.
+Consumer Python callers still require their own workflow adoption. Core's
+`security.yaml` now runs the repository-local helper from the reviewed
+`e80334d25dd4edb18703d63153ef7630daf4d04b` commit. Each OSV or summary job
+materializes the four required TypeScript files with fixed `git show` paths into
+`$RUNNER_TEMP/trusted-helper` at mode `0700`; no executable helper is placed
+under `GITHUB_WORKSPACE`. The PR job first checks out its base SHA and configures
+the pinned runtime from that root manifest, then scans the base and PR result
+with the same private helper. The full job fetches the immutable commit while
+keeping its event checkout as the scan target; the always-running summary job
+checks out the immutable manifest before runtime setup. Missing trusted blobs
+fail the job without a candidate fallback. The minimal parser rejects non-finite
+values in unknown JSON metadata that Python's permissive default accepted.
+This is intentional fail-closed hardening. Workflow jobs still own event and
+scan selection, permissions, scanner image, SARIF upload, and job result inputs;
+the helper owns local scan/report/summary execution only. Runtime gitlinks,
+secrets and publication remain outside this helper's contract.
