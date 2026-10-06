@@ -12,9 +12,11 @@ consumer repositories. It is distributed independently from the
 | `.githooks/pre-commit`, `.githooks/pre-push`; Bash adapters to `scripts/git-hook.ts` | Git hook opt-in, Node, current branch or pre-push stdin refs | Exit status and rejection diagnostic; no writes | `test/scripts/git-hooks.test.ts` exercises executable hooks in temporary Git repositories |
 | `automation/actions/setup-project`; composite Action and runner-Node `resolve-runtime.mjs` | Consumer root manifest, optional numeric override, `GITHUB_OUTPUT`; runner Node before pinned toolchain | Resolver writes `version` to `GITHUB_OUTPUT`; Action installs pinned Node/pnpm and optionally frozen dependencies | `test/scripts/resolve-runtime.test.ts`, Action contract tests, CI setup smoke |
 | `automation/actions/consumer-impact`; composite Action and runner-Node `classify.mjs` | Existing `packages/core` Git clone and two 40-character SHAs; no installed dependencies | Git subprocess reads commits; Action writes `impact` to `GITHUB_OUTPUT` | `test/scripts/consumer-impact.test.ts`, notification workflow contract tests |
+| `automation/actions/prepare-osv`; input-free composite Action and pinned-Node `prepare.ts` | Immutable provider Action SHA, manifest-pinned Node already selected, trusted `RUNNER_TEMP` and `GITHUB_OUTPUT` | Copies only the four provider-owned OSV TypeScript modules into a new private runner directory and outputs `helper-path` after complete success | `test/scripts/prepare-osv-helper.test.ts` exercises the real CLI, Action metadata, fixed copy, cleanup and import behavior |
 | `automation/scripts/prepare-setup-smoke.mjs`; runner-Node CI fixture helper | Checked-out `.setup-action` source, empty consumer workspace, no arguments or dependencies | Writes consumer manifest, linked package, frozen lockfile, and workspace file | Script CLI tests; CI hashes fixture files before and after setup |
 | `automation/scripts/verify-setup-smoke.ts`; pinned-Node CI verifier | Phase, consumer manifest, optional `PNPM_VERSION`, linked fixture after install | Exit status only; checks selected runtime, install boundary, and dependency value | Script behavior tests; CI runs prepared, installed, and Node 22 compatibility phases |
 | `automation/security/validate-osv.ts`; dependency-free Node TypeScript | Explicit input/output paths and schema profile after supported runtime setup | Read/validate JSON; optional atomic validated output, no writes on import | `test/scripts/osv-validator.test.ts`; see the OSV contract below |
+| `automation/security/consumer-workflow.ts`; dependency-free Node TypeScript, pending consumer adoption | Fixed scan/report mode, explicit trusted `consumer` or `overlay` profile, pinned scanner image and workflow-owned environment | Scans and raw reporter preflight produce atomic normalized OSV JSON; final reporter validates SARIF and writes `sarif-upload=true` only after a valid exit 0/1 result | `test/scripts/consumer-workflow.test.ts` uses the real CLI and fake Docker; Node 22 syntax/runtime checks before adoption |
 | `scripts/notify-consumers.ts`; repository-local Node TypeScript CLI | Default-branch checkout, pinned Node, `CORE_SHA`, repository names, `gh` and `GH_TOKEN` in the invoking step | `validate` queries commit and master ancestry before appending one `core_sha` output; `dispatch` sends the fixed event to one selected consumer; imports have no side effects | `test/scripts/notify-consumers.test.ts`, `test/notify-consumers.test.ts` |
 | `scripts/security/osv-workflow.ts`; repository-local pinned-Node TypeScript helper | Fixed `scan-old`, `scan-new`, `scan-full`, `report-pr`, `report-full`, or `summary` mode; immutable reviewed helper files in runner temporary storage, trusted workflow environment and existing Docker image | Scans remove stale results and validate non-empty minimal OSV JSON; reporter performs one parse preflight before one SARIF/fail-on-vuln call; summary appends the existing table then enforces event-specific jobs | `test/scripts/osv-workflow.test.ts` and `test/scripts/security-workflow-execution.test.ts` exercise the CLI and actual workflow run commands with fake Docker; hosted security jobs remain the end-to-end gate |
 | `.github/workflows/ci.yaml`, `notify-consumers.yaml`, `security.yaml`; GitHub YAML and bounded shell | GitHub event, trusted checkout, job context, runner tools | Own checks, dispatch, artifacts, permissions, scanner image, and immutable-helper bootstrap. `security.yaml` retains base/head checkout and private file materialization in Bash; its three inline Python validators and scan/report/summary Bash policy have moved to the trusted TypeScript CLI. | Workflow contract and run-block fixture tests, then hosted jobs |
@@ -72,6 +74,16 @@ the existing consumer manifest remains the single official version source.
 Official builds fail before dependency installation when the manifest pin is
 missing or non-exact. Compatibility overrides intentionally select a separate
 numeric runtime without requiring that official pin.
+
+After the consumer's manifest-pinned Node setup with
+`install-dependencies: 'false'`, a trusted security workflow can call
+`PiesP/browser-core/automation/actions/prepare-osv@<reviewed-full-SHA>`.
+The input-free Action reads its own immutable provider source, copies the fixed
+OSV module closure to a new `0700` directory under `RUNNER_TEMP` with `0600`
+files, and emits `helper-path` only after the copy completes. A failed copy
+removes only that new directory. The caller owns scan selection, scanner image,
+profile, and runner cleanup. The Action does not read the candidate workspace,
+install dependencies, or update the consumer's runtime gitlink.
 
 ## Trust boundary
 
@@ -174,3 +186,22 @@ This is intentional fail-closed hardening. Workflow jobs still own event and
 scan selection, permissions, scanner image, SARIF upload, and job result inputs;
 the helper owns local scan/report/summary execution only. Runtime gitlinks,
 secrets and publication remain outside this helper's contract.
+
+The staged consumer helper is called as
+`node automation/security/consumer-workflow.ts scan-old consumer` (or
+`scan-new`, `scan-full`, `report-pr`, `report-full` with `consumer` or `overlay`).
+It uses `RUNNER_TEMP/osv-results`, `GITHUB_WORKSPACE`, the trusted pinned
+`OSV_SCANNER_IMAGE`, and `GITHUB_OUTPUT`; it creates the empty policy file in
+the private results directory. Scan status 0/1 requires raw reporter parsing
+and a nonempty, schema-valid normalized output. A final report validates the
+normalized inputs before Docker, checks a single OSV SARIF 2.1.0 run, and
+authorizes upload only after a valid reporter exit 0/1. Reporter parse/open
+diagnostics return 2 even if Docker returns 0; other nonzero Docker statuses
+propagate. Reporter logs retain their original file descriptor while the child
+runs and are replayed byte-for-byte after completion, including annotations.
+The shared strict JSON parser also rejects duplicate keys and non-finite
+numbers anywhere in SARIF; the old inline Python SARIF parser rejected duplicate
+keys but allowed non-finite numbers in otherwise ignored fields. This is an
+intentional fail-closed tightening. Caller workflows still select scan jobs,
+the immutable helper SHA, artifacts and upload policy; no consumer workflow
+has adopted this helper yet.
