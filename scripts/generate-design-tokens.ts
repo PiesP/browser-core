@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -759,24 +759,33 @@ function checkOrWrite(path: string, contents: string): void {
   );
 }
 
-try {
-  const document: unknown = JSON.parse(readFileSync(sourcePath, 'utf8'));
-  assert(isRecord(document), 'the source root must be an object');
-  const extension = getExtension(document);
-  const tokens = collectTokens(document);
-  const resolved = resolveTokens(tokens);
-  validateFoundation(extension, resolved);
-  const generatedTypeScript = generateTypeScript(extension, resolved);
-  const generatedCss = generateCss(extension, resolved);
-  validateGeneratedCss(generatedCss, extension);
-  checkOrWrite(generatedTypeScriptPath, generatedTypeScript);
-  checkOrWrite(generatedCssPath, generatedCss);
-  console.log(
-    checkOnly
-      ? `Design tokens are valid and current (${resolved.size} tokens).`
-      : `Generated ${resolved.size} design tokens.`,
-  );
-} catch (error) {
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
+function run(): void {
+  try {
+    const document: unknown = JSON.parse(readFileSync(sourcePath, 'utf8'));
+    assert(isRecord(document), 'the source root must be an object');
+    const extension = getExtension(document);
+    const tokens = collectTokens(document);
+    const resolved = resolveTokens(tokens);
+    validateFoundation(extension, resolved);
+    const generatedTypeScript = generateTypeScript(extension, resolved);
+    const generatedCss = generateCss(extension, resolved);
+    validateGeneratedCss(generatedCss, extension);
+    checkOrWrite(generatedTypeScriptPath, generatedTypeScript);
+    checkOrWrite(generatedCssPath, generatedCss);
+    console.log(
+      checkOnly
+        ? `Design tokens are valid and current (${resolved.size} tokens).`
+        : `Generated ${resolved.size} design tokens.`,
+    );
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  }
+}
+
+if (
+  process.argv[1] && existsSync(process.argv[1]) &&
+  realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1])
+) {
+  run();
 }

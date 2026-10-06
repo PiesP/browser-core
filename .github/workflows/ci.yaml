@@ -57,25 +57,7 @@ jobs:
           persist-credentials: false
       - name: Prepare a distinct consumer manifest and frozen local dependency
         run: |
-          node --input-type=module <<'JS'
-          import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
-          const core = JSON.parse(readFileSync('.setup-action/package.json', 'utf8'));
-          writeFileSync('package.json', JSON.stringify({
-            private: true, packageManager: 'pnpm@11.25.0',
-            volta: { node: '24.15.0' },
-            dependencies: { 'setup-smoke-fixture': 'link:./fixture-package' },
-          }) + '\n');
-          if (core.packageManager === 'pnpm@11.25.0' || core.volta.node === '24.15.0') {
-            throw new Error('Smoke fixture toolchain must differ from browser-core');
-          }
-          mkdirSync('fixture-package');
-          writeFileSync('fixture-package/package.json', JSON.stringify({
-            name: 'setup-smoke-fixture', version: '1.0.0', main: 'index.cjs',
-          }) + '\n');
-          writeFileSync('fixture-package/index.cjs', 'module.exports = 42;\n');
-          writeFileSync('pnpm-lock.yaml', `lockfileVersion: '9.0'\nsettings:\n  autoInstallPeers: true\n  excludeLinksFromLockfile: false\nimporters:\n  .:\n    dependencies:\n      setup-smoke-fixture:\n        specifier: link:./fixture-package\n        version: link:fixture-package\n`);
-          copyFileSync('.setup-action/pnpm-workspace.yaml', 'pnpm-workspace.yaml');
-          JS
+          node .setup-action/automation/scripts/prepare-setup-smoke.mjs
           sha256sum package.json pnpm-lock.yaml pnpm-workspace.yaml > fixture.sha256
       - name: Setup consumer runtime without dependencies
         uses: ./.setup-action/automation/actions/setup-project
@@ -83,16 +65,13 @@ jobs:
           install-dependencies: 'false'
       - name: Verify consumer selection and absence of dependency installation
         run: |
-          test "$(node --version)" = v24.15.0
-          test "$(pnpm --version)" = "$(node -p 'JSON.parse(require("fs").readFileSync("package.json", "utf8")).packageManager.split("@")[1]')"
-          test ! -e node_modules
+          PNPM_VERSION="$(pnpm --version)" node .setup-action/automation/scripts/verify-setup-smoke.ts prepared
           sha256sum --check fixture.sha256
       - name: Install the consumer frozen dependency graph
         uses: ./.setup-action/automation/actions/setup-project
       - name: Verify normal installation without manifest or lockfile writes
         run: |
-          test "$(node --version)" = v24.15.0
-          node -e 'if (require("setup-smoke-fixture") !== 42) process.exit(1)'
+          node .setup-action/automation/scripts/verify-setup-smoke.ts installed
           sha256sum --check fixture.sha256
           find node_modules -type f -exec sha256sum {} + > installed.sha256
       - name: Setup the explicit compatibility runtime without reinstalling
@@ -102,8 +81,7 @@ jobs:
           install-dependencies: 'false'
       - name: Verify the compatibility override and unchanged consumer files
         run: |
-          node -e 'if (!process.versions.node.startsWith("22.")) process.exit(1)'
-          node -e 'if (require("setup-smoke-fixture") !== 42) process.exit(1)'
+          node .setup-action/automation/scripts/verify-setup-smoke.ts compatibility
           sha256sum --check fixture.sha256
           sha256sum --check installed.sha256
 

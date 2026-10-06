@@ -4,6 +4,33 @@ This directory contains reusable, unprivileged automation for the browser-core
 consumer repositories. It is distributed independently from the
 `@piesp/browser-core` runtime package and its consumer gitlinks.
 
+## Maintained tooling catalog
+
+| Surface and owner | Prerequisites and inputs | Output or side effect | Verification |
+| --- | --- | --- | --- |
+| `package.json` commands: `check`, `check:format`, `check:design`, `check:types`, `generate:design`, `test`, `test:cov`, `test:watch`, `verify`; Node-direct TypeScript in `scripts/` | Manifest-pinned Node/pnpm and installed dev dependencies; source, token JSON, and test files | Exit status and diagnostics; only `generate:design` writes generated TS/CSS. `tsconfig.scripts.json` checks Node-direct TypeScript separately from browser source. | `pnpm check`, focused script tests, `pnpm verify` |
+| `.githooks/pre-commit`, `.githooks/pre-push`; Bash adapters to `scripts/git-hook.ts` | Git hook opt-in, Node, current branch or pre-push stdin refs | Exit status and rejection diagnostic; no writes | `test/scripts/git-hooks.test.ts` exercises executable hooks in temporary Git repositories |
+| `automation/actions/setup-project`; composite Action and runner-Node `resolve-runtime.mjs` | Consumer root manifest, optional numeric override, `GITHUB_OUTPUT`; runner Node before pinned toolchain | Resolver writes `version` to `GITHUB_OUTPUT`; Action installs pinned Node/pnpm and optionally frozen dependencies | `test/scripts/resolve-runtime.test.ts`, Action contract tests, CI setup smoke |
+| `automation/actions/consumer-impact`; composite Action and runner-Node `classify.mjs` | Existing `packages/core` Git clone and two 40-character SHAs; no installed dependencies | Git subprocess reads commits; Action writes `impact` to `GITHUB_OUTPUT` | `test/scripts/consumer-impact.test.ts`, notification workflow contract tests |
+| `automation/scripts/prepare-setup-smoke.mjs`; runner-Node CI fixture helper | Checked-out `.setup-action` source, empty consumer workspace, no arguments or dependencies | Writes consumer manifest, linked package, frozen lockfile, and workspace file | Script CLI tests; CI hashes fixture files before and after setup |
+| `automation/scripts/verify-setup-smoke.ts`; pinned-Node CI verifier | Phase, consumer manifest, optional `PNPM_VERSION`, linked fixture after install | Exit status only; checks selected runtime, install boundary, and dependency value | Script behavior tests; CI runs prepared, installed, and Node 22 compatibility phases |
+| `.github/workflows/ci.yaml`, `notify-consumers.yaml`, `security.yaml`; GitHub YAML and shell | GitHub event, trusted checkout, job context, runner tools | Own checks, dispatch, artifacts, permissions, and scanner orchestration | Workflow contract tests and hosted jobs; `security.yaml` has three inline Python result validators pending separate contract and trust review |
+| `test/scripts/*.test.ts`, `test/automation-action.test.ts`, `test/security-workflow.test.ts`; Vitest TypeScript | Installed test dependencies and disposable Git/workflow fixtures | Assertions and temporary fixture writes | `pnpm test`, coverage gate in `pnpm verify` |
+
+The setup order is runner-provided Node → manifest/override resolution → pinned
+Node and pnpm installation → optional frozen dependency installation → consumer
+tool execution. `install-dependencies: 'false'` stops after toolchain setup.
+The pre-runtime `.mjs` files must not import project dependencies or require
+TypeScript execution. Review each exception if a caller moves after guaranteed
+pin selection, the supported runner Node contract changes, or the Node 22/24
+compatibility matrix changes. A conversion must pass a clean bootstrap with no
+`node_modules` and the existing compatibility jobs first.
+The three retained `.mjs` files receive a Node syntax check under the local
+official pin; their CLI fixtures cover runtime behavior. Hosted CI remains the
+authority for the runner's bootstrap Node and the Node 22 compatibility lane.
+This catalog leaves security-validator extraction and consumer pilot evidence
+open for the later issue stages.
+
 ## Consumer contract
 
 Consumers reference actions from this repository with an immutable 40-character

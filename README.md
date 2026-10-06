@@ -41,6 +41,10 @@ See [API contracts](./docs/API.md) and the
 
 ## Development
 
+The [automation catalog](./automation/README.md#maintained-tooling-catalog)
+records command ownership, Git hook adapters, Action bootstrap order, and the
+remaining pre-runtime language exceptions.
+
 The required Node.js and pnpm versions are defined in
 [`package.json`](./package.json).
 
