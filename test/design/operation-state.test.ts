@@ -76,14 +76,34 @@ describe('operation state contract', () => {
   });
 
   it('calculates determinate progress without inventing values', () => {
+    expect(getOperationProgressRatio({ completed: 0, total: 4 })).toBe(0);
     expect(getOperationProgressRatio({ completed: 1, total: 4 })).toBe(0.25);
+    expect(getOperationProgressRatio({ completed: 4, total: 4 })).toBe(1);
     expect(getOperationProgressRatio({ completed: 7, total: 4 })).toBe(1);
   });
+
+  it.each([null, { completed: 0, total: 4 }, { completed: 4, total: 4 }])(
+    'keeps running work busy independently of progress %j',
+    (progress) => {
+      const state: OperationState = { status: 'running', progress };
+      expect(isOperationBusy(state)).toBe(true);
+      expect(isOperationTerminal(state)).toBe(false);
+      expect(getOperationPresentation(state)).toMatchObject({
+        busy: true,
+        terminal: false,
+        icon: 'activity',
+        announcement: 'none',
+      });
+    },
+  );
 
   it.each([
     { completed: -1, total: 4 },
     { completed: Number.NaN, total: 4 },
+    { completed: Number.POSITIVE_INFINITY, total: 4 },
     { completed: 1, total: 0 },
+    { completed: 1, total: -4 },
+    { completed: 1, total: Number.NaN },
     { completed: 1, total: Number.POSITIVE_INFINITY },
   ])('rejects invalid progress $completed/$total', (progress) => {
     expect(() => getOperationProgressRatio(progress)).toThrow(RangeError);
