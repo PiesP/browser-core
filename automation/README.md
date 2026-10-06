@@ -8,7 +8,10 @@ consumer repositories. It is distributed independently from the
 
 | Surface and owner | Prerequisites and inputs | Output or side effect | Verification |
 | --- | --- | --- | --- |
-| `package.json` commands: `check`, `check:format`, `check:design`, `check:types`, `generate:design`, `test`, `test:cov`, `test:watch`, `verify`; Node-direct TypeScript in `scripts/` | Manifest-pinned Node/pnpm and installed dev dependencies; source, token JSON, and test files | Exit status and diagnostics; only `generate:design` writes generated TS/CSS. `tsconfig.scripts.json` checks Node-direct TypeScript separately from browser source. | `pnpm check`, focused script tests, `pnpm verify` |
+| `check:format`; `scripts/check-format.ts`, local Node CLI | Manifest-pinned Node; tracked text files | Text-hygiene diagnostics and exit status | Script fixtures and `pnpm check` |
+| `generate:design`, `check:design`; `scripts/generate-design-tokens.ts`, local Node CLI | Manifest-pinned Node; `src/design/quiet-instruments.tokens.json` | Generate writes `src/design/generated/*`; check reports stale outputs without writing | Token tests and `pnpm check` |
+| `check:types`, `check`; TypeScript compiler and local CLI sequence | Manifest-pinned Node/pnpm and frozen dev dependencies; browser `tsconfig.json`, NodeNext/erasable `tsconfig.scripts.json` | Read-only diagnostics; `check` runs format, design and types in order | Official and Node 22 CI quality jobs |
+| `test`, `test:cov`, `test:watch`, `verify`; Vitest and local CLI sequence | Frozen dev dependencies; product and automation fixtures | Tests write disposable fixtures; coverage writes reports; watch persists; `verify` runs check and coverage | `pnpm verify` and exact-SHA CI; consumer acceptance has its own gate |
 | `.githooks/pre-commit`, `.githooks/pre-push`; Bash adapters to `scripts/git-hook.ts` | Git hook opt-in, Node, current branch or pre-push stdin refs | Exit status and rejection diagnostic; no writes | `test/scripts/git-hooks.test.ts` exercises executable hooks in temporary Git repositories |
 | `automation/actions/setup-project`; composite Action and runner-Node `resolve-runtime.mjs` | Consumer root manifest, optional numeric override, `GITHUB_OUTPUT`; runner Node before pinned toolchain | Resolver writes `version` to `GITHUB_OUTPUT`; Action installs pinned Node/pnpm and optionally frozen dependencies | `test/scripts/resolve-runtime.test.ts`, Action contract tests, CI setup smoke |
 | `automation/actions/consumer-impact`; composite Action and runner-Node `classify.mjs` | Existing `packages/core` Git clone and two 40-character SHAs; no installed dependencies | Git subprocess reads commits; Action writes `impact` to `GITHUB_OUTPUT` | `test/scripts/consumer-impact.test.ts`, notification workflow contract tests |
@@ -16,7 +19,7 @@ consumer repositories. It is distributed independently from the
 | `automation/scripts/prepare-setup-smoke.mjs`; runner-Node CI fixture helper | Checked-out `.setup-action` source, empty consumer workspace, no arguments or dependencies | Writes consumer manifest, linked package, frozen lockfile, and workspace file | Script CLI tests; CI hashes fixture files before and after setup |
 | `automation/scripts/verify-setup-smoke.ts`; pinned-Node CI verifier | Phase, consumer manifest, optional `PNPM_VERSION`, linked fixture after install | Exit status only; checks selected runtime, install boundary, and dependency value | Script behavior tests; CI runs prepared, installed, and Node 22 compatibility phases |
 | `automation/security/validate-osv.ts`; dependency-free Node TypeScript | Explicit input/output paths and schema profile after supported runtime setup | Read/validate JSON; optional atomic validated output, no writes on import | `test/scripts/osv-validator.test.ts`; see the OSV contract below |
-| `automation/security/consumer-workflow.ts`; dependency-free Node TypeScript, pending consumer adoption | Fixed scan/report mode, explicit trusted `consumer` or `overlay` profile, pinned scanner image and workflow-owned environment | Scans and raw reporter preflight produce atomic normalized OSV JSON; final reporter validates SARIF and writes `sarif-upload=true` only after a valid exit 0/1 result | `test/scripts/consumer-workflow.test.ts` uses the real CLI and fake Docker; Node 22 syntax/runtime checks before adoption |
+| `automation/security/consumer-workflow.ts`; dependency-free Node TypeScript | Fixed scan/report mode, explicit trusted `consumer` or `overlay` profile, pinned scanner image and workflow-owned environment | Scans and raw reporter preflight produce atomic normalized OSV JSON; final reporter validates SARIF and writes `sarif-upload=true` only after a valid exit 0/1 result | `test/scripts/consumer-workflow.test.ts` uses the real CLI and fake Docker; Node 22 fixtures and the gallery pilot below |
 | `scripts/notify-consumers.ts`; repository-local Node TypeScript CLI | Default-branch checkout, pinned Node, `CORE_SHA`, repository names, `gh` and `GH_TOKEN` in the invoking step | `validate` queries commit and master ancestry before appending one `core_sha` output; `dispatch` sends the fixed event to one selected consumer; imports have no side effects | `test/scripts/notify-consumers.test.ts`, `test/notify-consumers.test.ts` |
 | `scripts/security/osv-workflow.ts`; repository-local pinned-Node TypeScript helper | Fixed `scan-old`, `scan-new`, `scan-full`, `report-pr`, `report-full`, or `summary` mode; immutable reviewed helper files in runner temporary storage, trusted workflow environment and existing Docker image | Scans remove stale results and validate non-empty minimal OSV JSON; reporter performs one parse preflight before one SARIF/fail-on-vuln call; summary appends the existing table then enforces event-specific jobs | `test/scripts/osv-workflow.test.ts` and `test/scripts/security-workflow-execution.test.ts` exercise the CLI and actual workflow run commands with fake Docker; hosted security jobs remain the end-to-end gate |
 | `.github/workflows/ci.yaml`, `notify-consumers.yaml`, `security.yaml`; GitHub YAML and bounded shell | GitHub event, trusted checkout, job context, runner tools | Own checks, dispatch, artifacts, permissions, scanner image, and immutable-helper bootstrap. `security.yaml` retains base/head checkout and private file materialization in Bash; its three inline Python validators and scan/report/summary Bash policy have moved to the trusted TypeScript CLI. | Workflow contract and run-block fixture tests, then hosted jobs |
@@ -33,7 +36,23 @@ compatibility matrix changes. A conversion must pass a clean bootstrap with no
 The three retained `.mjs` files receive a Node syntax check under the local
 official pin; their CLI fixtures cover runtime behavior. Hosted CI remains the
 authority for the runner's bootstrap Node and the Node 22 compatibility lane.
-Consumer pilot evidence remains a separate rollout stage.
+Hosted consumer pilot evidence is recorded below, separately from provider fixtures.
+
+The retained languages have explicit stage boundaries:
+
+| Exception or adapter | Reason | Review trigger |
+| --- | --- | --- |
+| `resolve-runtime.mjs` and the CI matrix's short override adapter | They select the runtime under runner-provided Node before the pinned runtime exists. | Every supported bootstrap runner proves dependency-free direct TypeScript execution, including a clean workspace and the compatibility lane. |
+| `classify.mjs` and `prepare-setup-smoke.mjs` | Action consumers and setup fixtures can invoke them before consumer runtime selection; raw ESM has no project-loader dependency. | All actual callers move after verified pin selection and Action metadata, imports and clean-bootstrap tests can change together. |
+| Two executable Bash Git-hook launchers | Git supplies the executable-file boundary and stdin; maintained branch/ref policy lives in `scripts/git-hook.ts`. | Hook installation guarantees the same direct Node entry and argument/stdin contract on every supported Git host. |
+| Three fixed-file Bash security materialization steps | They obtain the reviewed core-local helper before executing it, refuse an existing destination, and preserve private storage across checkout changes. | An immutable provider Action owns the same fixed core-local closure and its trusted-source, permissions, missing-file and checkout-transition fixtures pass. |
+| Semgrep, checkout and package-command launch adapters | Workflow-owned tool arguments, environment and lifecycle ordering remain beside their jobs; maintained scan/report/summary decisions are TypeScript. | A launcher acquires parsing, branching or publication decisions that need their own tested local module. |
+
+Host runtimes are the manifest-selected Node/pnpm, the existing Node 22
+compatibility lane, runner-provided bootstrap Node, Git/Bash and the selected
+Docker/Semgrep/CodeQL tools. No Python runtime remains in core's maintained
+automation. Consumer browser/Windows runtimes are verified by their owners.
+Runtime checking, type checking and hosted Action execution are separate checks.
 
 ## Consumer contract
 
@@ -170,7 +189,7 @@ temporary file in the output directory, then an atomic rename. No successful
 distinct output is created from malformed report data. Callers retain responsibility for
 their scanner exit status, reporter/SARIF gates and isolated result directory.
 
-Consumer Python callers still require their own workflow adoption. Core's
+Each consumer owns its workflow adoption and trusted manifest selection. Core's
 `security.yaml` now runs the repository-local helper from the reviewed
 `e80334d25dd4edb18703d63153ef7630daf4d04b` commit. Each OSV or summary job
 materializes the four required TypeScript files with fixed `git show` paths into
@@ -187,7 +206,7 @@ scan selection, permissions, scanner image, SARIF upload, and job result inputs;
 the helper owns local scan/report/summary execution only. Runtime gitlinks,
 secrets and publication remain outside this helper's contract.
 
-The staged consumer helper is called as
+The consumer helper is called as
 `node automation/security/consumer-workflow.ts scan-old consumer` (or
 `scan-new`, `scan-full`, `report-pr`, `report-full` with `consumer` or `overlay`).
 It uses `RUNNER_TEMP/osv-results`, `GITHUB_WORKSPACE`, the trusted pinned
@@ -203,5 +222,51 @@ The shared strict JSON parser also rejects duplicate keys and non-finite
 numbers anywhere in SARIF; the old inline Python SARIF parser rejected duplicate
 keys but allowed non-finite numbers in otherwise ignored fields. This is an
 intentional fail-closed tightening. Caller workflows still select scan jobs,
-the immutable helper SHA, artifacts and upload policy; no consumer workflow
-has adopted this helper yet.
+the immutable helper SHA, artifacts and upload policy.
+
+## Verified provider and consumer pilot
+
+Provider Action `prepare-osv` is published at
+`9a9471ad301e439bcd1ebc52334cf6b4399510e7`. Its final implementation passed
+732 tests across 48 files, real validator/workflow/private-copy fixtures on
+Node 22, and official/compatibility hosted checks. The provider owns no consumer
+merge, release or deployment operation.
+
+The [gallery pilot PR](https://github.com/PiesP/xcom-enhanced-gallery/pull/234)
+tested `ed20a2ce3402b44379a0ceead66c68e2411f1c0a` and landed as
+`0183eb1b16e2d5c0912c54077f47091c401ebfa1`. Its local `pnpm verify:full`
+passed 905 unit tests, 59 Playwright fixture checks and four direct Firefox
+runtime checks. The [PR security run](https://github.com/PiesP/xcom-enhanced-gallery/actions/runs/37410643917)
+executed the provider Action, both actual dependency scans, reporting and SARIF
+upload. Exact landed [CI](https://github.com/PiesP/xcom-enhanced-gallery/actions/runs/37410964944)
+and [security checks](https://github.com/PiesP/xcom-enhanced-gallery/actions/runs/37410964931)
+also completed successfully. Local fake-Docker fixtures, hosted scanner jobs
+and browser fixtures establish different contracts; these results do not claim
+Windows visual, authenticated live-site or release acceptance. The optional AI
+review of the pilot could not run because its service quota was exhausted;
+it is not counted as a completed review.
+
+| Independent consumer pin | Before pilot | Verified pilot |
+| --- | --- | --- |
+| Runtime `packages/core` | `5af10d3d6832507ce81d88164bc0af6bba4edb10` | Same gitlink |
+| `setup-project` Action | `279124fa998847bd0184d2de12bdaadcd6d2f969` | Same Action |
+| OSV helper | Trusted-base local Python validator and inline workflow policy | `prepare-osv@9a9471ad301e439bcd1ebc52334cf6b4399510e7` |
+
+The first-adoption rollback is a protected PR reverting the gallery's OSV
+adoption commit and restoring the validator, callers and tests together. Keep
+the runtime gitlink and the independently adopted setup/tool metadata pins.
+For later provider updates, replace both OSV Action references with the previous
+verified full SHA and run the consumer's required gates before landing.
+No rollback, publication or runtime gitlink update is performed by this document.
+
+The same reviewed inventory method counts maintained automation files,
+executable configuration, profile assets and subprocess-test callers, with
+inline bodies counted separately. From initial core commit
+`279124fa998847bd0184d2de12bdaadcd6d2f969` to the provider revision above,
+TypeScript files changed from 8 to 22, raw JavaScript from 2 to 3, and Bash hook
+files remained 2. The added JavaScript is the pre-runtime setup-smoke fixture
+producer. Three inline Python validators were retired; three private Bash
+materialization steps retain the documented trust boundary, while matrix and
+vendor command adapters remain visible. Generated tokens, runtime library
+source, third-party tools and YAML/JSON data are excluded from these language
+counts. This is a source inventory, not a line-count or performance target.
