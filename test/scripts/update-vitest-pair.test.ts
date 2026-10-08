@@ -13,7 +13,7 @@ const paths: string[] = [];
 
 function metadata(name: string, version = '5.0.3', time = old) {
   const peer = name === 'vitest' ? '@vitest/coverage-v8' : 'vitest';
-  return { name, versions: { [version]: { peerDependencies: { [peer]: version } } }, time: { [version]: time } };
+  return { name, 'dist-tags': { latest: version }, versions: { [version]: { peerDependencies: { [peer]: version } } }, time: { [version]: time } };
 }
 
 function lock(version: string): string {
@@ -86,6 +86,18 @@ describe('eligible paired release selection', () => {
       Object.assign(target.time, metadata(name, '5.9.0').time, metadata(name, '6.0.0-beta.1').time);
     }
     expect(selectVitestPair('5.0.2', a, b, now)).toBe('5.10.0');
+  });
+
+  it('excludes numeric releases published only on a trial channel', () => {
+    const a = metadata('vitest');
+    const b = metadata('@vitest/coverage-v8');
+    for (const [name, target] of [['vitest', a], ['@vitest/coverage-v8', b]] as const) {
+      Object.assign(target.versions, metadata(name, '6.0.0').versions);
+      Object.assign(target.time, metadata(name, '6.0.0').time);
+      Object.assign(target['dist-tags'], { next: '6.0.0' });
+    }
+    expect(selectVitestPair('5.0.2', a, b, now)).toBe('5.0.3');
+    expect(selectVitestPair('5.0.3', a, b, now)).toBeNull();
   });
 
   it('defers eligible one-sided releases and missing publication times', () => {

@@ -75,7 +75,8 @@ node scripts/update-vitest-pair.ts --output /absolute/new/external-directory
 ```
 
 The tool requires an aligned stable caret pair and matching root lock importer.
-It selects the highest common stable release with exact mutual peers, both
+It selects the highest common stable release at or below each package's validated
+`latest` distribution tag, with exact mutual peers, both
 publication times at least 1440 minutes old, and neither version deprecated.
 Missing publication times and eligible unmatched releases defer the update
 with an error. It retains strict peer/build/exotic-source/trust policy and

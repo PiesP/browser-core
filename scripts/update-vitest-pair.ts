@@ -42,16 +42,20 @@ export function selectVitestPair(
   const documents = [vitest, coverage].map((value, index) => {
     const root = record(value, pair[index] ?? 'package');
     if (root.name !== pair[index]) throw new Error('Registry package name differs');
+    const latest = record(root['dist-tags'], 'registry distribution tags').latest;
+    if (typeof latest !== 'string' || !stableVersion(latest)) throw new Error('Registry latest must be a stable numeric version');
     return {
       versions: record(root.versions, 'registry versions'),
       time: record(root.time, 'registry publication times'),
+      latest,
     };
   });
   const first = documents[0];
   const second = documents[1];
   if (!first || !second) throw new Error('Both registry documents are required');
   const candidates = Object.keys(first.versions)
-    .filter((version) => stableVersion(version) && compareVersions(version, current) > 0)
+    .filter((version) => stableVersion(version) && compareVersions(version, current) > 0 &&
+      documents.every((document) => compareVersions(version, document.latest) <= 0))
     .sort((a, b) => compareVersions(b, a));
   for (const version of candidates) {
     if (!Object.hasOwn(second.versions, version)) continue;
@@ -74,7 +78,8 @@ export function selectVitestPair(
   // An eligible one-sided release is a registry skew, not a successful no-update operation.
   for (const document of documents) {
     for (const [version, value] of Object.entries(document.versions)) {
-      if (!stableVersion(version) || compareVersions(version, current) <= 0) continue;
+      if (!stableVersion(version) || compareVersions(version, current) <= 0 ||
+          compareVersions(version, document.latest) > 0) continue;
       const entry = record(value, 'registry version');
       const time = document.time[version];
       const published = typeof time === 'string' ? Date.parse(time) : NaN;
