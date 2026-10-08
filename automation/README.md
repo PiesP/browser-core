@@ -86,7 +86,7 @@ only; a new `0700` output directory owns the isolated clone, command logs,
 receipt and optional patch. Failed clones and logs are retained for diagnosis.
 
 The clone runs one `pnpm update -D vitest@VERSION @vitest/coverage-v8@VERSION
---lockfile-only --no-runtime`, then `pnpm --filter . peers check`, frozen
+--lockfile-only`, then `pnpm --filter . peers check`, frozen
 installation and `pnpm verify`. Only the two direct pair specifiers may change
 in the manifest; their lockfile may include the corresponding transitive
 resolution. Frozen installation and verification must leave both candidate
@@ -101,8 +101,15 @@ For manual application, require `status=validated`, `mode=candidate` and
 `publishable=true`, verify the patch SHA-256 against the receipt, and recheck
 live remote master against `base_sha`. If the base changed, regenerate the
 candidate. Apply the patch on a new work branch after `git apply --check`, run
-the frozen install and verification again, and use the normal exact-head
-protected PR path. Never apply an old receipt over a newer base.
+`node scripts/update-vitest-pair.ts --validate-applied /absolute/receipt.json`,
+then frozen install, `pnpm --filter . peers check` and verification again. The
+receiver checks the complete staged/unstaged changes against current HEAD,
+allows only `package.json` and `pnpm-lock.yaml`, compares the whole manifest
+against the base with only the two version edits, and checks the lock importer
+and file hashes. Treat downloaded patch/receipt data as untrusted; matching
+hashes establish consistency, not independent authenticity. Review the full
+lockfile diff and use the normal exact-head protected PR path. Never apply an
+old receipt over a newer base.
 
 `--rehearsal` fixes the target checkout to immutable
 `0f86594bad374a3db07933919053e12fef431eef` and the pair to 5.0.3 using real

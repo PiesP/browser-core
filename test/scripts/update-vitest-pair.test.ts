@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { delimiter, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { assertPairImporter, prepareVitestPair, selectVitestPair } from '../../scripts/update-vitest-pair.ts';
+import { assertPairImporter, prepareVitestPair, selectVitestPair, validateAppliedVitestPair } from '../../scripts/update-vitest-pair.ts';
 
 const entry = resolve(import.meta.dirname, '../../scripts/update-vitest-pair.ts');
 const now = Date.parse('2026-10-08T00:00:00Z');
@@ -135,7 +135,7 @@ describe('isolated updater transaction', () => {
     const original = readFileSync(join(f.root, 'package.json'));
     await prepareVitestPair({ ...f, metadata: async (name) => metadata(name) });
     expect(calls(f.log)).toEqual([
-      ['update', '-D', 'vitest@5.0.3', '@vitest/coverage-v8@5.0.3', '--lockfile-only', '--no-runtime'],
+      ['update', '-D', 'vitest@5.0.3', '@vitest/coverage-v8@5.0.3', '--lockfile-only'],
       ['--filter', '.', 'peers', 'check'], ['install', '--frozen-lockfile', '--no-runtime'], ['verify'],
     ]);
     expect(readFileSync(join(f.root, 'package.json'))).toEqual(original);
@@ -145,6 +145,17 @@ describe('isolated updater transaction', () => {
     expect(receipt.base_sha).toMatch(/^[0-9a-f]{40}$/);
     expect(receipt.patch_sha256).toMatch(/^[0-9a-f]{64}$/);
     expect(readFileSync(join(f.output, 'vitest-pair.patch'), 'utf8')).toContain('+        version: 5.0.3(vitest@5.0.3)');
+    execFileSync('git', ['apply', join(f.output, 'vitest-pair.patch')], { cwd: f.root });
+    expect(() => validateAppliedVitestPair(f.root, receipt)).not.toThrow();
+    expect(() => validateAppliedVitestPair(f.root, { ...receipt, mode: 'rehearsal', publishable: false })).toThrow('current candidate');
+    expect(() => validateAppliedVitestPair(f.root, { ...receipt, base_sha: 'a'.repeat(40) })).toThrow('base differs');
+    const malicious = JSON.parse(readFileSync(join(f.root, 'package.json'), 'utf8'));
+    malicious.devDependencies.other = '^9.0.0';
+    writeFileSync(join(f.root, 'package.json'), JSON.stringify(malicious));
+    expect(() => validateAppliedVitestPair(f.root, receipt)).toThrow('more than the paired versions');
+    writeFileSync(join(f.root, 'unexpected.ts'), 'export const changed = true;\n');
+    execFileSync('git', ['add', 'unexpected.ts'], { cwd: f.root });
+    expect(() => validateAppliedVitestPair(f.root, receipt)).toThrow('unrelated source changes');
   });
 
   it.each(['peers', 'install', 'verify'])('preserves a failed %s receipt and withholds a patch', async (failure) => {

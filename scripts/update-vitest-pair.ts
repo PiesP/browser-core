@@ -139,6 +139,45 @@ export function assertPairImporter(lockfile: string, version: string): void {
   }
 }
 
+function expectedPairManifest(manifestText: string, version: string): Record<string, unknown> {
+  const expected = record(JSON.parse(manifestText), 'base manifest');
+  const dependencies = record(expected.devDependencies, 'base development dependencies');
+  for (const name of pair) dependencies[name] = `^${version}`;
+  return expected;
+}
+
+export function validateAppliedVitestPair(root: string, value: unknown): void {
+  const receipt = record(value, 'candidate receipt');
+  if (receipt.status !== 'validated' || receipt.mode !== 'candidate' || receipt.publishable !== true ||
+      typeof receipt.base_sha !== 'string' || !/^[0-9a-f]{40}$/u.test(receipt.base_sha) ||
+      typeof receipt.new_version !== 'string' || !stableVersion(receipt.new_version)) {
+    throw new Error('Only a validated current candidate may be applied');
+  }
+  const baseSha = git(root, ['rev-parse', 'HEAD']);
+  if (baseSha !== receipt.base_sha) throw new Error('Candidate base differs; regenerate the update');
+  const manifestText = git(root, ['show', `${baseSha}:package.json`]);
+  const baseManifest = record(JSON.parse(manifestText), 'base manifest');
+  const baseDependencies = record(baseManifest.devDependencies, 'base development dependencies');
+  const old = baseDependencies.vitest;
+  if (typeof old !== 'string' || !old.startsWith('^') || !stableVersion(old.slice(1)) ||
+      baseDependencies['@vitest/coverage-v8'] !== old || receipt.old_version !== old.slice(1) ||
+      compareVersions(receipt.new_version, old.slice(1)) <= 0) throw new Error('Candidate must advance the aligned base pair');
+  const changed = git(root, ['diff', baseSha, '--name-only']).split('\n').sort();
+  if (JSON.stringify(changed) !== JSON.stringify(['package.json', 'pnpm-lock.yaml']) ||
+      git(root, ['ls-files', '--others', '--exclude-standard'])) {
+    throw new Error('Applied candidate contains unrelated source changes');
+  }
+  const current = readFileSync(join(root, 'package.json'), 'utf8');
+  if (JSON.stringify(JSON.parse(current)) !== JSON.stringify(expectedPairManifest(manifestText, receipt.new_version))) {
+    throw new Error('Applied manifest changed more than the paired versions');
+  }
+  const lockfile = readFileSync(join(root, 'pnpm-lock.yaml'));
+  assertPairImporter(lockfile.toString('utf8'), receipt.new_version);
+  if (digest(current) !== receipt.manifest_sha256 || digest(lockfile) !== receipt.lockfile_sha256) {
+    throw new Error('Applied candidate file hashes differ');
+  }
+}
+
 export interface PrepareOptions {
   readonly root: string;
   readonly output: string;
@@ -232,12 +271,10 @@ export async function prepareVitestPair(options: PrepareOptions): Promise<void> 
     }
     execFileSync('git', ['clone', '--quiet', '--no-hardlinks', '--no-checkout', '--', root, checkout]);
     git(checkout, ['switch', '--quiet', '-c', `codex/vitest-pair-${target}`, baseSha]);
-    run(['update', '-D', `vitest@${target}`, `@vitest/coverage-v8@${target}`, '--lockfile-only', '--no-runtime']);
+    run(['update', '-D', `vitest@${target}`, `@vitest/coverage-v8@${target}`, '--lockfile-only']);
     const updatedText = readFileSync(join(checkout, 'package.json'), 'utf8');
     const updated = record(JSON.parse(updatedText), 'updated manifest');
-    const expected = JSON.parse(manifestText) as Record<string, unknown>;
-    const expectedDependencies = record(expected.devDependencies, 'expected development dependencies');
-    for (const name of pair) expectedDependencies[name] = `^${target}`;
+    const expected = expectedPairManifest(manifestText, target);
     if (JSON.stringify(updated) !== JSON.stringify(expected)) throw new Error('Unexpected manifest change');
     assertPairImporter(readFileSync(join(checkout, 'pnpm-lock.yaml'), 'utf8'), target);
     run(['--filter', '.', 'peers', 'check']);
@@ -272,9 +309,14 @@ export async function prepareVitestPair(options: PrepareOptions): Promise<void> 
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
+  if (args.length === 2 && args[0] === '--validate-applied' && args[1]) {
+    validateAppliedVitestPair(process.cwd(), JSON.parse(readFileSync(args[1], 'utf8')) as unknown);
+    console.log('Applied pair matches the base contract; run frozen installation, peer checks and verification before publication.');
+    return;
+  }
   if ((args.length !== 2 && args.length !== 3) || args[0] !== '--output' || !args[1] ||
       (args.length === 3 && args[2] !== '--rehearsal')) {
-    throw new Error('Usage: node scripts/update-vitest-pair.ts --output NEW_DIRECTORY [--rehearsal]');
+    throw new Error('Usage: node scripts/update-vitest-pair.ts --output NEW_DIRECTORY [--rehearsal], or --validate-applied RECEIPT');
   }
   await prepareVitestPair({ root: process.cwd(), output: args[1], rehearsal: args[2] === '--rehearsal' });
 }
