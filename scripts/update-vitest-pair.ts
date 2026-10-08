@@ -177,15 +177,6 @@ export async function prepareVitestPair(options: PrepareOptions): Promise<void> 
     if (!policy.split('\n').includes(requirement)) throw new Error(`Required policy differs: ${requirement}`);
   }
   assertPairImporter(git(root, ['show', `${baseSha}:pnpm-lock.yaml`]), specifier.slice(1));
-  const metadata = options.metadata ?? registryMetadata;
-  const documents = await Promise.all(pair.map((name) => metadata(name)));
-  const selectionDocuments = options.rehearsal ? documents.map((document) => {
-    const value = record(document, 'registry document');
-    const versions = record(value.versions, 'registry versions');
-    return { ...value, versions: { '5.0.3': versions['5.0.3'] } };
-  }) : documents;
-  const target = selectVitestPair(specifier.slice(1), selectionDocuments[0], selectionDocuments[1]);
-  if (options.rehearsal && target !== '5.0.3') throw new Error('Historical rehearsal requires eligible 5.0.3 releases');
   const requestedOutput = resolve(options.output);
   const output = join(realpathSync(dirname(requestedOutput)), basename(requestedOutput));
   const fromRoot = relative(root, output);
@@ -195,10 +186,10 @@ export async function prepareVitestPair(options: PrepareOptions): Promise<void> 
   mkdirSync(output, { mode: 0o700 });
   const receipt: Record<string, unknown> = {
     schema_version: 1, status: 'preparing', mode: options.rehearsal ? 'rehearsal' : 'candidate',
-    publishable: !options.rehearsal, helper_sha: helperSha, base_sha: baseSha,
-    old_version: specifier.slice(1), new_version: target, node_version: process.versions.node,
+    publishable: false, helper_sha: helperSha, base_sha: baseSha,
+    old_version: specifier.slice(1), new_version: null, node_version: process.versions.node,
     pnpm_version: pnpmVersion, policy_sha256: digest(policy),
-    registry_metadata_sha256: documents.map((document) => digest(JSON.stringify(document))), commands: [],
+    registry_metadata_sha256: [], commands: [],
   };
   const receiptPath = join(output, 'receipt.json');
   const save = () => writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`, { mode: 0o600 });
@@ -221,7 +212,19 @@ export async function prepareVitestPair(options: PrepareOptions): Promise<void> 
       save();
     }
   };
+  save();
   try {
+    const metadata = options.metadata ?? registryMetadata;
+    const documents = await Promise.all(pair.map((name) => metadata(name)));
+    receipt.registry_metadata_sha256 = documents.map((document) => digest(JSON.stringify(document)));
+    const selectionDocuments = options.rehearsal ? documents.map((document) => {
+      const value = record(document, 'registry document');
+      const versions = record(value.versions, 'registry versions');
+      return { ...value, versions: { '5.0.3': versions['5.0.3'] } };
+    }) : documents;
+    const target = selectVitestPair(specifier.slice(1), selectionDocuments[0], selectionDocuments[1]);
+    if (options.rehearsal && target !== '5.0.3') throw new Error('Historical rehearsal requires eligible 5.0.3 releases');
+    receipt.new_version = target;
     if (!target) {
       receipt.status = 'no-update';
       receipt.publishable = false;
@@ -240,19 +243,23 @@ export async function prepareVitestPair(options: PrepareOptions): Promise<void> 
     run(['--filter', '.', 'peers', 'check']);
     const lockBefore = digest(readFileSync(join(checkout, 'pnpm-lock.yaml')));
     run(['install', '--frozen-lockfile', '--no-runtime']);
+    if (readFileSync(join(checkout, 'pnpm-workspace.yaml'), 'utf8') !== policy) throw new Error('Installation changed dependency policy');
     run(['verify']);
     if (digest(readFileSync(join(checkout, 'pnpm-lock.yaml'))) !== lockBefore) throw new Error('Frozen validation changed the lockfile');
     if (readFileSync(join(checkout, 'package.json'), 'utf8') !== updatedText) throw new Error('Validation changed the manifest');
-    const changed = git(checkout, ['diff', '--name-only']).split('\n').sort();
+    if (git(checkout, ['rev-parse', 'HEAD']) !== baseSha) throw new Error('Validation changed candidate history');
+    if (git(checkout, ['ls-files', '--others', '--exclude-standard'])) throw new Error('Validation created unexpected source files');
+    const changed = git(checkout, ['diff', baseSha, '--name-only']).split('\n').sort();
     if (JSON.stringify(changed) !== JSON.stringify(['package.json', 'pnpm-lock.yaml'])) {
       throw new Error('Candidate changed files outside the dependency pair');
     }
-    const patch = git(checkout, ['diff', '--binary', '--', 'package.json', 'pnpm-lock.yaml']) + '\n';
+    const patch = git(checkout, ['diff', baseSha, '--binary', '--', 'package.json', 'pnpm-lock.yaml']) + '\n';
     writeFileSync(join(output, 'vitest-pair.patch'), patch, { mode: 0o600 });
     receipt.patch_sha256 = digest(patch);
     receipt.manifest_sha256 = digest(updatedText);
     receipt.lockfile_sha256 = lockBefore;
     receipt.status = 'validated';
+    receipt.publishable = !options.rehearsal;
   } catch (error) {
     receipt.status = 'failed';
     receipt.publishable = false;

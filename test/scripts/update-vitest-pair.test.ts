@@ -55,6 +55,14 @@ if (args[0] === 'update') {
 }
 if (args.includes(process.env.PAIR_TEST_FAILURE)) process.exit(72);
 if (args[0] === 'install' && process.env.PAIR_TEST_LOCK_DRIFT === 'true') fs.appendFileSync('pnpm-lock.yaml', '# changed\\n');
+if (args[0] === 'install' && process.env.PAIR_TEST_STAGED_POLICY === 'true') {
+  fs.appendFileSync('pnpm-workspace.yaml', '# changed policy\\n');
+  require('node:child_process').execFileSync('git', ['add', 'pnpm-workspace.yaml']);
+}
+if (args[0] === 'verify' && process.env.PAIR_TEST_STAGED_SOURCE === 'true') {
+  fs.writeFileSync('unexpected.ts', 'export const changed = true;\\n');
+  require('node:child_process').execFileSync('git', ['add', 'unexpected.ts']);
+}
 `, { mode: 0o755 });
   vi.stubEnv('PATH', `${bin}${delimiter}${process.env.PATH ?? ''}`);
   vi.stubEnv('PAIR_TEST_LOG', log);
@@ -148,7 +156,7 @@ describe('isolated updater transaction', () => {
     expect(execFileSync('git', ['status', '--porcelain'], { cwd: f.root, encoding: 'utf8' })).toBe('');
   });
 
-  it.each(['PAIR_TEST_EXTRA', 'PAIR_TEST_LOCK_DRIFT'])('rejects unexpected %s writes', async (setting) => {
+  it.each(['PAIR_TEST_EXTRA', 'PAIR_TEST_LOCK_DRIFT', 'PAIR_TEST_STAGED_POLICY', 'PAIR_TEST_STAGED_SOURCE'])('rejects unexpected %s writes', async (setting) => {
     const f = fixture();
     vi.stubEnv(setting, 'true');
     await expect(prepareVitestPair({ ...f, metadata: async (name) => metadata(name) })).rejects.toThrow();
@@ -161,6 +169,19 @@ describe('isolated updater transaction', () => {
     expect(calls(f.log)).toEqual([]);
     expect(JSON.parse(readFileSync(join(f.output, 'receipt.json'), 'utf8'))).toMatchObject({ status: 'no-update', publishable: false });
     expect(existsSync(join(f.output, 'checkout'))).toBe(false);
+  });
+
+  it.each(['network', 'selection'])('retains a source-bound %s failure before dependency execution', async (phase) => {
+    const f = fixture();
+    await expect(prepareVitestPair({ ...f, metadata: async (name) => {
+      if (phase === 'network') throw new Error('Registry unavailable');
+      return metadata(name, '5.0.3', '');
+    } })).rejects.toThrow();
+    const receipt = JSON.parse(readFileSync(join(f.output, 'receipt.json'), 'utf8'));
+    expect(receipt).toMatchObject({ status: 'failed', publishable: false, commands: [] });
+    expect(receipt.base_sha).toMatch(/^[0-9a-f]{40}$/);
+    expect(existsSync(join(f.output, 'vitest-pair.patch'))).toBe(false);
+    expect(calls(f.log)).toEqual([]);
   });
 
   it('rejects dirty source, an existing output, and an inconsistent importer', async () => {
