@@ -274,6 +274,23 @@ describe('repository-local OSV workflow CLI', () => {
     },
   );
 
+  it.each(['pull_request', 'push', 'schedule', 'workflow_dispatch'].flatMap(event =>
+    ['CODEQL_RESULT', 'SEMGREP_RESULT', event === 'pull_request' ? 'OSV_PR_RESULT' : 'OSV_FULL_RESULT']
+      .flatMap(scan => ['failure', 'cancelled', 'skipped', '', 'unknown'].map(state => [event, scan, state]))
+  ))('summary independently rejects %s / %s / %j while other scans succeed', (event, scan, state) => {
+    const f = fixture();
+    const result = run(f, 'summary', {
+      EVENT_NAME: event,
+      OSV_PR_RESULT: event === 'pull_request' ? 'success' : 'skipped',
+      OSV_FULL_RESULT: event === 'pull_request' ? 'skipped' : 'success',
+      [scan ?? '']: state ?? '',
+    });
+    expect(result.status, result.stderr).toBe(1);
+    expect(result.stderr).toContain('Expected ');
+    expect(readFileSync(f.summary, 'utf8')).toContain('## Security scan results');
+    expect(callArguments(f)).toEqual([]);
+  });
+
   it('summary fails closed for unsupported events after writing its table', () => {
     const f = fixture();
     const result = run(f, 'summary', { EVENT_NAME: 'merge_group' });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import workflow from '../.github/workflows/security.yaml?raw';
+import settings from '../.github/settings.yml?raw';
 
 const trustedSha = 'e80334d25dd4edb18703d63153ef7630daf4d04b';
 const helper = '"$RUNNER_TEMP/trusted-helper/scripts/security/osv-workflow.ts"';
@@ -41,6 +42,23 @@ describe('security workflow', () => {
     expect(workflow).toContain('CODEQL_RESULT: ${{ needs.codeql.result }}');
     expect(workflow).toContain('SEMGREP_RESULT: ${{ needs.semgrep.result }}');
     expect(workflow).toContain('OSV_FULL_RESULT: ${{ needs.osv-scan-full.result }}');
+  });
+
+  it('binds the emitted aggregate and every existing required check to GitHub Actions', () => {
+    const summaryName = workflow.match(/  security-summary:\n    name: ([^\n]+)/)?.[1];
+    expect(summaryName).toBe('Security scan summary');
+    const requirements = settings.split('      required_status_checks:')[1]?.split('      enforce_admins:')[0] ?? '';
+    const checks = [...requirements.matchAll(/- context: "([^"\n]+)"\n\s+app_id: (\d+)/g)]
+      .map(match => ({ context: match[1], app: Number(match[2]) }));
+    expect(checks).toEqual([
+      { context: 'quality', app: 15368 },
+      { context: 'OSV Vulnerability Scan (PR Diff)', app: 15368 },
+      { context: 'Static Analysis (Semgrep)', app: 15368 },
+      { context: summaryName, app: 15368 },
+    ]);
+    expect(requirements).toContain('strict: true');
+    expect(workflow).toContain('pull_request:');
+    expect(workflow).toContain('    if: ${{ always() }}');
   });
 
   it('materializes the complete reviewed helper outside the checkout in every caller', () => {
