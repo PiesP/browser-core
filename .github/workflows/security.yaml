@@ -260,7 +260,7 @@ jobs:
       - name: Summarize and validate event-specific scans
         env:
           EVENT_NAME: ${{ github.event_name }}
-          OSV_PR_RESULT: ${{ needs.osv-scan-pr.result }}
+          OSV_PR_RESULT: failure
           OSV_FULL_RESULT: ${{ needs.osv-scan-full.result }}
           CODEQL_RESULT: ${{ needs.codeql.result }}
           SEMGREP_RESULT: ${{ needs.semgrep.result }}
