@@ -153,6 +153,46 @@ describe('browser-core consumer impact', () => {
     expect(classify(repository, base, commit(repository))).toBe('true');
   });
 
+  it.each([
+    ['Unicode escapes', String.raw`export { value } from '\u002e\u002e\u002ftest/runtime-entry.ts';`],
+    ['braced Unicode escapes', String.raw`export { value } from '\u{2e}\u{2e}\u{2f}test/runtime-entry.ts';`],
+    ['7-digit braced Unicode escapes', String.raw`export { value } from '\u{000002e}\u{000002e}\u{000002f}test/runtime-entry.ts';`],
+    ['8-digit braced Unicode escapes', String.raw`export { value } from '\u{0000002e}\u{0000002e}\u{0000002f}test/runtime-entry.ts';`],
+    ['12-digit braced Unicode escapes', String.raw`export { value } from '\u{00000000002e}\u{00000000002e}\u{00000000002f}test/runtime-entry.ts';`],
+    ['hex escapes', String.raw`export { value } from '\x2e\x2e\x2ftest/runtime-entry.ts';`],
+    ['identity escapes', String.raw`export { value } from '\.\.\/test/runtime-entry.ts';`],
+    ['line continuations', "export { value } from '.\\\n.\\\n/test/runtime-entry.ts';"],
+    ['dynamic import', String.raw`export const load = () => import('\u002e\u002e\u002ftest/runtime-entry.ts');`],
+  ])('detects a changed target of a source reference using %s', (_label, reference) => {
+    const { repository } = fixture();
+    write(repository, 'src/index.ts', `${reference}\n`);
+    write(repository, 'test/runtime-entry.ts', 'export const value = 1;\n');
+    const base = commit(repository);
+    write(repository, 'test/runtime-entry.ts', 'export const value = 2;\n');
+    expect(classify(repository, base, commit(repository))).toBe('true');
+  });
+
+  it.each([
+    ['out-of-range', String.raw`export { value } from '\u{110000}test/runtime-entry.ts';`],
+    ['zero code point', String.raw`export { value } from '\u{0000000}test/runtime-entry.ts';`],
+  ])('treats %s source escape syntax as potentially impactful', (_label, reference) => {
+    const { repository } = fixture();
+    write(repository, 'src/index.ts', reference);
+    write(repository, 'test/runtime-entry.ts', 'export const value = 1;\n');
+    const base = commit(repository);
+    write(repository, 'test/runtime-entry.ts', 'export const value = 2;\n');
+    expect(classify(repository, base, commit(repository))).toBe('true');
+  });
+
+  it('treats invalid UTF-8 source as potentially impactful', () => {
+    const { repository } = fixture();
+    writeFileSync(join(repository, 'src/index.ts'), Buffer.from([0xff]));
+    write(repository, 'test/runtime-entry.ts', 'export const value = 1;\n');
+    const base = commit(repository);
+    write(repository, 'test/runtime-entry.ts', 'export const value = 2;\n');
+    expect(classify(repository, base, commit(repository))).toBe('true');
+  });
+
   it('detects lockfile changes when an exported development path may use the changed graph', () => {
     const { repository } = fixture();
     write(repository, 'package.json', JSON.stringify({
