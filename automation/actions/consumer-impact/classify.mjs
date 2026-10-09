@@ -14,6 +14,13 @@ function git(args) {
   });
 }
 
+function gitBlob(oid) {
+  const bytes = execFileSync('git', ['-C', repository, 'cat-file', 'blob', oid], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+}
+
 function hasCommit(sha) {
   try {
     git(['cat-file', '-e', `${sha}^{commit}`]);
@@ -99,14 +106,14 @@ function hasSourceEscape(sha) {
     const match = /^(100644|100755) blob ([0-9a-f]{40,64})\t/.exec(entry);
     if (!match) return true;
 
-    const source = git(['cat-file', 'blob', match[2]]);
+    const source = gitBlob(match[2]);
     if (source.includes('\0')) return true;
     const decoded = source
-      .replace(/\\(?:x([0-9a-f]{2})|u([0-9a-f]{4})|u\{([0-9a-f]{1,6})\}|([./]))/gi,
+      .replace(/\\(?:x([0-9a-f]{2})|u([0-9a-f]{4})|u\{([0-9a-f]+)\}|([./]))/gi,
         (_escape, hex, unicode, braced, identity) =>
           identity ?? String.fromCodePoint(parseInt(hex ?? unicode ?? braced, 16)))
       .replace(/\\(?:\r\n|[\n\r\u2028\u2029])/g, '');
-    if (decoded.includes('../')) return true;
+    if (decoded.includes('../') || decoded.includes('\0')) return true;
   }
   return false;
 }
