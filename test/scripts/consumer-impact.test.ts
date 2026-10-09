@@ -153,6 +153,31 @@ describe('browser-core consumer impact', () => {
     expect(classify(repository, base, commit(repository))).toBe('true');
   });
 
+  it.each([
+    ['Unicode escapes', String.raw`export { value } from '\u002e\u002e\u002ftest/runtime-entry.ts';`],
+    ['braced Unicode escapes', String.raw`export { value } from '\u{2e}\u{2e}\u{2f}test/runtime-entry.ts';`],
+    ['hex escapes', String.raw`export { value } from '\x2e\x2e\x2ftest/runtime-entry.ts';`],
+    ['identity escapes', String.raw`export { value } from '\.\.\/test/runtime-entry.ts';`],
+    ['line continuations', "export { value } from '.\\\n.\\\n/test/runtime-entry.ts';"],
+    ['dynamic import', String.raw`export const load = () => import('\u002e\u002e\u002ftest/runtime-entry.ts');`],
+  ])('detects a changed target of a source reference using %s', (_label, reference) => {
+    const { repository } = fixture();
+    write(repository, 'src/index.ts', `${reference}\n`);
+    write(repository, 'test/runtime-entry.ts', 'export const value = 1;\n');
+    const base = commit(repository);
+    write(repository, 'test/runtime-entry.ts', 'export const value = 2;\n');
+    expect(classify(repository, base, commit(repository))).toBe('true');
+  });
+
+  it('treats malformed source escape syntax as potentially impactful', () => {
+    const { repository } = fixture();
+    write(repository, 'src/index.ts', String.raw`export { value } from '\u{110000}test/runtime-entry.ts';`);
+    write(repository, 'test/runtime-entry.ts', 'export const value = 1;\n');
+    const base = commit(repository);
+    write(repository, 'test/runtime-entry.ts', 'export const value = 2;\n');
+    expect(classify(repository, base, commit(repository))).toBe('true');
+  });
+
   it('detects lockfile changes when an exported development path may use the changed graph', () => {
     const { repository } = fixture();
     write(repository, 'package.json', JSON.stringify({

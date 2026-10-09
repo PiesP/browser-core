@@ -94,14 +94,21 @@ function hasInstallLifecycle(pkg) {
 }
 
 function hasSourceEscape(sha) {
-  const entries = git(['ls-tree', '-r', '-z', sha, '--', 'src']);
-  if (entries.split('\0').some((entry) => entry.startsWith('120000 '))) return true;
-  try {
-    git(['grep', '-q', '-F', '../', sha, '--', 'src']);
-    return true;
-  } catch (error) {
-    return error.status !== 1;
+  const entries = git(['ls-tree', '-r', '-z', sha, '--', 'src']).split('\0').filter(Boolean);
+  for (const entry of entries) {
+    const match = /^(100644|100755) blob ([0-9a-f]{40,64})\t/.exec(entry);
+    if (!match) return true;
+
+    const source = git(['cat-file', 'blob', match[2]]);
+    if (source.includes('\0')) return true;
+    const decoded = source
+      .replace(/\\(?:x([0-9a-f]{2})|u([0-9a-f]{4})|u\{([0-9a-f]{1,6})\}|([./]))/gi,
+        (_escape, hex, unicode, braced, identity) =>
+          identity ?? String.fromCodePoint(parseInt(hex ?? unicode ?? braced, 16)))
+      .replace(/\\(?:\r\n|[\n\r\u2028\u2029])/g, '');
+    if (decoded.includes('../')) return true;
   }
+  return false;
 }
 
 function affectsConsumers() {
