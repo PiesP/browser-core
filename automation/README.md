@@ -309,9 +309,7 @@ upload. Exact landed [CI](https://github.com/PiesP/xcom-enhanced-gallery/actions
 and [security checks](https://github.com/PiesP/xcom-enhanced-gallery/actions/runs/37410964931)
 also completed successfully. Local fake-Docker fixtures, hosted scanner jobs
 and browser fixtures establish different contracts; these results do not claim
-Windows visual, authenticated live-site or release acceptance. The optional AI
-review of the pilot could not run because its service quota was exhausted;
-it is not counted as a completed review.
+Windows visual, authenticated live-site or release acceptance.
 
 | Independent consumer pin | Before pilot | Verified pilot |
 | --- | --- | --- |
