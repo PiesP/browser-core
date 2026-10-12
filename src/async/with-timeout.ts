@@ -2,10 +2,12 @@
  * Wraps a promise with a timeout. If the promise does not settle within `ms`
  * milliseconds, the returned promise rejects with a TimeoutError DOMException.
  *
- * Supports cancellation via an AbortSignal — when the signal is aborted,
- * the promise rejects with an AbortError before the timeout fires.
+ * On abort before the deadline, preserves a DOMException signal reason;
+ * other reasons become a new AbortError without the original cause.
  * An already-aborted signal returns a rejected promise, matching aborts that
- * happen while the operation is pending.
+ * happen while the operation is pending. The wrapper does not cancel the
+ * underlying operation, and awaited timeout cleanup can delay settlement beyond
+ * the deadline; callers own operation cancellation and resource release.
  *
  * @param promise - The promise to wrap
  * @param ms - Timeout duration in milliseconds
