@@ -68,6 +68,298 @@ describe('ResizableByteLimitedCache', () => {
     expect(evicted).toEqual(['old']);
   });
 
+  it('does not dispose a resource that remains stored after re-registration', () => {
+    const resource = { bytes: 16, cleanupCalls: 0 };
+    const resourceCache = new ResizableByteLimitedCache(
+      1024,
+      (value: typeof resource) => value.bytes,
+      (value) => { value.cleanupCalls++; },
+    );
+
+    resourceCache.set('image', resource);
+    resourceCache.set('image', resource);
+
+    expect(resourceCache.get('image')).toBe(resource);
+    expect(resource.cleanupCalls).toBe(0);
+  });
+
+  it('rejects a cross-key resource alias without cleaning its owner', () => {
+    const resource = { bytes: 16, cleanupCalls: 0 };
+    const resourceCache = new ResizableByteLimitedCache(
+      1024,
+      (value: typeof resource) => value.bytes,
+      (value) => { value.cleanupCalls++; },
+    );
+    resourceCache.set('image', resource);
+
+    expect(() => resourceCache.set('alias', resource)).toThrow(/already owned/);
+    expect(resourceCache.has('alias')).toBe(false);
+    expect(resourceCache.get('image')).toBe(resource);
+    expect(resourceCache.currentBytes).toBe(26);
+    expect(resource.cleanupCalls).toBe(0);
+    resourceCache.delete('image');
+    expect(resource.cleanupCalls).toBe(1);
+  });
+
+  it.each([32, -1, Number.NaN, Number.POSITIVE_INFINITY, 4096])(
+    'retains insertion-time accounting when a registered resource estimate becomes %s',
+    (updatedBytes) => {
+      const resource = { bytes: 16, cleanupCalls: 0 };
+      let estimates = 0;
+      const resourceCache = new ResizableByteLimitedCache(
+        1024,
+        (value: typeof resource) => { estimates++; return value.bytes; },
+        (value) => { value.cleanupCalls++; },
+      );
+      resourceCache.set('image', resource);
+      resource.bytes = updatedBytes;
+
+      expect(resourceCache.set('image', resource)).toBe(true);
+      expect(estimates).toBe(1);
+      expect(resourceCache.currentBytes).toBe(26);
+      expect(resource.cleanupCalls).toBe(0);
+    },
+  );
+
+  it('promotes same-reference re-registration before entry-limit eviction', () => {
+    const first = { bytes: 16, cleanupCalls: 0 };
+    const second = { bytes: 16, cleanupCalls: 0 };
+    const third = { bytes: 16, cleanupCalls: 0 };
+    const resourceCache = new ResizableByteLimitedCache(
+      1024,
+      (value: typeof first) => value.bytes,
+      (value) => { value.cleanupCalls++; },
+      2,
+    );
+    resourceCache.set('first', first);
+    resourceCache.set('second', second);
+    resourceCache.set('first', first);
+    resourceCache.set('third', third);
+
+    expect(resourceCache.has('first')).toBe(true);
+    expect(resourceCache.has('second')).toBe(false);
+    expect(resourceCache.has('third')).toBe(true);
+    expect(first.cleanupCalls).toBe(0);
+    expect(second.cleanupCalls).toBe(1);
+    expect(third.cleanupCalls).toBe(0);
+  });
+
+  it('rejects an alias before estimation or replacement of its target key', () => {
+    const first = { bytes: 16, cleanupCalls: 0 };
+    const second = { bytes: 16, cleanupCalls: 0 };
+    let estimates = 0;
+    const resourceCache = new ResizableByteLimitedCache(
+      1024,
+      (value: typeof first) => { estimates++; return value.bytes; },
+      (value) => { value.cleanupCalls++; },
+    );
+    resourceCache.set('', first);
+    resourceCache.set('second', second);
+    first.bytes = Number.NaN;
+
+    expect(() => resourceCache.set('second', first)).toThrow(TypeError);
+    expect(resourceCache.get('')).toBe(first);
+    expect(resourceCache.get('second')).toBe(second);
+    expect(resourceCache.currentBytes).toBe(44);
+    expect(estimates).toBe(2);
+    expect(first.cleanupCalls).toBe(0);
+    expect(second.cleanupCalls).toBe(0);
+  });
+
+  it.each([16, 4096, Number.NaN])(
+    'releases ownership on take and re-estimates %s bytes on reinsertion',
+    (updatedBytes) => {
+      const resource = { bytes: 16, cleanupCalls: 0 };
+      const resourceCache = new ResizableByteLimitedCache(
+        1024,
+        (value: typeof resource) => value.bytes,
+        (value) => { value.cleanupCalls++; },
+      );
+      resourceCache.set('image', resource);
+      expect(resourceCache.take('image')).toBe(resource);
+      expect(resourceCache.currentBytes).toBe(0);
+      expect(resource.cleanupCalls).toBe(0);
+      resource.bytes = updatedBytes;
+
+      if (Number.isNaN(updatedBytes)) {
+        expect(() => resourceCache.set('new', resource)).toThrow(RangeError);
+        expect(resource.cleanupCalls).toBe(0);
+        resource.bytes = 16;
+        expect(resourceCache.set('new', resource)).toBe(true);
+      } else {
+        expect(resourceCache.set('new', resource)).toBe(updatedBytes === 16);
+        expect(resource.cleanupCalls).toBe(updatedBytes === 16 ? 0 : 1);
+      }
+    },
+  );
+
+  it.each(['delete', 'evict', 'resize', 'clear'] as const)(
+    'cleans resource values exactly once on %s',
+    (removal) => {
+      const resource = { bytes: 16, cleanupCalls: 0 };
+      const replacement = { bytes: 16, cleanupCalls: 0 };
+      const resourceCache = new ResizableByteLimitedCache(
+        1024,
+        (value: typeof resource) => value.bytes,
+        (value) => { value.cleanupCalls++; },
+        1,
+      );
+      resourceCache.set('image', resource);
+      if (removal === 'delete') resourceCache.delete('image');
+      if (removal === 'evict') resourceCache.set('new', replacement);
+      if (removal === 'resize') resourceCache.resize(0);
+      if (removal === 'clear') resourceCache.clear();
+      resourceCache.clear();
+      resourceCache.clear();
+      expect(resource.cleanupCalls).toBe(1);
+      expect(resourceCache.size).toBe(0);
+      expect(resourceCache.currentBytes).toBe(0);
+    },
+  );
+
+  it('preserves distinct resource replacement and oversized rejection ownership', () => {
+    const first = { bytes: 16, cleanupCalls: 0 };
+    const replacement = { bytes: 20, cleanupCalls: 0 };
+    const oversized = { bytes: 2048, cleanupCalls: 0 };
+    const resourceCache = new ResizableByteLimitedCache(
+      1024,
+      (value: typeof first) => value.bytes,
+      (value) => { value.cleanupCalls++; },
+    );
+    resourceCache.set('image', first);
+    expect(resourceCache.set('image', replacement)).toBe(true);
+    expect(first.cleanupCalls).toBe(1);
+    expect(resourceCache.set('image', oversized)).toBe(false);
+    expect(resourceCache.get('image')).toBe(replacement);
+    expect(resourceCache.currentBytes).toBe(30);
+    expect(replacement.cleanupCalls).toBe(0);
+    expect(oversized.cleanupCalls).toBe(1);
+    expect(() => resourceCache.set('alias', replacement)).toThrow(/already owned/);
+  });
+
+  it('keeps an incoming resource owned when replaced-value cleanup throws', () => {
+    const first = { bytes: 16 };
+    const incoming = { bytes: 16 };
+    const failure = new Error('cleanup failed');
+    const resourceCache = new ResizableByteLimitedCache(
+      1024,
+      (value: typeof first) => value.bytes,
+      () => { throw failure; },
+    );
+    resourceCache.set('image', first);
+    expect(() => resourceCache.set('image', incoming)).toThrow(failure);
+    expect(resourceCache.get('image')).toBe(incoming);
+    expect(() => resourceCache.set('alias', incoming)).toThrow(/already owned/);
+    expect(resourceCache.take('image')).toBe(incoming);
+    expect(resourceCache.set('new', incoming)).toBe(true);
+  });
+
+  it('protects every pending resource from re-entrant registration during clear', () => {
+    const first = { bytes: 16 };
+    const second = { bytes: 16 };
+    const fresh = { bytes: 16 };
+    const cleaned: object[] = [];
+    const resourceCache = new ResizableByteLimitedCache(
+      1024,
+      (value: typeof first) => value.bytes,
+      (value) => {
+        cleaned.push(value);
+        if (value === first) {
+          expect(resourceCache.size).toBe(0);
+          expect(() => resourceCache.set('first-again', first)).toThrow(/awaiting/);
+          expect(() => resourceCache.set('second-again', second)).toThrow(/awaiting/);
+          resourceCache.set('fresh', fresh);
+          throw new Error('first cleanup failed');
+        }
+      },
+    );
+    resourceCache.set('first', first);
+    resourceCache.set('second', second);
+
+    expect(() => resourceCache.clear()).toThrow('first cleanup failed');
+    expect(cleaned).toEqual([first, second]);
+    expect(resourceCache.get('fresh')).toBe(fresh);
+    expect(resourceCache.currentBytes).toBe(26);
+    expect(() => resourceCache.set('alias', fresh)).toThrow(/already owned/);
+    resourceCache.clear();
+    expect(cleaned).toEqual([first, second, fresh]);
+  });
+
+  it('supports nested cleanup that replaces the newly installed resource', () => {
+    const first = { bytes: 16 };
+    const incoming = { bytes: 16 };
+    const nested = { bytes: 16 };
+    const cleaned: object[] = [];
+    const resourceCache = new ResizableByteLimitedCache(
+      1024,
+      (value: typeof first) => value.bytes,
+      (value) => {
+        cleaned.push(value);
+        if (value === first) resourceCache.set('image', nested);
+      },
+    );
+    resourceCache.set('image', first);
+    resourceCache.set('image', incoming);
+    expect(cleaned).toEqual([first, incoming]);
+    expect(resourceCache.get('image')).toBe(nested);
+    expect(() => resourceCache.set('alias', nested)).toThrow(/already owned/);
+    expect(resourceCache.currentBytes).toBe(26);
+  });
+
+  it('protects a capacity-rejected resource during its cleanup callback', () => {
+    const resource = { bytes: 16 };
+    let cleanupCalls = 0;
+    const resourceCache = new ResizableByteLimitedCache(
+      0,
+      (value: typeof resource) => value.bytes,
+      (value) => {
+        cleanupCalls++;
+        resourceCache.resize(1024);
+        expect(() => resourceCache.set('again', value)).toThrow(/awaiting/);
+      },
+    );
+    expect(resourceCache.set('image', resource)).toBe(false);
+    expect(cleanupCalls).toBe(1);
+    expect(resourceCache.size).toBe(0);
+  });
+
+  it('applies exclusive ownership to function resources', () => {
+    const resource = (): void => undefined;
+    let cleanupCalls = 0;
+    const resourceCache = new ResizableByteLimitedCache(1024, () => 16, () => { cleanupCalls++; });
+    resourceCache.set('image', resource);
+    resourceCache.set('image', resource);
+    expect(() => resourceCache.set('alias', resource)).toThrow(/already owned/);
+    expect(cleanupCalls).toBe(0);
+    resourceCache.clear();
+    expect(cleanupCalls).toBe(1);
+  });
+
+  it.each(['repeat', null, 0, false])('preserves repeated primitive value %s with cleanup', (value) => {
+    const cleaned: unknown[] = [];
+    const valueCache = new ResizableByteLimitedCache(1024, () => 1, (entry) => { cleaned.push(entry); });
+    valueCache.set('a', value);
+    valueCache.set('a', value);
+    valueCache.set('b', value);
+    expect(valueCache.size).toBe(2);
+    expect(cleaned).toEqual([value]);
+    valueCache.clear();
+    expect(cleaned).toEqual([value, value, value]);
+  });
+
+  it('allows object aliases and refreshes estimates without a cleanup callback', () => {
+    const resource = { bytes: 16 };
+    const valueCache = new ResizableByteLimitedCache(1024, (value: typeof resource) => value.bytes);
+    valueCache.set('a', resource);
+    resource.bytes = 32;
+    valueCache.set('a', resource);
+    valueCache.set('b', resource);
+    expect(valueCache.currentBytes).toBe(68);
+    valueCache.delete('a');
+    expect(valueCache.get('b')).toBe(resource);
+    expect(valueCache.currentBytes).toBe(34);
+  });
+
   it('rejects a value that cannot fit and releases it', () => {
     const evicted: string[] = [];
     const limitedCache = new ResizableByteLimitedCache<string>(
