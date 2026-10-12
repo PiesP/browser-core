@@ -19,8 +19,8 @@ export interface AbortErrorCheckOptions {
  * If `options.checkTimeout` is `true`, also returns `true` for
  * DOMException instances with name "TimeoutError".
  *
- * This matches the behavior of xcom-enhanced-gallery (`cancellation.ts:10-14`)
- * and yt-live-chat-overlay (`dom.ts:178-179`).
+ * Product adapters may select a different timeout policy; XEG's local abort
+ * classifier always includes TimeoutError, while this default does not.
  *
  * @param error - Unknown error value
  * @param options - Configuration for timeout checking
@@ -40,8 +40,8 @@ export function isAbortError(
  * Broader cancellation check that also inspects the cause chain and
  * (optionally) message text for cancellation keywords.
  *
- * This matches the behavior of wasm-motion-converter's
- * `isCancellationError` (`error-utils.ts:61-87`).
+ * This is the classifier consumed by WMC. TimeoutError alone does not identify
+ * cancellation, and cancellation does not by itself identify a user action.
  *
  * @param error - Unknown error value
  * @param options - Configuration for message checking

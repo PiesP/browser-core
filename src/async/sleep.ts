@@ -1,8 +1,8 @@
 /**
  * Returns a promise that resolves after `ms` milliseconds.
  *
- * Supports cancellation via AbortSignal — when the signal is aborted,
- * the promise rejects with an AbortError DOMException.
+ * On pre-abort or mid-flight abort, preserves a DOMException signal reason;
+ * other reasons become a new AbortError without the original cause.
  *
  * @param ms - Delay duration in milliseconds
  * @param signal - Optional AbortSignal for cancellation

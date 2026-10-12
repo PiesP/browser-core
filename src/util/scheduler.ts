@@ -1,20 +1,21 @@
 /**
  * Browser scheduler API wrappers with graceful degradation for
- * environments that do not support `scheduler.yield` or
- * `scheduler.postTask` (notably Safari < 18.4 and older browsers).
+ * environments that do not support `scheduler.yield` or `scheduler.postTask`.
+ * Each method is feature-detected independently; support can differ.
  */
 
 /**
  * Yield control back to the browser's event loop.
  *
- * Uses `scheduler.yield()` when available (Chromium 115+, Firefox 135+).
- * Falls back to `setTimeout(0)` for Safari and older browsers, which still
- * allows pending UI work to be processed.
+ * Uses `scheduler.yield()` when available, otherwise `setTimeout(0)` to
+ * resume in a later task. The timer fallback yields control but does not
+ * preserve the native API's prioritized continuation.
  *
  * Call this inside long-running synchronous work to keep the page
  * responsive.
  *
  * @returns A promise that resolves after yielding
+ * @see https://developer.chrome.com/blog/use-scheduler-yield
  */
 export function schedulerYield(): Promise<void> {
   if (
@@ -47,9 +48,9 @@ export interface SchedulerPostTaskOptions {
 /**
  * Schedule a callback to run at the given priority.
  *
- * Uses `scheduler.postTask()` when available (Chromium 94+).
- * Falls back to `setTimeout(callback, delay)` with priority-appropriate
- * delays for Safari and older browsers.
+ * Uses `scheduler.postTask()` when available. The timer fallback uses
+ * heuristic delays, without an equivalent priority queue or genuine priority
+ * scheduling. Its background delay is only a heuristic.
  *
  * @param callback - The function to schedule
  * @param options - Scheduling options
@@ -77,7 +78,7 @@ export function schedulerPostTask<T = void>(
     ).postTask(callback, { priority, ...(signal ? { signal } : {}) });
   }
 
-  // Fallback: setTimeout with priority-appropriate delays
+  // Timer delays approximate urgency; they do not implement native priorities.
   return new Promise<Awaited<T>>((resolve, reject) => {
     // Abort handling for the fallback path
     if (signal?.aborted) {
