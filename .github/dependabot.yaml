@@ -1,9 +1,12 @@
 version: 2
 updates:
+  # Review routine versions weekly. Handle advisories or compatibility blockers
+  # promptly through normal review and validation; retain the existing age waiver policy.
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+      day: "monday"
       time: "09:00"
       timezone: "Asia/Seoul"
     # Keep only a short supply-chain cooling window for these fast-moving consumers.
@@ -35,7 +38,8 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+      day: "monday"
       time: "09:00"
       timezone: "Asia/Seoul"
     # Keep only a short supply-chain cooling window for these fast-moving consumers.
