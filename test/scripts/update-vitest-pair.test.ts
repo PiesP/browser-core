@@ -220,8 +220,11 @@ describe('isolated updater transaction', () => {
   });
 });
 
-it('keeps scheduled preparation credentialless and publication separate', () => {
+it('keeps recovery manual, credentialless and separate from publication', () => {
   const workflow = readFileSync(resolve(import.meta.dirname, '../../.github/workflows/update-vitest-pair.yaml'), 'utf8');
+  expect(workflow).toContain('  workflow_dispatch:');
+  expect(workflow).not.toMatch(/^  (schedule|push|pull_request|workflow_run):/m);
+  expect(workflow).toMatch(/rehearsal:[\s\S]*type: boolean[\s\S]*default: false/);
   expect(workflow).toContain('contents: read');
   expect(workflow).toContain('ref: master');
   expect(workflow).toContain('persist-credentials: false');
