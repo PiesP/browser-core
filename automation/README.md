@@ -21,7 +21,7 @@ consumer repositories. It is distributed independently from the
 | `automation/security/validate-osv.ts`; dependency-free Node TypeScript | Explicit input/output paths and schema profile after supported runtime setup | Read/validate JSON; optional atomic validated output, no writes on import | `test/scripts/osv-validator.test.ts`; see the OSV contract below |
 | `automation/security/consumer-workflow.ts`; dependency-free Node TypeScript | Fixed scan/report mode, explicit trusted `consumer` or `overlay` profile, pinned scanner image and workflow-owned environment | Scans and raw reporter preflight produce atomic normalized OSV JSON; final reporter validates SARIF and writes `sarif-upload=true` only after a valid exit 0/1 result | `test/scripts/consumer-workflow.test.ts` uses the real CLI and fake Docker; Node 22 fixtures and the gallery pilot below |
 | `scripts/notify-consumers.ts`; repository-local Node TypeScript CLI | Default-branch checkout, pinned Node, `CORE_SHA`, repository names, `gh` and `GH_TOKEN` in the invoking step | `validate` queries commit and master ancestry before appending one `core_sha` output; `dispatch` sends the fixed event to one selected consumer; imports have no side effects | `test/scripts/notify-consumers.test.ts`, `test/notify-consumers.test.ts` |
-| `scripts/update-vitest-pair.ts`, `update-vitest-pair.yaml`; independent paired updater | Clean root, exact manifest pnpm, fixed public npm metadata, new external output directory; optional fixed historical rehearsal | Resolves both cooled stable versions in one transaction in a private clone; validates peers, frozen lockfile and coverage; emits patch/receipt/logs without pushing or creating a PR | `test/scripts/update-vitest-pair.test.ts`, real historical rehearsal and protected publication checks; see below |
+| `scripts/update-vitest-pair.ts`, `update-vitest-pair.yaml`; manual paired-update recovery | Actual Dependabot paired-resolution failure, clean root, exact manifest pnpm, fixed public npm metadata, new external output directory; optional fixed historical rehearsal | Resolves both cooled stable versions in one transaction in a private clone; validates peers, frozen lockfile and coverage; emits patch/receipt/logs without pushing or creating a PR | `test/scripts/update-vitest-pair.test.ts`, real historical rehearsal and protected publication checks; see below |
 | `scripts/security/osv-workflow.ts`; repository-local pinned-Node TypeScript helper | Fixed `scan-old`, `scan-new`, `scan-full`, `report-pr`, `report-full`, or `summary` mode; immutable reviewed helper files in runner temporary storage, trusted workflow environment and existing Docker image | Scans remove stale results and validate non-empty minimal OSV JSON; reporter performs one parse preflight before one SARIF/fail-on-vuln call; summary appends the existing table then enforces event-specific jobs | `test/scripts/osv-workflow.test.ts` and `test/scripts/security-workflow-execution.test.ts` exercise the CLI and actual workflow run commands with fake Docker; hosted security jobs remain the end-to-end gate |
 | `.github/workflows/ci.yaml`, `notify-consumers.yaml`, `security.yaml`; GitHub YAML and bounded shell | GitHub event, trusted checkout, job context, runner tools | Own checks, dispatch, artifacts, permissions, scanner image, and immutable-helper bootstrap. `security.yaml` retains base/head checkout and private file materialization in Bash; its three inline Python validators and scan/report/summary Bash policy have moved to the trusted TypeScript CLI. | Workflow contract and run-block fixture tests, then hosted jobs |
 | `test/scripts/*.test.ts`, `test/automation-action.test.ts`, `test/security-workflow.test.ts`; Vitest TypeScript | Installed test dependencies and disposable Git/workflow fixtures | Assertions and temporary fixture writes | `pnpm test`, coverage gate in `pnpm verify` |
@@ -62,11 +62,13 @@ Runtime checking, type checking and hosted Action execution are separate checks.
 
 ## Paired Vitest updater
 
-Dependabot's Vitest group remains enabled. Grouping the final PR does not
+Use the scheduled Dependabot Vitest group for routine updates. Grouping the final PR does not
 guarantee that its resolver checks both exact peers in one transaction. The
 independent updater provides a reviewed candidate when that intermediate check
 fails; it does not claim to change Dependabot's resolver or prove a future
-eligible Dependabot operation.
+eligible Dependabot operation. Invoke recovery only for an actual paired-resolution
+failure, using the workflow's **Run workflow** action with `rehearsal=false` or
+the local CLI below. The recovery workflow has no recurring trigger.
 
 From a clean checkout with the manifest-pinned Node and pnpm, run:
 
@@ -94,7 +96,7 @@ files unchanged. A validated receipt binds helper/base SHAs, versions, runtime,
 policy, registry metadata, candidate file hashes, patch hash and command status.
 `no-update` has no patch and is not eligible-update evidence.
 
-The daily and manually invoked workflow checks out maintained `master` without
+The manually invoked workflow checks out maintained `master` without
 persisted credentials, uses read permissions and uploads only the patch,
 receipt and logs. It creates no PR, approves nothing and merges nothing.
 For manual application, require `status=validated`, `mode=candidate` and
@@ -109,7 +111,8 @@ against the base with only the two version edits, and checks the lock importer
 and file hashes. Treat downloaded patch/receipt data as untrusted; matching
 hashes establish consistency, not independent authenticity. Review the full
 lockfile diff and use the normal exact-head protected PR path. Never apply an
-old receipt over a newer base.
+old receipt over a newer base. A failed run retains its failed receipt and logs;
+it produces no publishable candidate. Review failures before a new invocation.
 
 `--rehearsal` fixes the target checkout to immutable
 `0f86594bad374a3db07933919053e12fef431eef` and the pair to 5.0.3 using real
