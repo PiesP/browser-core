@@ -196,7 +196,7 @@ local publication gate and required remote workflows, and then updating the
 remaining consumers. OSV rollback depends on the adoption stage: undoing the first
 adoption restores the consumer's prior validator/callers/tests, while a compatible
 provider rollback updates all applicable Action references together. Follow the
-consumer-owned procedure in [Verified provider and consumer pilot](#verified-provider-and-consumer-pilot);
+consumer-owned procedure in [OSV adoption and rollback](#osv-adoption-and-rollback);
 neither operation changes runtime gitlinks or authorizes publication/settings changes.
 
 Changes under `automation/**` intentionally do not trigger the runtime
@@ -294,38 +294,15 @@ keys but allowed non-finite numbers in otherwise ignored fields. This is an
 intentional fail-closed tightening. Caller workflows still select scan jobs,
 the immutable helper SHA, artifacts and upload policy.
 
-## Verified provider and consumer pilot
-
-Provider Action `prepare-osv` is published at
-`9a9471ad301e439bcd1ebc52334cf6b4399510e7`. Its final implementation passed
-732 tests across 48 files, real validator/workflow/private-copy fixtures on
-Node 22, and official/compatibility hosted checks. The provider owns no consumer
-merge, release or deployment operation.
-
-The [gallery pilot PR](https://github.com/PiesP/xcom-enhanced-gallery/pull/234)
-tested `ed20a2ce3402b44379a0ceead66c68e2411f1c0a` and landed as
-`0183eb1b16e2d5c0912c54077f47091c401ebfa1`. Its local `pnpm verify:full`
-passed 905 unit tests, 59 Playwright fixture checks and four direct Firefox
-runtime checks. The [PR security run](https://github.com/PiesP/xcom-enhanced-gallery/actions/runs/37410643917)
-executed the provider Action, both actual dependency scans, reporting and SARIF
-upload. Exact landed [CI](https://github.com/PiesP/xcom-enhanced-gallery/actions/runs/37410964944)
-and [security checks](https://github.com/PiesP/xcom-enhanced-gallery/actions/runs/37410964931)
-also completed successfully. Local fake-Docker fixtures, hosted scanner jobs
-and browser fixtures establish different contracts; these results do not claim
-Windows visual, authenticated live-site or release acceptance.
-
-| Independent consumer pin | Before pilot | Verified pilot |
-| --- | --- | --- |
-| Runtime `packages/core` | `5af10d3d6832507ce81d88164bc0af6bba4edb10` | Same gitlink |
-| `setup-project` Action | `279124fa998847bd0184d2de12bdaadcd6d2f969` | Same Action |
-| OSV helper | Trusted-base local Python validator and inline workflow policy | `prepare-osv@9a9471ad301e439bcd1ebc52334cf6b4399510e7` |
+## OSV adoption and rollback
 
 To undo first OSV adoption, use a consumer-owned protected PR to restore its local
 validator, all affected workflow callers and associated tests together from that
 consumer's recorded pre-adoption revision. Use its existing
 `docs/osv-workflow.md` coverage map and preserve unrelated later edits; a provider
 pin alone cannot restore the prior contract, and a blanket revert of one adoption
-commit is not a universal recovery procedure. The gallery pilot above records one
+commit is not a universal recovery procedure. The
+[gallery pilot](https://github.com/PiesP/xcom-enhanced-gallery/pull/234) records one
 consumer's adoption, not a shared restore revision for all consumers. Keep runtime
 gitlinks, setup-project pins and independently adopted tool metadata unchanged.
 
@@ -337,14 +314,16 @@ protected-PR gates. An incompatible provider contract may also require coordinat
 caller changes. Consumer permissions and publication policy remain consumer-owned.
 No rollback, publication or runtime gitlink update is performed by this document.
 
-The same reviewed inventory method counts maintained automation files,
-executable configuration, profile assets and subprocess-test callers, with
-inline bodies counted separately. From initial core commit
-`279124fa998847bd0184d2de12bdaadcd6d2f969` to the provider revision above,
-TypeScript files changed from 8 to 22, raw JavaScript from 2 to 3, and Bash hook
-files remained 2. The added JavaScript is the pre-runtime setup-smoke fixture
-producer. Three inline Python validators were retired; three private Bash
-materialization steps retain the documented trust boundary, while matrix and
-vendor command adapters remain visible. Generated tokens, runtime library
-source, third-party tools and YAML/JSON data are excluded from these language
-counts. This is a source inventory, not a line-count or performance target.
+## Verified provider and consumer pilot
+
+Completed in October 2026, the provider
+[`prepare-osv` revision](https://github.com/PiesP/browser-core/commit/9a9471ad301e439bcd1ebc52334cf6b4399510e7)
+and [gallery pilot PR](https://github.com/PiesP/xcom-enhanced-gallery/pull/234)
+validated the independently pinned OSV helper, consumer fixtures, and hosted
+scanner/report/upload path. The gallery tested
+`ed20a2ce3402b44379a0ceead66c68e2411f1c0a` and landed as
+`0183eb1b16e2d5c0912c54077f47091c401ebfa1`. The
+[immutable pre-edit guide](https://github.com/PiesP/browser-core/blob/c51e78962ac388db9922db99bc6f1ab8d0c4f7ee/automation/README.md#verified-provider-and-consumer-pilot)
+retains the full historical test results, independent-pin comparison, and
+automation-language inventory. Those results document the completed pilot,
+not a current consumer validation or pin requirement.
