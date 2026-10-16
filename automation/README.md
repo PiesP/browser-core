@@ -161,6 +161,22 @@ Official builds fail before dependency installation when the manifest pin is
 missing or non-exact. Compatibility overrides intentionally select a separate
 numeric runtime without requiring that official pin.
 
+`.github/dependabot.yaml` watches both the root workflows and
+`automation/actions/setup-project/action.yaml`. It groups CodeQL, `pnpm/setup`,
+and other Actions separately so one failed update does not hold the others.
+For an Action SHA update, check the full commit against the official upstream
+release and allow at least 24 hours from that release before review. Update the
+independent allowed-SHA assertions in `test/automation-action.test.ts` and any
+affected workflow contract tests in the same PR; never compute an expected SHA
+from the workflow or action being tested. Keep the consumer manifest runtime,
+input allowlist, cache and optional frozen-install behavior intact. In
+particular, retain the current `pnpm/setup` v2 action until a newer version's
+inputs and runner behavior have been reviewed. Run the focused action/workflow
+tests and `pnpm verify`, then review the hosted checks at the PR head. A stale
+test pin calls for reviewing that specific update, not closing every grouped
+Actions update. This automation-only maintenance does not update runtime
+gitlinks.
+
 After the consumer's manifest-pinned Node setup with
 `install-dependencies: 'false'`, a trusted security workflow can call
 `PiesP/browser-core/automation/actions/prepare-osv@<reviewed-full-SHA>`.
