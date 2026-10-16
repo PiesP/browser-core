@@ -36,7 +36,7 @@ function runtimeNotificationRunsFor(path: string): boolean {
 describe('central project setup action', () => {
   it('uses an immutable toolchain action and the consumer package manifest', () => {
     expect(action).toContain(
-      'uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b',
+      'uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4',
     );
     expect(action).toContain('working-directory: .');
     expect(action).not.toContain('package-json-file:');
