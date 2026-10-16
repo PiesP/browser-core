@@ -36,7 +36,9 @@ updates:
           - "patch"
 
   - package-ecosystem: "github-actions"
-    directory: "/"
+    directories:
+      - "/"
+      - "/automation/actions/setup-project"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -51,6 +53,15 @@ updates:
     reviewers:
       - "PiesP"
     groups:
+      codeql:
+        patterns:
+          - "github/codeql-action*"
+      pnpm-setup:
+        patterns:
+          - "pnpm/setup"
       actions:
         patterns:
           - "*"
+        exclude-patterns:
+          - "github/codeql-action*"
+          - "pnpm/setup"
