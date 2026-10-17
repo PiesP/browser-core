@@ -10,6 +10,14 @@ engineStrict: true
 # Enforce the declared toolchain and plugin peer requirements during installs.
 strictPeerDependencies: true
 
+# This exact alias bundles Vite 8.3.4, satisfying these callers' Vite 8 ranges.
+# Scope the metadata exception to reviewed callers and the selected alias only.
+# Recheck both versions and their peer ranges when updating the toolchain.
+peerDependencyRules:
+  allowedVersions:
+    '@vitest/mocker@5.0.4>vite': 1.2.0
+    'vitest@5.0.4>vite': 1.2.0
+
 # Prefer current releases while retaining a short supply-chain observation window.
 minimumReleaseAge: 1440
 minimumReleaseAgeIgnoreMissingTime: false
