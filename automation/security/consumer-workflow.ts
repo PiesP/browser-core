@@ -8,14 +8,12 @@ import {
   openSync,
   readFileSync,
   readSync,
-  realpathSync,
   statSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { constants } from 'node:os';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { parseStrictJson } from './strict-json.ts';
 import type { JsonValue } from './strict-json.ts';
@@ -258,13 +256,4 @@ export function main(args: readonly string[]): number {
   }
 }
 
-function isCliEntry(): boolean {
-  if (!process.argv[1]) return false;
-  try {
-    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
-  } catch {
-    return false;
-  }
-}
-
-if (isCliEntry()) process.exitCode = main(process.argv.slice(2));
+if (import.meta.main) process.exitCode = main(process.argv.slice(2));

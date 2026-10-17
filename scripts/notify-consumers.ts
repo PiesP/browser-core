@@ -1,6 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, existsSync, realpathSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { appendFileSync } from 'node:fs';
 
 function ghApi(arguments_: readonly string[], input?: string): string {
   return execFileSync('gh', ['api', ...arguments_], {
@@ -65,10 +64,6 @@ function run(): void {
   }
 }
 
-if (
-  process.argv[1] &&
-  existsSync(process.argv[1]) &&
-  realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1])
-) {
+if (import.meta.main) {
   run();
 }

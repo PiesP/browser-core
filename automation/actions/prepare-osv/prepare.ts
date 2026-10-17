@@ -7,7 +7,6 @@ import {
   mkdtempSync,
   openSync,
   readFileSync,
-  realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -66,13 +65,4 @@ export function main(args: readonly string[]): number {
   }
 }
 
-function isCliEntry(): boolean {
-  if (!process.argv[1]) return false;
-  try {
-    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
-  } catch {
-    return false;
-  }
-}
-
-if (isCliEntry()) process.exitCode = main(process.argv.slice(2));
+if (import.meta.main) process.exitCode = main(process.argv.slice(2));

@@ -10,7 +10,6 @@ import {
 } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { basename, dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { validateOsvReport } from './osv-report.ts';
 import type { OsvProfile } from './osv-report.ts';
@@ -123,15 +122,6 @@ export function main(args: readonly string[]): number {
   }
 }
 
-function isCliEntry(): boolean {
-  if (!process.argv[1]) return false;
-  try {
-    return realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
-  } catch {
-    return false;
-  }
-}
-
-if (isCliEntry()) {
+if (import.meta.main) {
   process.exitCode = main(process.argv.slice(2));
 }
