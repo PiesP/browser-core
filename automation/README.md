@@ -76,6 +76,7 @@ runtime. Consumer installs require no core development tools or lifecycle build.
 
 For an update, select an exact stable Vite+ release that satisfies the existing
 npm release-age policy, then use its pinned migrator from the repository root:
+Replace `VERSION` in both commands with that selected exact release.
 
 ```sh
 pnpm dlx --package=vite-plus@VERSION vp help migrate
