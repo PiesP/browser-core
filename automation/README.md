@@ -101,6 +101,15 @@ Do not widen these entries or add `allowAny`. Validate dependency resolution
 with a non-frozen lockfile calculation as well as the clean frozen install;
 the latter alone can reuse an unchecked migration lockfile.
 
+Dependabot keeps Vite+ version updates visible, but does not independently update
+its managed Vite alias or upstream Vitest/coverage pins. Those normal component
+updates are excluded with version-update-only filters; security alerts and
+security updates keep their existing handling. A Vite+ update PR still needs
+the pinned migration above, manual catalog/peer review and the required gates
+before merging. Do not merge a package-only bump as an aligned toolchain update.
+See [project updates](https://viteplus.dev/guide/upgrade-project); the global
+`vp upgrade` command alone does not update this project.
+
 ## Consumer contract
 
 Consumers reference actions from this repository with an immutable 40-character
