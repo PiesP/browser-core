@@ -25,6 +25,13 @@ export function prepareSetupSmoke() {
   if (core.packageManager === 'pnpm@11.25.0' || core.volta.node === '24.15.0') {
     throw new Error('Smoke fixture toolchain must differ from browser-core');
   }
+  // The copied workspace policy must agree with the fixture's frozen lockfile.
+  // Reuse pnpm's resolved override values, including catalog references.
+  const coreLock = readFileSync(
+    fileURLToPath(new URL('../../pnpm-lock.yaml', import.meta.url)),
+    'utf8'
+  );
+  const overrides = coreLock.match(/^overrides:\n(?:[ \t].*\n|\n)*/m)?.[0] ?? '';
   writeFileSync(
     'package.json',
     JSON.stringify({
@@ -46,7 +53,7 @@ export function prepareSetupSmoke() {
   writeFileSync('fixture-package/index.cjs', 'module.exports = 42;\n');
   writeFileSync(
     'pnpm-lock.yaml',
-    `lockfileVersion: '9.0'\nsettings:\n  autoInstallPeers: true\n  excludeLinksFromLockfile: false\nimporters:\n  .:\n    dependencies:\n      setup-smoke-fixture:\n        specifier: link:./fixture-package\n        version: link:fixture-package\n`
+    `lockfileVersion: '9.0'\nsettings:\n  autoInstallPeers: true\n  excludeLinksFromLockfile: false\n${overrides}importers:\n  .:\n    dependencies:\n      setup-smoke-fixture:\n        specifier: link:./fixture-package\n        version: link:fixture-package\n`
   );
   copyFileSync(
     fileURLToPath(new URL('../../pnpm-workspace.yaml', import.meta.url)),
