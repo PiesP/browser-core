@@ -148,12 +148,10 @@ describe('prepare OSV helper action', () => {
   it('reads the opened provider file when its path is replaced during copying', () => {
     const f = fixture();
     const source = join(f.source, 'consumer-workflow.ts');
-    const result = spawnSync(
-      process.execPath,
-      [
-        '--input-type=module',
-        '-e',
-        `
+    const preload = join(f.root, 'replace-after-open.mjs');
+    writeFileSync(
+      preload,
+      `
       import fs from 'node:fs';
       import { syncBuiltinESMExports } from 'node:module';
       const originalOpen = fs.openSync;
@@ -166,10 +164,11 @@ describe('prepare OSV helper action', () => {
         return fd;
       };
       syncBuiltinESMExports();
-      process.argv[1] = ${JSON.stringify(f.providerEntry)};
-      await import(${JSON.stringify(pathToFileURL(f.providerEntry).href)});
-    `,
-      ],
+    `
+    );
+    const result = spawnSync(
+      process.execPath,
+      ['--import', pathToFileURL(preload).href, f.providerEntry],
       {
         cwd: f.workspace,
         encoding: 'utf8',
