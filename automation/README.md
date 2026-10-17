@@ -86,10 +86,20 @@ Review every migration finding and the complete manifest, catalog, override and
 lockfile diff. Retain compatibility aliases and align the direct upstream Vitest
 and coverage entries with the selected toolchain; the upstream package identity
 is still used by ambient test types. Do not accept generated release-age
-exemptions, peer-policy relaxations, install hooks or competing runtime/hook
+exemptions, broad peer-policy relaxations, install hooks or competing runtime/hook
 ownership. Keep `volta.node` while setup readers use it. Finish with a frozen
 install, `pnpm verify`, the supported CI runtime matrix and affected consumer
 acceptance. The standalone paired-updater recovery service is retired.
+
+The managed Vite alias reports the Vite+ version (`1.2.0`), while its package
+metadata records the bundled Vite version (`8.3.4`). Strict peer validation stays
+enabled. The only peer allowances match `vitest@5.0.4` and
+`@vitest/mocker@5.0.4` requesting this exact alias version; their declared Vite 8
+ranges include the bundled implementation. Recheck these exact callers, the
+alias and the bundled Vite against their original peer ranges on every update.
+Do not widen these entries or add `allowAny`. Validate dependency resolution
+with a non-frozen lockfile calculation as well as the clean frozen install;
+the latter alone can reuse an unchecked migration lockfile.
 
 ## Consumer contract
 
