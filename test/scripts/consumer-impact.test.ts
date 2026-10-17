@@ -1,7 +1,15 @@
-import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import {
+  copyFileSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vite-plus/test';
 
@@ -9,7 +17,7 @@ import action from '../../automation/actions/consumer-impact/action.yaml?raw';
 import notification from '../../.github/workflows/notify-consumers.yaml?raw';
 
 const classifier = fileURLToPath(
-  new URL('../../automation/actions/consumer-impact/classify.mjs', import.meta.url)
+  new URL('../../automation/actions/consumer-impact/classify.ts', import.meta.url)
 );
 const fixtures: string[] = [];
 
@@ -46,7 +54,19 @@ function fixture(): { repository: string; base: string } {
 }
 
 function classify(repository: string, base: string, head: string): string {
-  return execFileSync('node', [classifier, repository, base, head], { encoding: 'utf8' }).trim();
+  const directory = join(repository, '.classifier');
+  mkdirSync(directory);
+  writeFileSync(join(directory, 'package.json'), JSON.stringify({ type: 'module' }));
+  const entry = join(directory, 'classify.ts');
+  copyFileSync(classifier, entry);
+  try {
+    return execFileSync(process.execPath, [entry, repository, base, head], {
+      cwd: repository,
+      encoding: 'utf8',
+    }).trim();
+  } finally {
+    rmSync(directory, { recursive: true });
+  }
 }
 
 afterEach(() => {
@@ -54,6 +74,32 @@ afterEach(() => {
 });
 
 describe('browser-core consumer impact', () => {
+  it('rejects malformed input and missing heads without a boolean result', () => {
+    const { repository, base } = fixture();
+    for (const arguments_ of [
+      [],
+      [repository, 'invalid', base],
+      [repository, base, '0'.repeat(40)],
+    ]) {
+      const result = spawnSync(process.execPath, [classifier, ...arguments_], { encoding: 'utf8' });
+      expect(result.status).toBe(1);
+      expect(result.stdout).toBe('');
+      expect(result.stderr).toContain(
+        arguments_.length === 3 && arguments_[1] === base
+          ? 'Head commit is unavailable'
+          : 'Expected repository path'
+      );
+    }
+  });
+
+  it('preserves NUL-delimited paths with newlines', () => {
+    const { repository, base } = fixture();
+    write(repository, 'docs/a\nREADME.md', 'Development notes\n');
+    expect(classify(repository, base, commit(repository))).toBe('false');
+    write(repository, 'unknown\nREADME.md', 'Unknown path\n');
+    expect(classify(repository, base, commit(repository))).toBe('true');
+  });
+
   it('skips automation-only revisions', () => {
     const { repository, base } = fixture();
     write(repository, 'automation/actions/setup-project/action.yaml', 'name: Setup\n');
@@ -342,13 +388,51 @@ describe('browser-core consumer impact', () => {
 });
 
 describe('consumer impact action and notifier', () => {
+  it('executes the composite shell with only the classifier and the selected runtime', () => {
+    const { repository, base } = fixture();
+    write(repository, 'automation/README.md', 'Development notes\n');
+    const head = commit(repository);
+    const workspace = mkdtempSync(join(tmpdir(), 'browser-core-impact-action-'));
+    fixtures.push(workspace);
+    mkdirSync(join(workspace, 'packages'));
+    execFileSync('git', ['clone', '--quiet', repository, join(workspace, 'packages/core')]);
+    const helper = join(workspace, 'helper');
+    mkdirSync(helper);
+    copyFileSync(classifier, join(helper, 'classify.ts'));
+    writeFileSync(join(helper, 'package.json'), JSON.stringify({ type: 'module' }));
+    const output = join(workspace, 'output');
+    const block = /      run: \|\n([\s\S]*)/.exec(action)?.[1];
+    if (!block) throw new Error('Composite action shell is missing');
+    const run = (headSHA: string) =>
+      spawnSync('bash', ['-c', block.replace(/^ {8}/gm, '')], {
+        cwd: workspace,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          PATH: `${dirname(process.execPath)}:${process.env.PATH ?? ''}`,
+          GITHUB_ACTION_PATH: helper,
+          GITHUB_OUTPUT: output,
+          BASE_SHA: base,
+          HEAD_SHA: headSHA,
+        },
+      });
+    expect(run(head).status).toBe(0);
+    expect(readFileSync(output, 'utf8')).toBe('impact=false\n');
+    writeFileSync(output, '');
+    expect(run('0'.repeat(40)).status).not.toBe(0);
+    expect(readFileSync(output, 'utf8')).toBe('');
+  });
+
   it('uses only fixed clone and commit inputs and gates dispatch', () => {
     expect(action).toContain(
-      'node "$GITHUB_ACTION_PATH/classify.mjs" packages/core "$BASE_SHA" "$HEAD_SHA"'
+      'node "$GITHUB_ACTION_PATH/classify.ts" packages/core "$BASE_SHA" "$HEAD_SHA"'
     );
     const inputs = action.slice(action.indexOf('inputs:'), action.indexOf('\noutputs:'));
     expect(inputs.match(/^  [a-z-]+:\n    description:/gm)).toHaveLength(2);
     expect(notification).toContain('uses: ./automation/actions/consumer-impact');
+    expect(notification.indexOf('Setup pinned notification runtime')).toBeLessThan(
+      notification.indexOf('uses: ./automation/actions/consumer-impact')
+    );
     expect(notification).toContain("if: ${{ needs.validate.outputs.impact == 'true' }}");
   });
 });

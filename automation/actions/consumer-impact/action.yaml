@@ -1,5 +1,5 @@
 name: Classify browser-core consumer impact
-description: Compare browser-core commits in the existing packages/core clone
+description: Compare browser-core commits after supported Node setup, without project dependencies
 
 inputs:
   base-sha:
@@ -25,5 +25,5 @@ runs:
         HEAD_SHA: ${{ inputs.head-sha }}
       run: |
         set -euo pipefail
-        impact="$(node "$GITHUB_ACTION_PATH/classify.mjs" packages/core "$BASE_SHA" "$HEAD_SHA")"
+        impact="$(node "$GITHUB_ACTION_PATH/classify.ts" packages/core "$BASE_SHA" "$HEAD_SHA")"
         echo "impact=$impact" >> "$GITHUB_OUTPUT"

@@ -22,7 +22,6 @@ const prepareSmokeScript = resolve(repositoryRoot, 'automation/scripts/prepare-s
 const verifySmokeScript = resolve(repositoryRoot, 'automation/scripts/verify-setup-smoke.ts');
 const preRuntimeScripts = [
   resolve(repositoryRoot, 'automation/actions/setup-project/resolve-runtime.mjs'),
-  resolve(repositoryRoot, 'automation/actions/consumer-impact/classify.mjs'),
   prepareSmokeScript,
 ];
 const sourceTokens = resolve(repositoryRoot, 'src/design/quiet-instruments.tokens.json');
