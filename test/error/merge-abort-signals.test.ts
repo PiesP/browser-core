@@ -61,18 +61,11 @@ describe('mergeAbortSignals', () => {
     expect(merged.signal.reason).toBe('already stopped');
     expect(addListener).toHaveBeenCalledOnce();
     expect(removeListener).toHaveBeenCalledOnce();
-    expect(removeListener).toHaveBeenCalledWith(
-      'abort',
-      addListener.mock.calls[0]![1],
-    );
+    expect(removeListener).toHaveBeenCalledWith('abort', addListener.mock.calls[0]![1]);
   });
 
   it('removes every registered listener exactly once after abort', () => {
-    const sources = [
-      new AbortController(),
-      new AbortController(),
-      new AbortController(),
-    ];
+    const sources = [new AbortController(), new AbortController(), new AbortController()];
     const listenerSpies = sources.map(({ signal }) => ({
       add: vi.spyOn(signal, 'addEventListener'),
       remove: vi.spyOn(signal, 'removeEventListener'),
@@ -92,9 +85,7 @@ describe('mergeAbortSignals', () => {
 
   it('removes source listeners when the merged controller is aborted directly', () => {
     const sources = [new AbortController(), new AbortController()];
-    const removeListeners = sources.map(({ signal }) =>
-      vi.spyOn(signal, 'removeEventListener'),
-    );
+    const removeListeners = sources.map(({ signal }) => vi.spyOn(signal, 'removeEventListener'));
     const merged = mergeAbortSignals(sources.map(({ signal }) => signal));
 
     merged.abort('cancelled directly');

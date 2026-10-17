@@ -1,5 +1,16 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  linkSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vite-plus/test';
@@ -11,14 +22,18 @@ import { parseStrictJson } from '../../automation/security/strict-json.ts';
 const script = resolve(import.meta.dirname, '../../automation/security/validate-osv.ts');
 const fixtures: string[] = [];
 const finding = {
-  results: [{
-    source: { type: 'lockfile', path: '/src/pnpm-lock.yaml' },
-    packages: [{
-      package: { ecosystem: 'npm', name: 'example', version: '1.0.0' },
-      vulnerabilities: [{ id: 'GHSA-example' }],
-      groups: [{ ids: ['GHSA-example'], aliases: [] }],
-    }],
-  }],
+  results: [
+    {
+      source: { type: 'lockfile', path: '/src/pnpm-lock.yaml' },
+      packages: [
+        {
+          package: { ecosystem: 'npm', name: 'example', version: '1.0.0' },
+          vulnerabilities: [{ id: 'GHSA-example' }],
+          groups: [{ ids: ['GHSA-example'], aliases: [] }],
+        },
+      ],
+    },
+  ],
 };
 
 function fixture(raw: string | Uint8Array = JSON.stringify(finding)) {
@@ -31,10 +46,20 @@ function fixture(raw: string | Uint8Array = JSON.stringify(finding)) {
 }
 
 function run(input: string, output?: string, profile: OsvProfile = 'consumer') {
-  return spawnSync(process.execPath, [script, '--input', input,
-    ...(output === undefined ? [] : ['--output', output]), '--profile', profile], {
-    encoding: 'utf8',
-  });
+  return spawnSync(
+    process.execPath,
+    [
+      script,
+      '--input',
+      input,
+      ...(output === undefined ? [] : ['--output', output]),
+      '--profile',
+      profile,
+    ],
+    {
+      encoding: 'utf8',
+    }
+  );
 }
 
 afterEach(() => {
@@ -42,11 +67,25 @@ afterEach(() => {
 });
 
 describe('strict JSON parser', () => {
-  it.each(['', ' ', '{', 'null true', '{"results":[],}', '[1,]', '+1', '01', '1.', '1e', 'NaN', 'Infinity', '-Infinity', '\uFEFF{}']) (
-    'rejects malformed JSON %j', (raw) => expect(() => parseStrictJson(raw)).toThrow(),
-  );
-  it.each(['{"results":[],"results":[]}', '{"a":{"same":1,"s\\u0061me":2}}']) (
-    'rejects duplicate decoded keys %s', (raw) => expect(() => parseStrictJson(raw)).toThrow(/duplicate key/),
+  it.each([
+    '',
+    ' ',
+    '{',
+    'null true',
+    '{"results":[],}',
+    '[1,]',
+    '+1',
+    '01',
+    '1.',
+    '1e',
+    'NaN',
+    'Infinity',
+    '-Infinity',
+    '\uFEFF{}',
+  ])('rejects malformed JSON %j', (raw) => expect(() => parseStrictJson(raw)).toThrow());
+  it.each(['{"results":[],"results":[]}', '{"a":{"same":1,"s\\u0061me":2}}'])(
+    'rejects duplicate decoded keys %s',
+    (raw) => expect(() => parseStrictJson(raw)).toThrow(/duplicate key/)
   );
   it('preserves huge integer precision and handles special object keys without prototype mutation', () => {
     const raw = '{"__proto__":{"safe":true},"constructor":1,"integer":9007199254740993123456789}';
@@ -91,16 +130,28 @@ describe('OSV schema profiles', () => {
     { package: {}, vulnerabilities: [], groups: [{ ids: ['valid', 2] }] },
     { package: {}, vulnerabilities: [], groups: [{ ids: ['valid'], aliases: [null] }] },
   ])('rejects malformed nested package records %j', (packageResult) => {
-    const raw = JSON.stringify({ results: [finding.results[0], {
-      source: { type: 'lockfile', path: 'x' }, packages: [packageResult],
-    }] });
+    const raw = JSON.stringify({
+      results: [
+        finding.results[0],
+        {
+          source: { type: 'lockfile', path: 'x' },
+          packages: [packageResult],
+        },
+      ],
+    });
     const { input, output } = fixture(raw);
     expect(run(input, output).status).toBe(2);
     expect(existsSync(output)).toBe(false);
   });
   it.each([
-    ...['modified', 'published', 'withdrawn', 'summary', 'details', 'schema_version'].map((key) => [key, 1]),
-    ...['aliases', 'related', 'affected', 'references', 'severity', 'credits'].map((key) => [key, {}]),
+    ...['modified', 'published', 'withdrawn', 'summary', 'details', 'schema_version'].map((key) => [
+      key,
+      1,
+    ]),
+    ...['aliases', 'related', 'affected', 'references', 'severity', 'credits'].map((key) => [
+      key,
+      {},
+    ]),
     ...['database_specific', 'ecosystem_specific'].map((key) => [key, []]),
   ])('preserves the overlay-only optional metadata constraint for %s', (key, value) => {
     if (typeof key !== 'string') throw new TypeError('Fixture key must be a string');
@@ -114,16 +165,20 @@ describe('OSV schema profiles', () => {
 });
 
 describe('dependency-free OSV CLI', () => {
-  it.each(['consumer', 'overlay', 'minimal'] as const)('validates findings with profile %s without filtering', (profile) => {
-    const { input, output } = fixture();
-    const result = run(input, output, profile);
-    expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toBe('');
-    expect(JSON.parse(readFileSync(output, 'utf8'))).toEqual(finding);
-    if (process.platform !== 'win32') expect(statSync(output).mode & 0o777).toBe(0o600);
-  });
+  it.each(['consumer', 'overlay', 'minimal'] as const)(
+    'validates findings with profile %s without filtering',
+    (profile) => {
+      const { input, output } = fixture();
+      const result = run(input, output, profile);
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout).toBe('');
+      expect(JSON.parse(readFileSync(output, 'utf8'))).toEqual(finding);
+      if (process.platform !== 'win32') expect(statSync(output).mode & 0o777).toBe(0o600);
+    }
+  );
   it('preserves unknown metadata integer lexemes exactly', () => {
-    const raw = '{"results":[],"future":{"integer":9007199254740993123456789,"float":1.234567890123456789}}';
+    const raw =
+      '{"results":[],"future":{"integer":9007199254740993123456789,"float":1.234567890123456789}}';
     const { input, output } = fixture(raw);
     const result = run(input, output);
     expect(result.status, result.stderr).toBe(0);
@@ -131,14 +186,18 @@ describe('dependency-free OSV CLI', () => {
   });
   it('preserves consumer findings with nullable aliases and unknown metadata', () => {
     const report = {
-      results: [{
-        source: { type: 'lockfile', path: '/src/pnpm-lock.yaml' },
-        packages: [{
-          package: { ecosystem: 'npm', name: 'example', version: '1.0.0' },
-          vulnerabilities: [{ id: 'GHSA-example', summary: 'retained' }],
-          groups: [{ ids: ['GHSA-example'], aliases: null }],
-        }],
-      }],
+      results: [
+        {
+          source: { type: 'lockfile', path: '/src/pnpm-lock.yaml' },
+          packages: [
+            {
+              package: { ecosystem: 'npm', name: 'example', version: '1.0.0' },
+              vulnerabilities: [{ id: 'GHSA-example', summary: 'retained' }],
+              groups: [{ ids: ['GHSA-example'], aliases: null }],
+            },
+          ],
+        },
+      ],
       extra_metadata: { retained: true },
     };
     const { input, output } = fixture(JSON.stringify(report));
@@ -160,12 +219,19 @@ describe('dependency-free OSV CLI', () => {
     expect(run(input, undefined, 'minimal').status).toBe(0);
   });
   it.each([
-    '', '{', '[]', '{}', '{"results":null}', '{"results":{}}', '{"results":[null]}',
+    '',
+    '{',
+    '[]',
+    '{}',
+    '{"results":null}',
+    '{"results":{}}',
+    '{"results":[null]}',
     '{"results":[{"packages":[]}]}',
     '{"results":[{"source":{"type":"lockfile","path":"/src/a"},"packages":[{"package":{},"vulnerabilities":{},"groups":[]}]}]}',
     '{"results":[{"source":{"type":"lockfile","path":"/src/a"},"packages":[{"package":{},"vulnerabilities":[{}],"groups":[]}]}]}',
     '{"results":[{"source":{"type":"lockfile","path":"/src/a"},"packages":[{"package":{},"vulnerabilities":[],"groups":[{"ids":["x"],"aliases":42}]}]}]}',
-    '{"results":[],"results":[]}', '{"results":[],"metric":NaN}',
+    '{"results":[],"results":[]}',
+    '{"results":[],"metric":NaN}',
     '{"results":[],"metric":1e400}',
     '{"results":[{"source":{},"packages":[]}]}',
     '{"results":[{"source":{"type":"lockfile","path":"x"},"packages":{}}]}',
@@ -186,8 +252,9 @@ describe('dependency-free OSV CLI', () => {
       expect(existsSync(output)).toBe(false);
     }
   });
-  it.each(['same', 'relative', 'hardlink', 'symlink', 'parent symlink']) (
-    'rejects input/output alias %s before deleting either', (kind) => {
+  it.each(['same', 'relative', 'hardlink', 'symlink', 'parent symlink'])(
+    'rejects input/output alias %s before deleting either',
+    (kind) => {
       const { root, input, output } = fixture();
       let destination = output;
       if (kind === 'same') destination = input;
@@ -203,7 +270,7 @@ describe('dependency-free OSV CLI', () => {
       expect(result.status, result.stderr).toBe(2);
       expect(readFileSync(input)).toEqual(before);
       expect(readFileSync(destination)).toEqual(before);
-    },
+    }
   );
   it('removes a stale output symlink without modifying its unrelated target', () => {
     const { root, input, output } = fixture('{');
@@ -227,10 +294,18 @@ describe('dependency-free OSV CLI', () => {
   it('imports ordinary helpers without starting a CLI or creating files', () => {
     const { root } = fixture();
     const before = readdirSync(root);
-    const result = execFileSync(process.execPath, ['--input-type=module', '-e',
-      `await import(${JSON.stringify(new URL('../../automation/security/validate-osv.ts', import.meta.url).href)})`], {
-      cwd: root, encoding: 'utf8',
-    });
+    const result = execFileSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        `await import(${JSON.stringify(new URL('../../automation/security/validate-osv.ts', import.meta.url).href)})`,
+      ],
+      {
+        cwd: root,
+        encoding: 'utf8',
+      }
+    );
     expect(result).toBe('');
     expect(readdirSync(root)).toEqual(before);
   });
@@ -238,7 +313,9 @@ describe('dependency-free OSV CLI', () => {
     const { root, input, output } = fixture();
     const entry = join(root, 'validator link.ts');
     symlinkSync(script, entry);
-    const result = spawnSync(process.execPath, [entry, '--input', input, '--output', output], { encoding: 'utf8' });
+    const result = spawnSync(process.execPath, [entry, '--input', input, '--output', output], {
+      encoding: 'utf8',
+    });
     expect(result.status, result.stderr).toBe(0);
     expect(JSON.parse(readFileSync(output, 'utf8'))).toEqual(finding);
   });

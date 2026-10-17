@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [master]
   schedule:
-    - cron: "0 1 * * 0"
+    - cron: '0 1 * * 0'
   workflow_dispatch:
 
 permissions:
@@ -22,7 +22,7 @@ env:
   # google/osv-scanner-action image v2.6.0 (linux/amd64), resolved 2026-09-19.
   # Pin the runtime image itself: the upstream action metadata references a
   # mutable version tag even when the action is pinned to a commit SHA.
-  OSV_SCANNER_IMAGE: "ghcr.io/google/osv-scanner-action@sha256:71ad04ab2f8798be47870f9b18817ad317c2f8f2f97aa6726ba10d5578bc174a"
+  OSV_SCANNER_IMAGE: 'ghcr.io/google/osv-scanner-action@sha256:71ad04ab2f8798be47870f9b18817ad317c2f8f2f97aa6726ba10d5578bc174a'
 
 jobs:
   osv-scan-pr:

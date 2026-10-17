@@ -11,18 +11,18 @@ and does not provide compiled output for native Node.js consumption.
 
 ## API
 
-| Import path | Main exports |
-| --- | --- |
-| `@piesp/browser-core` | All runtime exports |
-| `@piesp/browser-core/async` | Timers, debounce, timeouts, and deferred promises |
-| `@piesp/browser-core/error` | Error and cancellation helpers |
-| `@piesp/browser-core/events` | `MessageBus`, `createEventEmitter` |
-| `@piesp/browser-core/locale` | Locale detection and formatting |
-| `@piesp/browser-core/logging` | Logger contracts and console/no-op implementations |
-| `@piesp/browser-core/util` | Guards, collections, caches, colors, and scheduler helpers |
-| `@piesp/browser-core/design` | Quiet Instruments tokens and interaction contracts |
-| `@piesp/browser-core/design/tokens.css` | Scoped `.pp-design` custom properties |
-| `@piesp/browser-core/design/tokens.json` | DTCG design-token source |
+| Import path                              | Main exports                                               |
+| ---------------------------------------- | ---------------------------------------------------------- |
+| `@piesp/browser-core`                    | All runtime exports                                        |
+| `@piesp/browser-core/async`              | Timers, debounce, timeouts, and deferred promises          |
+| `@piesp/browser-core/error`              | Error and cancellation helpers                             |
+| `@piesp/browser-core/events`             | `MessageBus`, `createEventEmitter`                         |
+| `@piesp/browser-core/locale`             | Locale detection and formatting                            |
+| `@piesp/browser-core/logging`            | Logger contracts and console/no-op implementations         |
+| `@piesp/browser-core/util`               | Guards, collections, caches, colors, and scheduler helpers |
+| `@piesp/browser-core/design`             | Quiet Instruments tokens and interaction contracts         |
+| `@piesp/browser-core/design/tokens.css`  | Scoped `.pp-design` custom properties                      |
+| `@piesp/browser-core/design/tokens.json` | DTCG design-token source                                   |
 
 ```ts
 import { sleep } from '@piesp/browser-core/async';

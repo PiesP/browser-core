@@ -47,7 +47,7 @@ export class MessageBus<T> {
           void Promise.resolve(result).catch(() => undefined);
           if (!hasError) {
             firstError = new TypeError(
-              'MessageBus.publish does not accept asynchronous subscribers; use publishAsync instead.',
+              'MessageBus.publish does not accept asynchronous subscribers; use publishAsync instead.'
             );
             hasError = true;
           }
@@ -111,10 +111,7 @@ export class MessageBus<T> {
 }
 
 function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
-  if (
-    (typeof value !== 'object' || value === null) &&
-    typeof value !== 'function'
-  ) {
+  if ((typeof value !== 'object' || value === null) && typeof value !== 'function') {
     return false;
   }
   return typeof (value as { then?: unknown }).then === 'function';

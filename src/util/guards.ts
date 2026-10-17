@@ -19,19 +19,12 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
  * @returns `true` if the value is an HTMLElement
  */
 export function isHTMLElement(element: unknown): element is HTMLElement {
-  if (
-    typeof element !== 'object' ||
-    element === null ||
-    typeof HTMLElement === 'undefined'
-  ) {
+  if (typeof element !== 'object' || element === null || typeof HTMLElement === 'undefined') {
     return false;
   }
 
   // oxlint-disable-next-line typescript/unbound-method -- The getter is invoked with an explicit receiver below.
-  const titleGetter = Object.getOwnPropertyDescriptor(
-    HTMLElement.prototype,
-    'title',
-  )?.get;
+  const titleGetter = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'title')?.get;
   if (!titleGetter) return false;
 
   try {
@@ -60,7 +53,7 @@ export function isHTMLElement(element: unknown): element is HTMLElement {
  * ```
  */
 export function createEventListener<T extends Event>(
-  handler: (event: T) => void,
+  handler: (event: T) => void
 ): (event: T) => void {
   return handler;
 }

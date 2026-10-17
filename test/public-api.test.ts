@@ -58,9 +58,7 @@ describe('user-facing public API', () => {
     expect(asyncApi.debounce).toBe(core.debounce);
     expect(designApi.DESIGN_FAMILY).toBe(core.DESIGN_FAMILY);
     expect(packagedDesignApi.DESIGN_FAMILY).toBe(core.DESIGN_FAMILY);
-    expect(packagedDesignApi.QUIET_INSTRUMENTS_TOKENS).toBe(
-      core.QUIET_INSTRUMENTS_TOKENS,
-    );
+    expect(packagedDesignApi.QUIET_INSTRUMENTS_TOKENS).toBe(core.QUIET_INSTRUMENTS_TOKENS);
     expect(errorApi.getErrorMessage).toBe(core.getErrorMessage);
     expect(errorApi.mergeAbortSignals).toBe(core.mergeAbortSignals);
     expect(errorApi.mergeAbortSignalsWithCleanup).toBe(core.mergeAbortSignalsWithCleanup);

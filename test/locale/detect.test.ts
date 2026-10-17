@@ -125,13 +125,13 @@ describe('detectLocale', () => {
       detectLocale({
         languages: ['fr'],
         defaultLocale: 'ja-JP' as unknown as 'ja',
-      }),
+      })
     ).toBe('ja');
     expect(
       detectLocale({
         languages: ['fr'],
         defaultLocale: 'fr' as unknown as 'en',
-      }),
+      })
     ).toBe('en');
   });
 });

@@ -1,10 +1,4 @@
-export type OperationStatus =
-  | 'idle'
-  | 'starting'
-  | 'running'
-  | 'success'
-  | 'error'
-  | 'cancelled';
+export type OperationStatus = 'idle' | 'starting' | 'running' | 'success' | 'error' | 'cancelled';
 
 export interface OperationProgress {
   readonly completed: number;
@@ -34,12 +28,7 @@ export type TerminalOperationState<TError = unknown> = Extract<
 >;
 
 export type OperationTone = 'neutral' | 'info' | 'success' | 'danger';
-export type OperationStatusIcon =
-  | 'activity'
-  | 'check'
-  | 'alert'
-  | 'cancelled'
-  | null;
+export type OperationStatusIcon = 'activity' | 'check' | 'alert' | 'cancelled' | null;
 export type OperationAnnouncement = 'none' | 'polite' | 'assertive';
 
 export interface OperationPresentation {
@@ -100,35 +89,27 @@ export const OPERATION_PRESENTATION = {
   },
 } as const satisfies Record<OperationStatus, OperationPresentation>;
 
-export function getOperationPresentation(
-  state: OperationState,
-): OperationPresentation {
+export function getOperationPresentation(state: OperationState): OperationPresentation {
   return OPERATION_PRESENTATION[state.status];
 }
 
 export function isOperationBusy<TError>(
-  state: OperationState<TError>,
+  state: OperationState<TError>
 ): state is BusyOperationState<TError> {
   return state.status === 'starting' || state.status === 'running';
 }
 
 export function isOperationTerminal<TError>(
-  state: OperationState<TError>,
+  state: OperationState<TError>
 ): state is TerminalOperationState<TError> {
-  return (
-    state.status === 'success' ||
-    state.status === 'error' ||
-    state.status === 'cancelled'
-  );
+  return state.status === 'success' || state.status === 'error' || state.status === 'cancelled';
 }
 
 /**
  * Converts determinate progress to a clamped ratio. Indeterminate work should
  * use a `null` progress value instead of a synthetic percentage.
  */
-export function getOperationProgressRatio(
-  progress: OperationProgress,
-): number {
+export function getOperationProgressRatio(progress: OperationProgress): number {
   if (
     !Number.isFinite(progress.completed) ||
     progress.completed < 0 ||
@@ -136,7 +117,7 @@ export function getOperationProgressRatio(
     progress.total <= 0
   ) {
     throw new RangeError(
-      'Operation progress requires a non-negative finite completed value and a positive finite total.',
+      'Operation progress requires a non-negative finite completed value and a positive finite total.'
     );
   }
 

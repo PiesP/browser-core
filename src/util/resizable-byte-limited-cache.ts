@@ -40,7 +40,7 @@ export class ResizableByteLimitedCache<V> {
     maxBytes: number,
     estimateSize: (value: V) => number,
     onEvict?: (value: V) => void,
-    maxEntries = Number.POSITIVE_INFINITY,
+    maxEntries = Number.POSITIVE_INFINITY
   ) {
     this._assertValidMaxBytes(maxBytes);
     if (
@@ -174,9 +174,7 @@ export class ResizableByteLimitedCache<V> {
 
   /** Remove all entries and invoke cleanup for every value. */
   clear(): void {
-    const values = this._onEvict
-      ? Array.from(this._map.values(), (entry) => entry.value)
-      : [];
+    const values = this._onEvict ? Array.from(this._map.values(), (entry) => entry.value) : [];
     for (const value of values) {
       const resource = this._resourceIdentity(value);
       if (resource) this._resourceKeys?.delete(resource);

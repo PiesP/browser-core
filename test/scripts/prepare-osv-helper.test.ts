@@ -1,5 +1,16 @@
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -9,10 +20,22 @@ import action from '../../automation/actions/prepare-osv/action.yaml?raw';
 
 const entry = resolve(import.meta.dirname, '../../automation/actions/prepare-osv/prepare.ts');
 const sourceDirectory = resolve(import.meta.dirname, '../../automation/security');
-const names = ['consumer-workflow.ts', 'strict-json.ts', 'osv-report.ts', 'validate-osv.ts'] as const;
+const names = [
+  'consumer-workflow.ts',
+  'strict-json.ts',
+  'osv-report.ts',
+  'validate-osv.ts',
+] as const;
 const fixtures: string[] = [];
 
-interface Fixture { root: string; workspace: string; runner: string; providerEntry: string; source: string; output: string }
+interface Fixture {
+  root: string;
+  workspace: string;
+  runner: string;
+  providerEntry: string;
+  source: string;
+  output: string;
+}
 
 function fixture(): Fixture {
   const root = mkdtempSync(join(tmpdir(), 'prepare osv action '));
@@ -20,7 +43,14 @@ function fixture(): Fixture {
   const workspace = join(root, 'candidate-workspace');
   const runner = join(root, 'runner-temp');
   const source = join(root, 'immutable-provider', 'automation', 'security');
-  const providerEntry = join(root, 'immutable-provider', 'automation', 'actions', 'prepare-osv', 'prepare.ts');
+  const providerEntry = join(
+    root,
+    'immutable-provider',
+    'automation',
+    'actions',
+    'prepare-osv',
+    'prepare.ts'
+  );
   const output = join(root, 'github-output.txt');
   mkdirSync(workspace);
   mkdirSync(runner);
@@ -32,9 +62,13 @@ function fixture(): Fixture {
   return { root, workspace, runner, providerEntry, source, output };
 }
 
-function run(f: Fixture, options: { entry?: string; args?: string[]; env?: Record<string, string> } = {}) {
+function run(
+  f: Fixture,
+  options: { entry?: string; args?: string[]; env?: Record<string, string> } = {}
+) {
   return spawnSync(process.execPath, [options.entry ?? f.providerEntry, ...(options.args ?? [])], {
-    cwd: f.workspace, encoding: 'utf8',
+    cwd: f.workspace,
+    encoding: 'utf8',
     env: {
       ...process.env,
       GITHUB_WORKSPACE: f.workspace,
@@ -53,7 +87,9 @@ function helperPath(f: Fixture): string {
   return output.slice('helper-path='.length).trimEnd();
 }
 
-afterEach(() => { for (const path of fixtures.splice(0)) rmSync(path, { recursive: true, force: true }); });
+afterEach(() => {
+  for (const path of fixtures.splice(0)) rmSync(path, { recursive: true, force: true });
+});
 
 describe('prepare OSV helper action', () => {
   it('has no inputs, permissions, install, checkout, or candidate-path command', () => {
@@ -81,12 +117,13 @@ describe('prepare OSV helper action', () => {
     for (const name of names) {
       expect(readFileSync(join(directory, name), 'utf8')).toBe(`trusted provider ${name}\n`);
       expect(readFileSync(join(colliding, name), 'utf8')).toBe(`candidate ${name}\n`);
-      if (process.platform !== 'win32') expect(lstatSync(join(directory, name)).mode & 0o777).toBe(0o600);
+      if (process.platform !== 'win32')
+        expect(lstatSync(join(directory, name)).mode & 0o777).toBe(0o600);
     }
     if (process.platform !== 'win32') expect(lstatSync(directory).mode & 0o777).toBe(0o700);
   });
 
-  it.each(names)('fails closed and removes only the new directory when %s is missing', name => {
+  it.each(names)('fails closed and removes only the new directory when %s is missing', (name) => {
     const f = fixture();
     rmSync(join(f.source, name));
     writeFileSync(join(f.runner, 'preexisting-candidate'), 'keep');
@@ -111,7 +148,12 @@ describe('prepare OSV helper action', () => {
   it('reads the opened provider file when its path is replaced during copying', () => {
     const f = fixture();
     const source = join(f.source, 'consumer-workflow.ts');
-    const result = spawnSync(process.execPath, ['--input-type=module', '-e', `
+    const result = spawnSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        `
       import fs from 'node:fs';
       import { syncBuiltinESMExports } from 'node:module';
       const originalOpen = fs.openSync;
@@ -126,10 +168,14 @@ describe('prepare OSV helper action', () => {
       syncBuiltinESMExports();
       process.argv[1] = ${JSON.stringify(f.providerEntry)};
       await import(${JSON.stringify(pathToFileURL(f.providerEntry).href)});
-    `], {
-      cwd: f.workspace, encoding: 'utf8',
-      env: { ...process.env, RUNNER_TEMP: f.runner, GITHUB_OUTPUT: f.output },
-    });
+    `,
+      ],
+      {
+        cwd: f.workspace,
+        encoding: 'utf8',
+        env: { ...process.env, RUNNER_TEMP: f.runner, GITHUB_OUTPUT: f.output },
+      }
+    );
     expect(result.status, result.stderr).toBe(0);
     expect(readFileSync(source, 'utf8')).toBe('replacement bytes');
     expect(readFileSync(helperPath(f), 'utf8')).toBe('trusted provider consumer-workflow.ts\n');
@@ -159,11 +205,19 @@ describe('prepare OSV helper action', () => {
 
   it('is import-inert and follows a realpath symlink entrypoint', () => {
     const f = fixture();
-    const imported = spawnSync(process.execPath, ['--input-type=module', '-e',
-      `await import(${JSON.stringify(pathToFileURL(f.providerEntry).href)})`], {
-      cwd: f.workspace, encoding: 'utf8',
-      env: { ...process.env, RUNNER_TEMP: f.runner, GITHUB_OUTPUT: f.output },
-    });
+    const imported = spawnSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        `await import(${JSON.stringify(pathToFileURL(f.providerEntry).href)})`,
+      ],
+      {
+        cwd: f.workspace,
+        encoding: 'utf8',
+        env: { ...process.env, RUNNER_TEMP: f.runner, GITHUB_OUTPUT: f.output },
+      }
+    );
     expect(imported.status, imported.stderr).toBe(0);
     expect(readdirSync(f.runner)).toEqual([]);
     expect(existsSync(f.output)).toBe(false);
@@ -179,6 +233,9 @@ describe('prepare OSV helper action', () => {
     const result = run(f, { entry });
     expect(result.status, result.stderr).toBe(0);
     const destination = dirname(helperPath(f));
-    for (const name of names) expect(readFileSync(join(destination, name))).toEqual(readFileSync(join(sourceDirectory, name)));
+    for (const name of names)
+      expect(readFileSync(join(destination, name))).toEqual(
+        readFileSync(join(sourceDirectory, name))
+      );
   });
 });

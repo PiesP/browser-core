@@ -1,23 +1,18 @@
 {
   "name": "@piesp/browser-core",
   "version": "0.1.0",
-  "description": "Shared TypeScript utilities for PiesP browser-based projects",
   "private": true,
-  "type": "module",
-  "packageManager": "pnpm@11.26.0",
-  "engines": {
-    "node": "^22.22.2 || ^24.15.0 || >=26.0.0",
-    "pnpm": ">=11.26.0"
+  "description": "Shared TypeScript utilities for PiesP browser-based projects",
+  "homepage": "https://github.com/PiesP/browser-core#readme",
+  "bugs": {
+    "url": "https://github.com/PiesP/browser-core/issues"
   },
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/PiesP/browser-core.git"
   },
-  "bugs": {
-    "url": "https://github.com/PiesP/browser-core/issues"
-  },
-  "homepage": "https://github.com/PiesP/browser-core#readme",
-  "license": "MIT",
+  "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
@@ -51,8 +46,13 @@
     "vite-plus": "catalog:",
     "vitest": "catalog:"
   },
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0",
+    "pnpm": ">=11.26.0"
+  },
   "volta": {
     "node": "26.9.0",
     "pnpm": "11.26.0"
-  }
+  },
+  "packageManager": "pnpm@11.26.0"
 }

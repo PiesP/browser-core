@@ -20,15 +20,18 @@ test('Node tooling rejects browser globals through its actual project graph', ()
   const fixture = mkdtempSync(join(repositoryRoot, '.node-ambient-types-'));
   try {
     writeFileSync(join(fixture, 'probe.ts'), fixtureSource);
-    writeFileSync(join(fixture, 'tsconfig.json'), JSON.stringify({
-      extends: baseConfig,
-      files: ['./probe.ts'],
-    }));
-    const result = spawnSync(process.execPath, [
-      compiler,
-      '--project', join(fixture, 'tsconfig.json'),
-      '--pretty', 'false',
-    ], { cwd: repositoryRoot, encoding: 'utf8' });
+    writeFileSync(
+      join(fixture, 'tsconfig.json'),
+      JSON.stringify({
+        extends: baseConfig,
+        files: ['./probe.ts'],
+      })
+    );
+    const result = spawnSync(
+      process.execPath,
+      [compiler, '--project', join(fixture, 'tsconfig.json'), '--pretty', 'false'],
+      { cwd: repositoryRoot, encoding: 'utf8' }
+    );
     expect(result.error).toBeUndefined();
     expect(result.status).toBe(1);
     expect(result.stderr).toBe('');

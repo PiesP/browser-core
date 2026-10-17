@@ -6,16 +6,12 @@ describe('parseAnyColor', () => {
     expect(parseAnyColor('transparent')).toEqual([0, 0, 0, 0]);
   });
 
-  it.each([
-    '#ggg',
-    '#12',
-    '#12345',
-    '#1234567',
-    '#123456789',
-    '#12xz34',
-  ])('returns null for invalid hex color %s', (color) => {
-    expect(parseAnyColor(color)).toBeNull();
-  });
+  it.each(['#ggg', '#12', '#12345', '#1234567', '#123456789', '#12xz34'])(
+    'returns null for invalid hex color %s',
+    (color) => {
+      expect(parseAnyColor(color)).toBeNull();
+    }
+  );
 
   it.each(['#abc', '#abcd', '#123456', '#12345678'])(
     'never returns NaN channels for valid hex color %s',
@@ -24,7 +20,7 @@ describe('parseAnyColor', () => {
 
       expect(parsed).not.toBeNull();
       expect(parsed!.every(Number.isFinite)).toBe(true);
-    },
+    }
   );
 
   it.each([

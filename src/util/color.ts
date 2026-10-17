@@ -61,7 +61,7 @@ export function parseAnyColor(color: string): RgbaTuple | null {
 
   // rgb() / rgba()
   const rgbMatch = trimmed.match(
-    /^(rgba?)\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*(\d+(?:\.\d*)?|\.\d+))?\s*\)$/i,
+    /^(rgba?)\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*(\d+(?:\.\d*)?|\.\d+))?\s*\)$/i
   );
   if (rgbMatch) {
     const functionName = rgbMatch[1];
@@ -110,12 +110,8 @@ export function toRgba(rgba: RgbaTuple): string {
  * @param backgroundColor - CSS color string or RGBA tuple
  * @returns `'#000'` or `'#fff'`
  */
-export function computeReadableTextColor(
-  backgroundColor: string | RgbaTuple,
-): '#000' | '#fff' {
-  const parsed = Array.isArray(backgroundColor)
-    ? backgroundColor
-    : parseAnyColor(backgroundColor);
+export function computeReadableTextColor(backgroundColor: string | RgbaTuple): '#000' | '#fff' {
+  const parsed = Array.isArray(backgroundColor) ? backgroundColor : parseAnyColor(backgroundColor);
   const [r, g, b] = parsed ?? [0, 0, 0, 1];
 
   // W3C relative luminance

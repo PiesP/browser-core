@@ -97,7 +97,7 @@ describe('PriorityBucketQueue', () => {
       expect(() => queue.enqueue('invalid', priority)).toThrow(RangeError);
       expect(queue.size).toBe(0);
       expect(queue.isEmpty).toBe(true);
-    },
+    }
   );
 
   it('handles safe-integer priorities with an extreme gap', () => {

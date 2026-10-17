@@ -21,26 +21,20 @@ describe('Quiet Instruments design tokens', () => {
   it('keeps shared geometry independent from product accents', () => {
     expect(QUIET_INSTRUMENTS_TOKENS['component.target.minimum']).toBe('44px');
     expect(QUIET_INSTRUMENTS_TOKENS['component.focus.ring-width']).toBe('2px');
-    expect(QUIET_INSTRUMENTS_TOKENS['component.icon.stroke-width']).toBe(
-      '1.75',
-    );
+    expect(QUIET_INSTRUMENTS_TOKENS['component.icon.stroke-width']).toBe('1.75');
 
     const accents = DESIGN_PRODUCTS.map(
-      (product) =>
-        QUIET_INSTRUMENTS_TOKENS[`product.${product}.accent-light`],
+      (product) => QUIET_INSTRUMENTS_TOKENS[`product.${product}.accent-light`]
     );
     expect(new Set(accents).size).toBe(DESIGN_PRODUCTS.length);
   });
 
   it('maps every token to a namespaced CSS custom property', () => {
     expect(Object.keys(QUIET_INSTRUMENTS_CSS_VARIABLES)).toEqual(
-      Object.keys(QUIET_INSTRUMENTS_TOKENS),
+      Object.keys(QUIET_INSTRUMENTS_TOKENS)
     );
     expect(
-      Object.values(QUIET_INSTRUMENTS_CSS_VARIABLES).every((name) =>
-        name.startsWith('--pp-'),
-      ),
+      Object.values(QUIET_INSTRUMENTS_CSS_VARIABLES).every((name) => name.startsWith('--pp-'))
     ).toBe(true);
   });
-
 });

@@ -9,7 +9,7 @@ export const USER_CANCELLED_ABORT_MESSAGE = 'The operation was aborted by the us
  */
 export function createAbortError(
   message = 'The operation was aborted.',
-  cause?: unknown,
+  cause?: unknown
 ): DOMException {
   const error = new DOMException(message, 'AbortError');
   if (cause !== undefined) {
@@ -46,9 +46,7 @@ export function isUserCancelledAbortError(reason: unknown): reason is DOMExcepti
  * @param signal - The AbortSignal to inspect
  * @returns The user-cancelled DOMException, or `null`
  */
-export function getUserCancelledAbortErrorFromSignal(
-  signal: AbortSignal,
-): DOMException | null {
+export function getUserCancelledAbortErrorFromSignal(signal: AbortSignal): DOMException | null {
   if (!signal.aborted) return null;
   return isUserCancelledAbortError(signal.reason) ? signal.reason : null;
 }
@@ -64,9 +62,7 @@ export function getUserCancelledAbortErrorFromSignal(
  * @param signal - The AbortSignal to inspect
  * @returns A DOMException representing the abort reason
  */
-export function getAbortReasonOrAbortErrorFromSignal(
-  signal: AbortSignal,
-): DOMException {
+export function getAbortReasonOrAbortErrorFromSignal(signal: AbortSignal): DOMException {
   if (signal.aborted) {
     if (signal.reason instanceof DOMException) {
       return signal.reason;
@@ -74,7 +70,7 @@ export function getAbortReasonOrAbortErrorFromSignal(
     // Wrap non-DOMException reasons
     return createAbortError(
       signal.reason !== undefined ? String(signal.reason) : 'The operation was aborted.',
-      signal.reason,
+      signal.reason
     );
   }
   return createAbortError();

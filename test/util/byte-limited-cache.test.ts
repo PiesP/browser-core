@@ -205,7 +205,7 @@ describe('ByteLimitedCache', () => {
     });
     const setWithUnknownKey = cache.set.bind(cache) as (
       unsafeKey: unknown,
-      value: string,
+      value: string
     ) => ByteLimitedCache<string>;
 
     expect(() => setWithUnknownKey(key, 'value')).toThrow(TypeError);
@@ -221,18 +221,15 @@ describe('ByteLimitedCache', () => {
     Number.MAX_VALUE,
     Number.POSITIVE_INFINITY,
     Number.NaN,
-  ])(
-    'rejects invalid maxBytes %s',
-    (maxBytes) => {
-      expect(
-        () =>
-          new ByteLimitedCache<string>({
-            maxBytes,
-            estimateSize: (v) => v.length,
-          }),
-      ).toThrow(RangeError);
-    },
-  );
+  ])('rejects invalid maxBytes %s', (maxBytes) => {
+    expect(
+      () =>
+        new ByteLimitedCache<string>({
+          maxBytes,
+          estimateSize: (v) => v.length,
+        })
+    ).toThrow(RangeError);
+  });
 
   it.each([
     -1,
@@ -241,16 +238,13 @@ describe('ByteLimitedCache', () => {
     Number.MAX_VALUE,
     Number.POSITIVE_INFINITY,
     Number.NaN,
-  ])(
-    'rejects invalid estimated size %s',
-    (estimatedSize) => {
-      const cache = new ByteLimitedCache<string>({
-        maxBytes: 100,
-        estimateSize: () => estimatedSize,
-      });
+  ])('rejects invalid estimated size %s', (estimatedSize) => {
+    const cache = new ByteLimitedCache<string>({
+      maxBytes: 100,
+      estimateSize: () => estimatedSize,
+    });
 
-      expect(() => cache.set('key', 'value')).toThrow(RangeError);
-      expect(cache.size).toBe(0);
-    },
-  );
+    expect(() => cache.set('key', 'value')).toThrow(RangeError);
+    expect(cache.size).toBe(0);
+  });
 });

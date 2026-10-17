@@ -2,65 +2,65 @@ version: 2
 updates:
   # Review routine versions weekly. Handle advisories or compatibility blockers
   # promptly through normal review and validation; retain the existing age waiver policy.
-  - package-ecosystem: "npm"
-    directory: "/"
+  - package-ecosystem: 'npm'
+    directory: '/'
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-      timezone: "Asia/Seoul"
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+      timezone: 'Asia/Seoul'
     # Keep only a short supply-chain cooling window for these fast-moving consumers.
     cooldown:
       default-days: 1
     open-pull-requests-limit: 5
     commit-message:
-      prefix: "chore(deps)"
-      prefix-development: "chore(deps-dev)"
+      prefix: 'chore(deps)'
+      prefix-development: 'chore(deps-dev)'
     reviewers:
-      - "PiesP"
+      - 'PiesP'
     allow:
-      - dependency-type: "direct"
+      - dependency-type: 'direct'
     groups:
       build:
         patterns:
-          - "typescript"
+          - 'typescript'
         update-types:
-          - "minor"
-          - "patch"
+          - 'minor'
+          - 'patch'
       toolchain:
         patterns:
-          - "vite-plus"
+          - 'vite-plus'
         update-types:
-          - "minor"
-          - "patch"
+          - 'minor'
+          - 'patch'
 
-  - package-ecosystem: "github-actions"
+  - package-ecosystem: 'github-actions'
     directories:
-      - "/"
-      - "/automation/actions/setup-project"
+      - '/'
+      - '/automation/actions/setup-project'
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-      timezone: "Asia/Seoul"
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+      timezone: 'Asia/Seoul'
     # Keep only a short supply-chain cooling window for these fast-moving consumers.
     cooldown:
       default-days: 1
     open-pull-requests-limit: 3
     commit-message:
-      prefix: "ci(deps)"
+      prefix: 'ci(deps)'
     reviewers:
-      - "PiesP"
+      - 'PiesP'
     groups:
       codeql:
         patterns:
-          - "github/codeql-action*"
+          - 'github/codeql-action*'
       pnpm-setup:
         patterns:
-          - "pnpm/setup"
+          - 'pnpm/setup'
       actions:
         patterns:
-          - "*"
+          - '*'
         exclude-patterns:
-          - "github/codeql-action*"
-          - "pnpm/setup"
+          - 'github/codeql-action*'
+          - 'pnpm/setup'

@@ -30,13 +30,13 @@ describe('isAbortError', () => {
   describe('with checkTimeout option', () => {
     it('detects TimeoutError DOMException when checkTimeout is true', () => {
       expect(
-        isAbortError(new DOMException('timed out', 'TimeoutError'), { checkTimeout: true }),
+        isAbortError(new DOMException('timed out', 'TimeoutError'), { checkTimeout: true })
       ).toBe(true);
     });
 
     it('does not detect TimeoutError when checkTimeout is false', () => {
       expect(
-        isAbortError(new DOMException('timed out', 'TimeoutError'), { checkTimeout: false }),
+        isAbortError(new DOMException('timed out', 'TimeoutError'), { checkTimeout: false })
       ).toBe(false);
     });
 
@@ -45,15 +45,13 @@ describe('isAbortError', () => {
     });
 
     it('still detects AbortError when checkTimeout is true', () => {
-      expect(
-        isAbortError(new DOMException('aborted', 'AbortError'), { checkTimeout: true }),
-      ).toBe(true);
+      expect(isAbortError(new DOMException('aborted', 'AbortError'), { checkTimeout: true })).toBe(
+        true
+      );
     });
 
     it('rejects plain objects with TimeoutError name', () => {
-      expect(
-        isAbortError({ name: 'TimeoutError' }, { checkTimeout: true }),
-      ).toBe(false);
+      expect(isAbortError({ name: 'TimeoutError' }, { checkTimeout: true })).toBe(false);
     });
   });
 });

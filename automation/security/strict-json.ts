@@ -45,7 +45,10 @@ export function parseStrictJson(text: string): JsonValue {
       cursor += 1;
       whitespace();
       const object: { [key: string]: JsonValue } = {};
-      if (text[cursor] === '}') { cursor += 1; return object; }
+      if (text[cursor] === '}') {
+        cursor += 1;
+        return object;
+      }
       while (true) {
         whitespace();
         if (text[cursor] !== '"') return fail('Expected an object key');
@@ -54,7 +57,10 @@ export function parseStrictJson(text: string): JsonValue {
         whitespace();
         if (text[cursor++] !== ':') return fail('Expected a colon');
         Object.defineProperty(object, key, {
-          value: value(), enumerable: true, writable: true, configurable: true,
+          value: value(),
+          enumerable: true,
+          writable: true,
+          configurable: true,
         });
         whitespace();
         const separator = text[cursor++];
@@ -66,7 +72,10 @@ export function parseStrictJson(text: string): JsonValue {
       cursor += 1;
       whitespace();
       const array: JsonValue[] = [];
-      if (text[cursor] === ']') { cursor += 1; return array; }
+      if (text[cursor] === ']') {
+        cursor += 1;
+        return array;
+      }
       while (true) {
         array.push(value());
         whitespace();
@@ -75,8 +84,15 @@ export function parseStrictJson(text: string): JsonValue {
         if (separator !== ',') return fail('Expected an array separator');
       }
     }
-    for (const [literal, result] of [['null', null], ['true', true], ['false', false]] as const) {
-      if (text.startsWith(literal, cursor)) { cursor += literal.length; return result; }
+    for (const [literal, result] of [
+      ['null', null],
+      ['true', true],
+      ['false', false],
+    ] as const) {
+      if (text.startsWith(literal, cursor)) {
+        cursor += literal.length;
+        return result;
+      }
     }
     numberPattern.lastIndex = cursor;
     const token = numberPattern.exec(text)?.[0];

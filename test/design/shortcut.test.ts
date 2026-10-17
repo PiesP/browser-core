@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from 'vite-plus/test';
-import {
-  isEditableShortcutTarget,
-  shouldHandleGlobalShortcut,
-} from '../../src/design/index.js';
+import { isEditableShortcutTarget, shouldHandleGlobalShortcut } from '../../src/design/index.js';
 
 function handlesKeydown(target: HTMLElement, init?: KeyboardEventInit): boolean {
   let result = true;
@@ -13,7 +10,7 @@ function handlesKeydown(target: HTMLElement, init?: KeyboardEventInit): boolean 
     (event) => {
       result = shouldHandleGlobalShortcut(event);
     },
-    { once: true },
+    { once: true }
   );
   target.dispatchEvent(
     new KeyboardEvent('keydown', {
@@ -21,7 +18,7 @@ function handlesKeydown(target: HTMLElement, init?: KeyboardEventInit): boolean 
       composed: true,
       key: 'k',
       ...init,
-    }),
+    })
   );
   return result;
 }
@@ -102,7 +99,7 @@ describe('global shortcut guard', () => {
           bubbles: true,
           composed: true,
           key: 'k',
-        }),
+        })
       );
       expect(result).toBe(false);
     } finally {

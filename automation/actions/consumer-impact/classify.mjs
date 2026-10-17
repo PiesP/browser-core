@@ -39,9 +39,16 @@ function packageAt(sha) {
 }
 
 function hasRuntimeDependencies(pkg) {
-  return ['dependencies', 'peerDependencies', 'optionalDependencies', 'bundledDependencies', 'bundleDependencies'].some(
-    (field) => pkg[field] !== undefined &&
-      (typeof pkg[field] !== 'object' || pkg[field] === null || Object.keys(pkg[field]).length > 0),
+  return [
+    'dependencies',
+    'peerDependencies',
+    'optionalDependencies',
+    'bundledDependencies',
+    'bundleDependencies',
+  ].some(
+    (field) =>
+      pkg[field] !== undefined &&
+      (typeof pkg[field] !== 'object' || pkg[field] === null || Object.keys(pkg[field]).length > 0)
   );
 }
 
@@ -52,17 +59,26 @@ function sameValue(left, right) {
 function hasContractChange(previous, current) {
   const developmentFields = new Set(['devDependencies', 'volta', 'packageManager']);
   return [...new Set([...Object.keys(previous), ...Object.keys(current)])].some(
-    (field) => !developmentFields.has(field) && !sameValue(previous[field], current[field]),
+    (field) => !developmentFields.has(field) && !sameValue(previous[field], current[field])
   );
 }
 
 function isReviewedDevelopmentPath(path) {
-  return path.startsWith('automation/') ||
+  return (
+    path.startsWith('automation/') ||
     path.startsWith('test/') ||
     path.startsWith('docs/') ||
     path.startsWith('.github/') ||
     path.startsWith('scripts/') ||
-    ['README.md', 'README.ko.md', 'README.ja.md', 'tsconfig.json', 'tsconfig.scripts.json', 'vitest.config.ts'].includes(path);
+    [
+      'README.md',
+      'README.ko.md',
+      'README.ja.md',
+      'tsconfig.json',
+      'tsconfig.scripts.json',
+      'vitest.config.ts',
+    ].includes(path)
+  );
 }
 
 function hasExternalEntrypoint(pkg) {
@@ -96,8 +112,16 @@ function hasInstallLifecycle(pkg) {
   const scripts = pkg.scripts;
   if (scripts === undefined) return false;
   if (scripts === null || typeof scripts !== 'object' || Array.isArray(scripts)) return true;
-  return ['preinstall', 'install', 'postinstall', 'prepare', 'prepublish', 'prepublishOnly', 'prepack', 'postpack']
-    .some((name) => Object.hasOwn(scripts, name));
+  return [
+    'preinstall',
+    'install',
+    'postinstall',
+    'prepare',
+    'prepublish',
+    'prepublishOnly',
+    'prepack',
+    'postpack',
+  ].some((name) => Object.hasOwn(scripts, name));
 }
 
 function hasSourceEscape(sha) {
@@ -109,9 +133,11 @@ function hasSourceEscape(sha) {
     const source = gitBlob(match[2]);
     if (source.includes('\0')) return true;
     const decoded = source
-      .replace(/\\(?:x([0-9a-f]{2})|u([0-9a-f]{4})|u\{([0-9a-f]+)\}|([./]))/gi,
+      .replace(
+        /\\(?:x([0-9a-f]{2})|u([0-9a-f]{4})|u\{([0-9a-f]+)\}|([./]))/gi,
         (_escape, hex, unicode, braced, identity) =>
-          identity ?? String.fromCodePoint(parseInt(hex ?? unicode ?? braced, 16)))
+          identity ?? String.fromCodePoint(parseInt(hex ?? unicode ?? braced, 16))
+      )
       .replace(/\\(?:\r\n|[\n\r\u2028\u2029])/g, '');
     if (decoded.includes('../') || decoded.includes('\0')) return true;
   }
@@ -132,16 +158,25 @@ function affectsConsumers() {
     .filter(Boolean);
   if (paths.length === 0) return false;
   if (paths.some((path) => path.startsWith('src/'))) return true;
-  if (paths.some((path) => !isReviewedDevelopmentPath(path) && path !== 'package.json' && path !== 'pnpm-lock.yaml')) return true;
+  if (
+    paths.some(
+      (path) =>
+        !isReviewedDevelopmentPath(path) && path !== 'package.json' && path !== 'pnpm-lock.yaml'
+    )
+  )
+    return true;
 
   try {
     const previous = packageAt(base);
     const current = packageAt(head);
     if (hasContractChange(previous, current)) return true;
-    if ([previous, current].some((pkg) => hasExternalEntrypoint(pkg) || hasInstallLifecycle(pkg))) return true;
+    if ([previous, current].some((pkg) => hasExternalEntrypoint(pkg) || hasInstallLifecycle(pkg)))
+      return true;
     if (hasSourceEscape(base) || hasSourceEscape(head)) return true;
-    return paths.includes('pnpm-lock.yaml') &&
-      (hasRuntimeDependencies(previous) || hasRuntimeDependencies(current));
+    return (
+      paths.includes('pnpm-lock.yaml') &&
+      (hasRuntimeDependencies(previous) || hasRuntimeDependencies(current))
+    );
   } catch {
     return true;
   }

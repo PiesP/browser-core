@@ -303,7 +303,13 @@
       "family": {
         "$type": "fontFamily",
         "ui": {
-          "$value": ["Inter Variable", "Pretendard Variable", "Noto Sans", "system-ui", "sans-serif"]
+          "$value": [
+            "Inter Variable",
+            "Pretendard Variable",
+            "Noto Sans",
+            "system-ui",
+            "sans-serif"
+          ]
         },
         "data": {
           "$value": ["Roboto Mono", "SFMono-Regular", "Consolas", "monospace"]

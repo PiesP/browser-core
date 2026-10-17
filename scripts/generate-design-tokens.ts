@@ -3,10 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const sourcePath = resolve(
-  repositoryRoot,
-  'src/design/quiet-instruments.tokens.json',
-);
+const sourcePath = resolve(repositoryRoot, 'src/design/quiet-instruments.tokens.json');
 const generatedDirectory = resolve(repositoryRoot, 'src/design/generated');
 const generatedTypeScriptPath = resolve(generatedDirectory, 'tokens.ts');
 const generatedCssPath = resolve(generatedDirectory, 'tokens.css');
@@ -140,19 +137,13 @@ function isTokenType(value: unknown): value is TokenType {
 function validateName(name: string, parentPath: string): void {
   assert(name.length > 0, `empty token name below ${parentPath || '<root>'}`);
   assert(!name.startsWith('$'), `${parentPath}.${name} starts with "$"`);
-  assert(
-    !/[.{}]/.test(name),
-    `${parentPath}.${name} contains a reserved character`,
-  );
+  assert(!/[.{}]/.test(name), `${parentPath}.${name} contains a reserved character`);
 }
 
 function parseDimension(value: unknown, path: string): DimensionValue {
   assert(isRecord(value), `${path} must be a dimension object`);
   assert(isFiniteNumber(value.value), `${path}.value must be finite`);
-  assert(
-    value.unit === 'px' || value.unit === 'rem',
-    `${path}.unit must be "px" or "rem"`,
-  );
+  assert(value.unit === 'px' || value.unit === 'rem', `${path}.unit must be "px" or "rem"`);
   return { value: value.value, unit: value.unit };
 }
 
@@ -161,40 +152,41 @@ function parseColor(value: unknown, path: string): ColorValue {
   assert(value.colorSpace === 'srgb', `${path} must use the sRGB color space`);
   assert(
     isUnknownArray(value.components) && value.components.length === 3,
-    `${path}.components must contain three channels`,
+    `${path}.components must contain three channels`
   );
 
   const [red, green, blue] = value.components;
   for (const component of [red, green, blue]) {
     assert(
       isFiniteNumber(component) && component >= 0 && component <= 1,
-      `${path}.components must be finite values from 0 to 1`,
+      `${path}.components must be finite values from 0 to 1`
     );
   }
   assert(
     isFiniteNumber(red) && isFiniteNumber(green) && isFiniteNumber(blue),
-    `${path}.components must be finite values from 0 to 1`,
+    `${path}.components must be finite values from 0 to 1`
   );
   const components: readonly [number, number, number] = [red, green, blue];
 
   const computedHex = `#${components
-    .map((component) => Math.round(component * 255).toString(16).padStart(2, '0'))
+    .map((component) =>
+      Math.round(component * 255)
+        .toString(16)
+        .padStart(2, '0')
+    )
     .join('')}`;
   if (value.hex !== undefined) {
     assert(
       typeof value.hex === 'string' && /^#[0-9a-f]{6}$/.test(value.hex),
-      `${path}.hex must be a lowercase six-digit hex color`,
+      `${path}.hex must be a lowercase six-digit hex color`
     );
-    assert(
-      value.hex === computedHex,
-      `${path}.hex does not match its sRGB components`,
-    );
+    assert(value.hex === computedHex, `${path}.hex does not match its sRGB components`);
   }
 
   if (value.alpha !== undefined) {
     assert(
       isFiniteNumber(value.alpha) && value.alpha >= 0 && value.alpha <= 1,
-      `${path}.alpha must be a finite value from 0 to 1`,
+      `${path}.alpha must be a finite value from 0 to 1`
     );
   }
 
@@ -205,13 +197,8 @@ function parseColor(value: unknown, path: string): ColorValue {
   };
 }
 
-function parseTokenValue(
-  type: TokenType,
-  value: unknown,
-  path: string,
-): ParsedTokenValue {
-  const aliasMatch =
-    typeof value === 'string' ? aliasPattern.exec(value) : null;
+function parseTokenValue(type: TokenType, value: unknown, path: string): ParsedTokenValue {
+  const aliasMatch = typeof value === 'string' ? aliasPattern.exec(value) : null;
   if (aliasMatch) {
     const targetPath = aliasMatch[1];
     assert(targetPath !== undefined, `${path} has an invalid alias`);
@@ -223,10 +210,8 @@ function parseTokenValue(
       return { kind: 'concrete', token: { type, value: parseColor(value, path) } };
     case 'cubicBezier': {
       assert(
-        isUnknownArray(value) &&
-          value.length === 4 &&
-          value.every(isFiniteNumber),
-        `${path} must contain four finite cubic-bezier values`,
+        isUnknownArray(value) && value.length === 4 && value.every(isFiniteNumber),
+        `${path} must contain four finite cubic-bezier values`
       );
       const [first, second, third, fourth] = value;
       assert(
@@ -234,11 +219,11 @@ function parseTokenValue(
           isFiniteNumber(second) &&
           isFiniteNumber(third) &&
           isFiniteNumber(fourth),
-        `${path} must contain four finite cubic-bezier values`,
+        `${path} must contain four finite cubic-bezier values`
       );
       assert(
         first >= 0 && first <= 1 && third >= 0 && third <= 1,
-        `${path} cubic-bezier x coordinates must be from 0 to 1`,
+        `${path} cubic-bezier x coordinates must be from 0 to 1`
       );
       return {
         kind: 'concrete',
@@ -254,12 +239,9 @@ function parseTokenValue(
       assert(isRecord(value), `${path} must be a duration object`);
       assert(
         isFiniteNumber(value.value) && value.value >= 0,
-        `${path}.value must be finite and non-negative`,
+        `${path}.value must be finite and non-negative`
       );
-      assert(
-        value.unit === 'ms' || value.unit === 's',
-        `${path}.unit must be "ms" or "s"`,
-      );
+      assert(value.unit === 'ms' || value.unit === 's', `${path}.unit must be "ms" or "s"`);
       return {
         kind: 'concrete',
         token: { type, value: { value: value.value, unit: value.unit } },
@@ -271,7 +253,7 @@ function parseTokenValue(
           (isUnknownArray(value) &&
             value.length > 0 &&
             value.every((item) => typeof item === 'string' && item.length > 0)),
-        `${path} must be a font family or a non-empty font family list`,
+        `${path} must be a font family or a non-empty font family list`
       );
       if (typeof value === 'string') {
         return { kind: 'concrete', token: { type, value } };
@@ -279,7 +261,7 @@ function parseTokenValue(
       const families = value.map((family) => {
         assert(
           typeof family === 'string' && family.length > 0,
-          `${path} must be a font family or a non-empty font family list`,
+          `${path} must be a font family or a non-empty font family list`
         );
         return family;
       });
@@ -288,7 +270,7 @@ function parseTokenValue(
     case 'fontWeight':
       assert(
         isFiniteNumber(value) && value >= 1 && value <= 1000,
-        `${path} must be a font weight from 1 to 1000`,
+        `${path} must be a font weight from 1 to 1000`
       );
       return { kind: 'concrete', token: { type, value } };
     case 'number':
@@ -313,15 +295,13 @@ function parseTokenValue(
   }
 }
 
-function collectTokens(
-  document: Record<string, unknown>,
-): Map<string, CollectedToken> {
+function collectTokens(document: Record<string, unknown>): Map<string, CollectedToken> {
   const tokens = new Map<string, CollectedToken>();
 
   function visit(
     node: unknown,
     path: readonly string[],
-    inheritedType: TokenType | undefined,
+    inheritedType: TokenType | undefined
   ): void {
     const pathLabel = path.join('.');
     assert(isRecord(node), `${pathLabel || '<root>'} must be an object`);
@@ -329,10 +309,7 @@ function collectTokens(
     const ownType: unknown = node.$type;
     let effectiveType = inheritedType;
     if (ownType !== undefined) {
-      assert(
-        isTokenType(ownType),
-        `${pathLabel || '<root>'} has unsupported $type`,
-      );
+      assert(isTokenType(ownType), `${pathLabel || '<root>'} has unsupported $type`);
       effectiveType = ownType;
     }
 
@@ -340,10 +317,7 @@ function collectTokens(
       assert(path.length > 0, 'the document root cannot be a token');
       assert(effectiveType !== undefined, `${pathLabel} has no $type`);
       for (const key of Object.keys(node)) {
-        assert(
-          key.startsWith('$'),
-          `${pathLabel} cannot contain child "${key}" beside $value`,
-        );
+        assert(key.startsWith('$'), `${pathLabel} cannot contain child "${key}" beside $value`);
       }
       tokens.set(pathLabel, {
         type: effectiveType,
@@ -364,15 +338,10 @@ function collectTokens(
   return tokens;
 }
 
-function resolveTokens(
-  tokens: ReadonlyMap<string, CollectedToken>,
-): Map<string, ResolvedToken> {
+function resolveTokens(tokens: ReadonlyMap<string, CollectedToken>): Map<string, ResolvedToken> {
   const resolved = new Map<string, ResolvedToken>();
 
-  function resolveToken(
-    path: string,
-    stack: readonly string[] = [],
-  ): ResolvedToken {
+  function resolveToken(path: string, stack: readonly string[] = []): ResolvedToken {
     const existing = resolved.get(path);
     if (existing) return existing;
 
@@ -390,7 +359,7 @@ function resolveTokens(
     assert(target, `${path} points to missing token "${targetPath}"`);
     assert(
       token.type === target.type,
-      `${path} (${token.type}) aliases ${targetPath} (${target.type})`,
+      `${path} (${token.type}) aliases ${targetPath} (${target.type})`
     );
     const value = resolveToken(targetPath, [...stack, path]);
     resolved.set(path, value);
@@ -409,7 +378,7 @@ function getExtension(document: Record<string, unknown>): DesignExtension {
   assert(extension.family === 'Quiet Instruments', 'unexpected design family');
   assert(
     typeof extension.version === 'string' && /^\d+\.\d+\.\d+$/.test(extension.version),
-    'the design family version must be semantic',
+    'the design family version must be semantic'
   );
   assert(extension.specVersion === '2025.10', 'unexpected DTCG spec version');
   assert(
@@ -417,25 +386,23 @@ function getExtension(document: Record<string, unknown>): DesignExtension {
       extension.themes.length === 2 &&
       extension.themes[0] === 'light' &&
       extension.themes[1] === 'dark',
-    'themes must be light and dark',
+    'themes must be light and dark'
   );
   assert(
     isUnknownArray(extension.products) &&
       extension.products.length > 0 &&
-      extension.products.every(
-        (product) => typeof product === 'string' && product.length > 0,
-      ),
-    'products must be a non-empty string list',
+      extension.products.every((product) => typeof product === 'string' && product.length > 0),
+    'products must be a non-empty string list'
   );
   const [firstProduct, ...remainingProducts] = extension.products;
   assert(
     typeof firstProduct === 'string' && firstProduct.length > 0,
-    'products must be a non-empty string list',
+    'products must be a non-empty string list'
   );
   const products = remainingProducts.map((product) => {
     assert(
       typeof product === 'string' && product.length > 0,
-      'products must be a non-empty string list',
+      'products must be a non-empty string list'
     );
     return product;
   });
@@ -451,25 +418,23 @@ function getExtension(document: Record<string, unknown>): DesignExtension {
 
 function colorLuminance(value: ColorValue): number {
   const [red, green, blue] = value.components.map((channel) =>
-    channel <= 0.04045
-      ? channel / 12.92
-      : ((channel + 0.055) / 1.055) ** 2.4,
+    channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
   );
   assert(
     red !== undefined && green !== undefined && blue !== undefined,
-    'color luminance requires three channels',
+    'color luminance requires three channels'
   );
   return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
 }
 
 function validateFoundation(
   extension: DesignExtension,
-  resolved: ReadonlyMap<string, ResolvedToken>,
+  resolved: ReadonlyMap<string, ResolvedToken>
 ): void {
   for (const group of ['reference', 'system', 'component', 'product']) {
     assert(
       [...resolved.keys()].some((path) => path.startsWith(`${group}.`)),
-      `missing required ${group} token group`,
+      `missing required ${group} token group`
     );
   }
 
@@ -477,35 +442,30 @@ function validateFoundation(
     for (const role of semanticColorRoles) {
       assert(
         resolved.has(`system.${theme}.color.${role}`),
-        `missing ${theme} semantic color "${role}"`,
+        `missing ${theme} semantic color "${role}"`
       );
     }
   }
 
   for (const product of extension.products) {
-    for (const role of [
-      'accent-light',
-      'on-accent-light',
-      'accent-dark',
-      'on-accent-dark',
-    ]) {
+    for (const role of ['accent-light', 'on-accent-light', 'accent-dark', 'on-accent-dark']) {
       assert(resolved.has(`product.${product}.${role}`), `missing ${product}.${role}`);
     }
   }
 
   assert(
     isUnknownArray(extension.contrastPairs) && extension.contrastPairs.length > 0,
-    'contrastPairs must be a non-empty list',
+    'contrastPairs must be a non-empty list'
   );
   for (const [index, pair] of extension.contrastPairs.entries()) {
     assert(isRecord(pair), `contrastPairs[${index}] must be an object`);
     assert(
       typeof pair.foreground === 'string' && typeof pair.background === 'string',
-      `contrastPairs[${index}] must name foreground and background tokens`,
+      `contrastPairs[${index}] must name foreground and background tokens`
     );
     assert(
       isFiniteNumber(pair.minimum) && pair.minimum >= 1 && pair.minimum <= 21,
-      `contrastPairs[${index}].minimum must be from 1 to 21`,
+      `contrastPairs[${index}].minimum must be from 1 to 21`
     );
     const foreground = resolved.get(pair.foreground);
     const background = resolved.get(pair.background);
@@ -513,18 +473,14 @@ function validateFoundation(
     assert(background, `missing contrast background "${pair.background}"`);
     assert(foreground.type === 'color', `${pair.foreground} is not a color`);
     assert(background.type === 'color', `${pair.background} is not a color`);
-    const foregroundLuminance = colorLuminance(
-      foreground.value,
-    );
-    const backgroundLuminance = colorLuminance(
-      background.value,
-    );
+    const foregroundLuminance = colorLuminance(foreground.value);
+    const backgroundLuminance = colorLuminance(background.value);
     const lighter = Math.max(foregroundLuminance, backgroundLuminance);
     const darker = Math.min(foregroundLuminance, backgroundLuminance);
     const ratio = (lighter + 0.05) / (darker + 0.05);
     assert(
       ratio + Number.EPSILON >= pair.minimum,
-      `${pair.foreground} on ${pair.background} has ${ratio.toFixed(2)}:1 contrast; expected ${pair.minimum}:1`,
+      `${pair.foreground} on ${pair.background} has ${ratio.toFixed(2)}:1 contrast; expected ${pair.minimum}:1`
     );
   }
 }
@@ -545,9 +501,7 @@ function fontFamilyToCss(value: string | readonly string[]): string {
   const families = typeof value === 'string' ? [value] : value;
   return families
     .map((family) =>
-      genericFontFamilies.has(family)
-        ? family
-        : `"${family.replaceAll('"', '\\"')}"`,
+      genericFontFamilies.has(family) ? family : `"${family.replaceAll('"', '\\"')}"`
     )
     .join(', ');
 }
@@ -583,7 +537,7 @@ function cssVariableForPath(path: string): string {
 
 function generateTypeScript(
   extension: DesignExtension,
-  resolved: ReadonlyMap<string, ResolvedToken>,
+  resolved: ReadonlyMap<string, ResolvedToken>
 ): string {
   const tokenValues: Record<string, string> = {};
   const cssVariables: Record<string, string> = {};
@@ -599,20 +553,19 @@ function generateTypeScript(
       specVersion: extension.specVersion,
     },
     null,
-    2,
+    2
   )} as const;\n\nexport const DESIGN_THEMES = ${JSON.stringify(extension.themes)} as const;\n\nexport const DESIGN_PRODUCTS = ${JSON.stringify(extension.products)} as const;\n\nexport const QUIET_INSTRUMENTS_TOKENS = ${JSON.stringify(tokenValues, null, 2)} as const;\n\nexport const QUIET_INSTRUMENTS_CSS_VARIABLES = ${JSON.stringify(cssVariables, null, 2)} as const;\n\nexport type DesignTheme = (typeof DESIGN_THEMES)[number];\nexport type DesignProduct = (typeof DESIGN_PRODUCTS)[number];\nexport type QuietInstrumentsTokenPath = keyof typeof QUIET_INSTRUMENTS_TOKENS;\n`;
 }
 
 function semanticDeclarations(theme: 'light' | 'dark'): string[] {
   return semanticColorRoles.map(
-    (role) =>
-      `  --pp-color-${role}: var(--pp-system-${theme}-color-${role});`,
+    (role) => `  --pp-color-${role}: var(--pp-system-${theme}-color-${role});`
   );
 }
 
 function resolvedTokenAt(
   resolved: ReadonlyMap<string, ResolvedToken>,
-  path: string,
+  path: string
 ): ResolvedToken {
   const token = resolved.get(path);
   assert(token !== undefined, `missing resolved token "${path}"`);
@@ -621,7 +574,7 @@ function resolvedTokenAt(
 
 function productDeclarations(
   product: string,
-  resolved: ReadonlyMap<string, ResolvedToken>,
+  resolved: ReadonlyMap<string, ResolvedToken>
 ): string[] {
   return [
     `  --pp-product-accent-light: ${tokenToCss(resolvedTokenAt(resolved, `product.${product}.accent-light`))};`,
@@ -633,17 +586,16 @@ function productDeclarations(
 
 function generateCss(
   extension: DesignExtension,
-  resolved: ReadonlyMap<string, ResolvedToken>,
+  resolved: ReadonlyMap<string, ResolvedToken>
 ): string {
   const rawDeclarations = [...resolved.entries()].map(
-    ([path, token]) =>
-      `  ${cssVariableForPath(path)}: ${tokenToCss(token)};`,
+    ([path, token]) => `  ${cssVariableForPath(path)}: ${tokenToCss(token)};`
   );
   const defaultProduct = extension.products[0];
   const productBlocks = extension.products
     .map(
       (product) =>
-        `.pp-design[data-pp-product='${product}'] {\n${productDeclarations(product, resolved).join('\n')}\n}`,
+        `.pp-design[data-pp-product='${product}'] {\n${productDeclarations(product, resolved).join('\n')}\n}`
     )
     .join('\n\n');
   const darkDeclarations = [
@@ -710,32 +662,24 @@ ${darkDeclarations
 }
 
 function validateGeneratedCss(css: string, extension: DesignExtension): void {
-  assert(
-    !/(^|[\n,]\s*):root(?:\s|[,{])/.test(css),
-    'generated CSS must not target :root',
-  );
-  assert(
-    !/(^|[\n,]\s*)html(?:\s|[,{])/.test(css),
-    'generated CSS must not target html',
-  );
+  assert(!/(^|[\n,]\s*):root(?:\s|[,{])/.test(css), 'generated CSS must not target :root');
+  assert(!/(^|[\n,]\s*)html(?:\s|[,{])/.test(css), 'generated CSS must not target html');
   assert(
     css.includes('@media (prefers-reduced-motion: reduce)'),
-    'generated CSS requires a reduced-motion override',
+    'generated CSS requires a reduced-motion override'
   );
   assert(
     css.includes('@media (forced-colors: active)'),
-    'generated CSS requires a forced-colors override',
+    'generated CSS requires a forced-colors override'
   );
   assert(
-    css.includes(
-      ".pp-design,\n  .pp-design[data-pp-theme] {\n    --pp-color-canvas: Canvas;",
-    ),
-    'forced-colors declarations must override theme-scoped declarations',
+    css.includes('.pp-design,\n  .pp-design[data-pp-theme] {\n    --pp-color-canvas: Canvas;'),
+    'forced-colors declarations must override theme-scoped declarations'
   );
   for (const product of extension.products) {
     assert(
       css.includes(`.pp-design[data-pp-product='${product}']`),
-      `generated CSS is missing the ${product} product scope`,
+      `generated CSS is missing the ${product} product scope`
     );
   }
 }
@@ -755,7 +699,7 @@ function checkOrWrite(path: string, contents: string): void {
   }
   assert(
     existing === contents,
-    `${path.slice(repositoryRoot.length + 1)} is stale; run pnpm generate:design`,
+    `${path.slice(repositoryRoot.length + 1)} is stale; run pnpm generate:design`
   );
 }
 
@@ -775,7 +719,7 @@ function run(): void {
     console.log(
       checkOnly
         ? `Design tokens are valid and current (${resolved.size} tokens).`
-        : `Generated ${resolved.size} design tokens.`,
+        : `Generated ${resolved.size} design tokens.`
     );
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
@@ -784,7 +728,8 @@ function run(): void {
 }
 
 if (
-  process.argv[1] && existsSync(process.argv[1]) &&
+  process.argv[1] &&
+  existsSync(process.argv[1]) &&
   realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1])
 ) {
   run();

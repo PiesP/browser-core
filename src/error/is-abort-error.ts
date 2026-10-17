@@ -26,10 +26,7 @@ export interface AbortErrorCheckOptions {
  * @param options - Configuration for timeout checking
  * @returns True if the error is a DOMException AbortError (or TimeoutError)
  */
-export function isAbortError(
-  error: unknown,
-  options: AbortErrorCheckOptions = {},
-): boolean {
+export function isAbortError(error: unknown, options: AbortErrorCheckOptions = {}): boolean {
   if (!(error instanceof DOMException)) return false;
   if (error.name === 'AbortError') return true;
   if (options.checkTimeout && error.name === 'TimeoutError') return true;

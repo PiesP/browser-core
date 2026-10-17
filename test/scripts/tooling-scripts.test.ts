@@ -16,26 +16,16 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const generateDesignTokensScript = resolve(
-  repositoryRoot,
-  'scripts/generate-design-tokens.ts',
-);
+const generateDesignTokensScript = resolve(repositoryRoot, 'scripts/generate-design-tokens.ts');
 const gitHookScript = resolve(repositoryRoot, 'scripts/git-hook.ts');
-const prepareSmokeScript = resolve(
-  repositoryRoot, 'automation/scripts/prepare-setup-smoke.mjs',
-);
-const verifySmokeScript = resolve(
-  repositoryRoot, 'automation/scripts/verify-setup-smoke.ts',
-);
+const prepareSmokeScript = resolve(repositoryRoot, 'automation/scripts/prepare-setup-smoke.mjs');
+const verifySmokeScript = resolve(repositoryRoot, 'automation/scripts/verify-setup-smoke.ts');
 const preRuntimeScripts = [
   resolve(repositoryRoot, 'automation/actions/setup-project/resolve-runtime.mjs'),
   resolve(repositoryRoot, 'automation/actions/consumer-impact/classify.mjs'),
   prepareSmokeScript,
 ];
-const sourceTokens = resolve(
-  repositoryRoot,
-  'src/design/quiet-instruments.tokens.json',
-);
+const sourceTokens = resolve(repositoryRoot, 'src/design/quiet-instruments.tokens.json');
 const fixtureDirectories: string[] = [];
 
 interface ScriptResult {
@@ -51,11 +41,7 @@ function createFixtureRepository(): string {
   return fixture;
 }
 
-function runScript(
-  script: string,
-  cwd: string,
-  arguments_: readonly string[] = [],
-): ScriptResult {
+function runScript(script: string, cwd: string, arguments_: readonly string[] = []): ScriptResult {
   const result = spawnSync(process.execPath, [script, ...arguments_], {
     cwd,
     encoding: 'utf8',
@@ -70,10 +56,7 @@ function runScript(
 function createDesignFixture(): string {
   const fixture = createFixtureRepository();
   const fixtureScript = join(fixture, 'scripts/generate-design-tokens.ts');
-  const fixtureTokens = join(
-    fixture,
-    'src/design/quiet-instruments.tokens.json',
-  );
+  const fixtureTokens = join(fixture, 'src/design/quiet-instruments.tokens.json');
   mkdirSync(dirname(fixtureScript), { recursive: true });
   mkdirSync(dirname(fixtureTokens), { recursive: true });
   copyFileSync(generateDesignTokensScript, fixtureScript);
@@ -101,7 +84,7 @@ function recordAt(root: unknown, path: readonly string[]): Record<string, unknow
 
 function mutateFixtureTokens(
   fixture: string,
-  mutate: (document: Record<string, unknown>) => void,
+  mutate: (document: Record<string, unknown>) => void
 ): void {
   const path = join(fixture, 'src/design/quiet-instruments.tokens.json');
   const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
@@ -128,14 +111,19 @@ test('ordinary helper imports do not execute their CLIs', () => {
     prepareSmokeScript,
     verifySmokeScript,
   ];
-  const result = spawnSync(process.execPath, [
-    '--input-type=module', '-e',
-    `await Promise.all(${JSON.stringify(modules.map((path) => pathToFileURL(path).href))}.map((url) => import(url)))`,
-  ], {
-    cwd: fixture,
-    encoding: 'utf8',
-    env: { ...process.env, PATH: `${commandDirectory}:${process.env.PATH ?? ''}` },
-  });
+  const result = spawnSync(
+    process.execPath,
+    [
+      '--input-type=module',
+      '-e',
+      `await Promise.all(${JSON.stringify(modules.map((path) => pathToFileURL(path).href))}.map((url) => import(url)))`,
+    ],
+    {
+      cwd: fixture,
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${commandDirectory}:${process.env.PATH ?? ''}` },
+    }
+  );
   expect(result.status).toBe(0);
   expect(result.stdout).toBe('');
   expect(result.stderr).toBe('');
@@ -161,16 +149,19 @@ test('pre-runtime fixture rejects unknown arguments before writing', () => {
   expect(readdirSync(fixture)).toEqual(['.git']);
 });
 
-test.each(['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'fixture-package']) (
-  'pre-runtime fixture preserves an existing reserved path: %s', (path) => {
+test.each(['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'fixture-package'])(
+  'pre-runtime fixture preserves an existing reserved path: %s',
+  (path) => {
     const fixture = createFixtureRepository();
     writeFileSync(join(fixture, path), 'existing content\n');
     const result = runScript(prepareSmokeScript, fixture);
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('would overwrite an existing path');
     expect(readFileSync(join(fixture, path), 'utf8')).toBe('existing content\n');
-    expect(readdirSync(fixture).sort()).toEqual(['.git', path].sort((left, right) => left.localeCompare(right)));
-  },
+    expect(readdirSync(fixture).sort()).toEqual(
+      ['.git', path].sort((left, right) => left.localeCompare(right))
+    );
+  }
 );
 
 test('pre-runtime fixture refuses a dangling reserved symlink before writing', () => {
@@ -184,8 +175,7 @@ test('direct CLI execution still works through symlinks', () => {
   const designFixture = createDesignFixture();
   const designLink = join(designFixture, 'generate-linked.ts');
   symlinkSync(join(designFixture, 'scripts/generate-design-tokens.ts'), designLink);
-  expect(runScript(designLink, designFixture).stdout)
-    .toContain('Generated 109 design tokens.');
+  expect(runScript(designLink, designFixture).stdout).toContain('Generated 109 design tokens.');
 
   const smokeFixture = createFixtureRepository();
   const smokeLink = join(smokeFixture, 'prepare-linked.mjs');
@@ -204,12 +194,14 @@ test('pre-runtime setup fixture preserves the consumer manifest and frozen link'
     volta: { node: '24.15.0' },
     dependencies: { 'setup-smoke-fixture': 'link:./fixture-package' },
   });
-  expect(readFileSync(join(fixture, 'pnpm-lock.yaml'), 'utf8'))
-    .toContain('version: link:fixture-package');
-  expect(readFileSync(join(fixture, 'fixture-package/index.cjs'), 'utf8'))
-    .toBe('module.exports = 42;\n');
+  expect(readFileSync(join(fixture, 'pnpm-lock.yaml'), 'utf8')).toContain(
+    'version: link:fixture-package'
+  );
+  expect(readFileSync(join(fixture, 'fixture-package/index.cjs'), 'utf8')).toBe(
+    'module.exports = 42;\n'
+  );
   expect(readFileSync(join(fixture, 'pnpm-workspace.yaml'), 'utf8')).toBe(
-    readFileSync(resolve(repositoryRoot, 'pnpm-workspace.yaml'), 'utf8'),
+    readFileSync(resolve(repositoryRoot, 'pnpm-workspace.yaml'), 'utf8')
   );
 });
 
@@ -217,10 +209,15 @@ test('setup smoke verifier enforces runtime, install boundary, and fixture value
   const fixture = createFixtureRepository();
   expect(runScript(prepareSmokeScript, fixture).status).toBe(0);
   const verify = (phase: string, version: string, pnpmVersion = '11.25.0') =>
-    spawnSync(process.execPath, [
-      '--input-type=module', '-e',
-      `import { verifySetupSmoke } from ${JSON.stringify(pathToFileURL(verifySmokeScript).href)}; verifySetupSmoke(${JSON.stringify(phase)}, ${JSON.stringify(version)}, ${JSON.stringify(pnpmVersion)});`,
-    ], { cwd: fixture, encoding: 'utf8' });
+    spawnSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        `import { verifySetupSmoke } from ${JSON.stringify(pathToFileURL(verifySmokeScript).href)}; verifySetupSmoke(${JSON.stringify(phase)}, ${JSON.stringify(version)}, ${JSON.stringify(pnpmVersion)});`,
+      ],
+      { cwd: fixture, encoding: 'utf8' }
+    );
 
   expect(verify('prepared', '24.15.0').status).toBe(0);
   expect(verify('prepared', '24.15.0', '11.26.0').status).toBe(1);
@@ -229,7 +226,7 @@ test('setup smoke verifier enforces runtime, install boundary, and fixture value
   mkdirSync(join(fixture, 'node_modules/setup-smoke-fixture'), { recursive: true });
   writeFileSync(
     join(fixture, 'node_modules/setup-smoke-fixture/index.js'),
-    'module.exports = 42;\n',
+    'module.exports = 42;\n'
   );
   expect(verify('prepared', '24.15.0').status).toBe(1);
   expect(verify('installed', '24.15.0').status).toBe(0);
@@ -237,7 +234,7 @@ test('setup smoke verifier enforces runtime, install boundary, and fixture value
   expect(verify('compatibility', '24.15.0').status).toBe(1);
   writeFileSync(
     join(fixture, 'node_modules/setup-smoke-fixture/index.js'),
-    'module.exports = 41;\n',
+    'module.exports = 41;\n'
   );
   expect(verify('installed', '24.15.0').status).toBe(1);
 });
@@ -246,35 +243,23 @@ describe('design token generator CLI', () => {
   test('generates known token values and accepts its current output', () => {
     const fixture = createDesignFixture();
 
-    const generated = runScript(
-      join(fixture, 'scripts/generate-design-tokens.ts'),
-      fixture,
-    );
+    const generated = runScript(join(fixture, 'scripts/generate-design-tokens.ts'), fixture);
     const generatedTypeScript = readFileSync(
       join(fixture, 'src/design/generated/tokens.ts'),
-      'utf8',
+      'utf8'
     );
-    const generatedCss = readFileSync(
-      join(fixture, 'src/design/generated/tokens.css'),
-      'utf8',
-    );
-    const checked = runScript(
-      join(fixture, 'scripts/generate-design-tokens.ts'),
-      fixture,
-      ['--check'],
-    );
+    const generatedCss = readFileSync(join(fixture, 'src/design/generated/tokens.css'), 'utf8');
+    const checked = runScript(join(fixture, 'scripts/generate-design-tokens.ts'), fixture, [
+      '--check',
+    ]);
 
     expect(generated).toEqual({
       status: 0,
       stderr: '',
       stdout: 'Generated 109 design tokens.\n',
     });
-    expect(generatedTypeScript).toContain(
-      '"system.light.color.canvas": "#f7f8fa"',
-    );
-    expect(generatedCss).toContain(
-      '  --pp-system-light-color-canvas: #f7f8fa;',
-    );
+    expect(generatedTypeScript).toContain('"system.light.color.canvas": "#f7f8fa"');
+    expect(generatedCss).toContain('  --pp-system-light-color-canvas: #f7f8fa;');
     expect(generatedCss).toContain(".pp-design[data-pp-theme='dark']");
     expect(checked).toEqual({
       status: 0,
@@ -287,16 +272,13 @@ describe('design token generator CLI', () => {
     const fixture = createDesignFixture();
     const fixtureScript = join(fixture, 'scripts/generate-design-tokens.ts');
     expect(runScript(fixtureScript, fixture).status).toBe(0);
-    writeFileSync(
-      join(fixture, 'src/design/generated/tokens.ts'),
-      '// stale output\n',
-    );
+    writeFileSync(join(fixture, 'src/design/generated/tokens.ts'), '// stale output\n');
 
     const result = runScript(fixtureScript, fixture, ['--check']);
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(
-      'src/design/generated/tokens.ts is stale; run pnpm generate:design',
+      'src/design/generated/tokens.ts is stale; run pnpm generate:design'
     );
   });
 
@@ -309,40 +291,29 @@ describe('design token generator CLI', () => {
         '{system.light.color.canvas}';
     });
 
-    const result = runScript(
-      join(fixture, 'scripts/generate-design-tokens.ts'),
-      fixture,
-    );
+    const result = runScript(join(fixture, 'scripts/generate-design-tokens.ts'), fixture);
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(
-      'alias cycle: system.light.color.canvas -> system.light.color.surface -> system.light.color.canvas',
+      'alias cycle: system.light.color.canvas -> system.light.color.surface -> system.light.color.canvas'
     );
   });
 
   test('rejects malformed color channels', () => {
     const fixture = createDesignFixture();
     mutateFixtureTokens(fixture, (document) => {
-      const value = recordAt(document, [
-        'reference',
-        'color',
-        'light-canvas',
-        '$value',
-      ]);
+      const value = recordAt(document, ['reference', 'color', 'light-canvas', '$value']);
       if (!Array.isArray(value.components)) {
         throw new TypeError('fixture color components must be an array');
       }
       value.components[0] = 2;
     });
 
-    const result = runScript(
-      join(fixture, 'scripts/generate-design-tokens.ts'),
-      fixture,
-    );
+    const result = runScript(join(fixture, 'scripts/generate-design-tokens.ts'), fixture);
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(
-      'reference.color.light-canvas.components must be finite values from 0 to 1',
+      'reference.color.light-canvas.components must be finite values from 0 to 1'
     );
   });
 });

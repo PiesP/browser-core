@@ -10,7 +10,12 @@ export { LruMap } from './lru-map.js';
 export { ByteLimitedCache } from './byte-limited-cache.js';
 export { ResizableByteLimitedCache } from './resizable-byte-limited-cache.js';
 export { PriorityBucketQueue } from './priority-queue.js';
-export { schedulerYield, schedulerPostTask, yieldIfOverBudget, yieldIfOverBudgetAsync } from './scheduler.js';
+export {
+  schedulerYield,
+  schedulerPostTask,
+  yieldIfOverBudget,
+  yieldIfOverBudgetAsync,
+} from './scheduler.js';
 export type { TaskPriority, SchedulerPostTaskOptions } from './scheduler.js';
 export { parseAnyColor, toRgba, computeReadableTextColor } from './color.js';
 export type { RgbaTuple } from './color.js';

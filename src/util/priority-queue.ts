@@ -183,9 +183,7 @@ export class PriorityBucketQueue<T> {
       const rightIndex = leftIndex + 1;
       const rightPriority = this._priorities[rightIndex];
       const childIndex =
-        rightPriority !== undefined && rightPriority < leftPriority
-          ? rightIndex
-          : leftIndex;
+        rightPriority !== undefined && rightPriority < leftPriority ? rightIndex : leftIndex;
       const childPriority = this._priorities[childIndex];
       if (childPriority === undefined || childPriority >= replacement) break;
 

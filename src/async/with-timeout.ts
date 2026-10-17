@@ -23,7 +23,7 @@ export function withTimeout<T>(
   ms: number,
   message?: string,
   onTimeout?: () => void | PromiseLike<void>,
-  signal?: AbortSignal,
+  signal?: AbortSignal
 ): Promise<T> {
   const source = Promise.resolve(promise);
 
@@ -57,7 +57,7 @@ export function withTimeout<T>(
         outcomeOwned = true;
         cleanup();
         reject(error);
-      },
+      }
     );
 
     if (signal?.aborted) {
@@ -98,7 +98,7 @@ export function withTimeout<T>(
         },
         (error: unknown) => {
           reject(error);
-        },
+        }
       );
     }, ms);
   });
