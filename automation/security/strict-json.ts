@@ -14,6 +14,7 @@ export function parseStrictJson(text: string): JsonValue {
   const numberPattern = /-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/y;
 
   function whitespace(): void {
+    // oxlint-disable-next-line no-control-regex -- JSON permits exactly these four whitespace characters.
     while (/[\u0020\u0009\u000a\u000d]/.test(text[cursor] ?? '\0')) cursor += 1;
   }
 

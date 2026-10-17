@@ -9,7 +9,6 @@ import {
   readdirSync,
   rmSync,
   symlinkSync,
-  unlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -17,7 +16,6 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const checkFormatScript = resolve(repositoryRoot, 'scripts/check-format.ts');
 const generateDesignTokensScript = resolve(
   repositoryRoot,
   'scripts/generate-design-tokens.ts',
@@ -125,7 +123,6 @@ test('ordinary helper imports do not execute their CLIs', () => {
   writeFileSync(join(commandDirectory, 'git'), '#!/bin/sh\ntouch git-invoked\n');
   chmodSync(join(commandDirectory, 'git'), 0o755);
   const modules = [
-    checkFormatScript,
     generateDesignTokensScript,
     gitHookScript,
     prepareSmokeScript,
@@ -172,7 +169,7 @@ test.each(['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'fixture-pac
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('would overwrite an existing path');
     expect(readFileSync(join(fixture, path), 'utf8')).toBe('existing content\n');
-    expect(readdirSync(fixture).sort()).toEqual(['.git', path].sort());
+    expect(readdirSync(fixture).sort()).toEqual(['.git', path].sort((left, right) => left.localeCompare(right)));
   },
 );
 
@@ -184,13 +181,6 @@ test('pre-runtime fixture refuses a dangling reserved symlink before writing', (
 });
 
 test('direct CLI execution still works through symlinks', () => {
-  const formatFixture = createFixtureRepository();
-  const formatLink = join(formatFixture, 'check-format.ts');
-  symlinkSync(checkFormatScript, formatLink);
-  writeFileSync(join(formatFixture, 'bad.md'), 'missing newline');
-  expect(runScript(formatLink, formatFixture).stderr)
-    .toContain('bad.md: missing final newline');
-
   const designFixture = createDesignFixture();
   const designLink = join(designFixture, 'generate-linked.ts');
   symlinkSync(join(designFixture, 'scripts/generate-design-tokens.ts'), designLink);
@@ -250,34 +240,6 @@ test('setup smoke verifier enforces runtime, install boundary, and fixture value
     'module.exports = 41;\n',
   );
   expect(verify('installed', '24.15.0').status).toBe(1);
-});
-
-describe('format checker CLI', () => {
-  test('reports each observable text hygiene violation', () => {
-    const fixture = createFixtureRepository();
-    writeFileSync(join(fixture, 'tracked.ts'), 'const value = 1;\r\n');
-    writeFileSync(join(fixture, 'untracked.json'), '{"value": 1} ');
-    execFileSync('git', ['add', 'tracked.ts'], { cwd: fixture });
-
-    const result = runScript(checkFormatScript, fixture);
-
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain('tracked.ts: contains CR line endings');
-    expect(result.stderr).toContain('untracked.json: missing final newline');
-    expect(result.stderr).toContain('untracked.json:1: trailing whitespace');
-  });
-
-  test('accepts clean files and ignores deleted tracked files', () => {
-    const fixture = createFixtureRepository();
-    writeFileSync(join(fixture, 'clean.ts'), 'export const clean = true;\n');
-    writeFileSync(join(fixture, 'deleted.md'), 'tracked before deletion\n');
-    execFileSync('git', ['add', 'deleted.md'], { cwd: fixture });
-    unlinkSync(join(fixture, 'deleted.md'));
-
-    const result = runScript(checkFormatScript, fixture);
-
-    expect(result).toEqual({ status: 0, stderr: '', stdout: '' });
-  });
 });
 
 describe('design token generator CLI', () => {

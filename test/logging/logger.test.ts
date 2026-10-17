@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vite-plus/test';
 import type { Logger } from '../../src/logging/types.js';
 import { createConsoleLogger } from '../../src/logging/console-logger.js';
 import { createNoopLogger } from '../../src/logging/noop-logger.js';

@@ -27,6 +27,7 @@ export function isHTMLElement(element: unknown): element is HTMLElement {
     return false;
   }
 
+  // oxlint-disable-next-line typescript/unbound-method -- The getter is invoked with an explicit receiver below.
   const titleGetter = Object.getOwnPropertyDescriptor(
     HTMLElement.prototype,
     'title',

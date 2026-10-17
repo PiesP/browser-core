@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { PriorityBucketQueue } from '../../src/util/priority-queue.js';
 
 describe('PriorityBucketQueue', () => {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 
 import workflow from '../.github/workflows/security.yaml?raw';
 import settings from '../.github/settings.yml?raw';

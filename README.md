@@ -55,6 +55,10 @@ pnpm test
 pnpm verify
 ```
 
+Vite+ owns formatting, lint and tests; both TypeScript project checks remain
+explicit. See the [toolchain and retained checker catalog](automation/README.md#local-toolchain)
+for configuration, dependency updates and runtime ownership.
+
 Reusable consumer CI setup is documented separately in
 [`automation/README.md`](./automation/README.md).
 

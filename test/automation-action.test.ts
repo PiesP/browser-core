@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 
 import runtimeNotifications from '../.github/workflows/notify-consumers.yaml?raw';
 import ci from '../.github/workflows/ci.yaml?raw';
@@ -104,7 +104,7 @@ describe('runtime and automation release boundaries', () => {
     for (const path of [
       'test/scripts/consumer-impact.test.ts',
       '.github/workflows/ci.yaml',
-      'scripts/check-format.ts',
+      'scripts/generate-design-tokens.ts',
       'tsconfig.json',
       'docs/API.md',
       'unknown.config.mjs',

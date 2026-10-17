@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vite-plus/test';
 import { withTimeout } from '../../src/async/with-timeout.js';
 
 describe('withTimeout', () => {

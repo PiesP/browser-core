@@ -33,22 +33,23 @@
     "./util": "./src/util/index.ts"
   },
   "scripts": {
-    "check": "pnpm check:format && pnpm check:design && pnpm check:types",
+    "check": "vp check && pnpm check:design && pnpm check:types",
     "check:design": "node scripts/generate-design-tokens.ts --check",
-    "check:format": "node scripts/check-format.ts",
-    "check:types": "tsc --noEmit && tsc --project tsconfig.scripts.json",
+    "check:format": "vp fmt --check",
+    "check:types": "tsc --noEmit --project tsconfig.json && tsc --project tsconfig.scripts.json",
     "generate:design": "node scripts/generate-design-tokens.ts",
-    "test": "vitest run",
-    "test:cov": "vitest run --coverage",
+    "test": "vp test run",
+    "test:cov": "vp test run --coverage",
     "verify": "pnpm check && pnpm test:cov",
-    "test:watch": "vitest"
+    "test:watch": "vp test"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
-    "@vitest/coverage-v8": "^5.0.4",
+    "@vitest/coverage-v8": "catalog:",
     "jsdom": "^30.1.2",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.4"
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
   },
   "volta": {
     "node": "26.9.0",

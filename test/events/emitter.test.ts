@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vite-plus/test';
 import { createEventEmitter } from '../../src/events/emitter.js';
 
 interface TestEvents extends Record<string, unknown> {

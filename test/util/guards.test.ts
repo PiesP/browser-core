@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vite-plus/test';
 import { isRecord, isHTMLElement, createEventListener } from '../../src/util/guards.js';
 
 describe('isRecord', () => {

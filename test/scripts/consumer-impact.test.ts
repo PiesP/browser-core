@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vite-plus/test';
 
 import action from '../../automation/actions/consumer-impact/action.yaml?raw';
 import notification from '../../.github/workflows/notify-consumers.yaml?raw';
@@ -83,7 +83,7 @@ describe('browser-core consumer impact', () => {
     write(repository, 'pnpm-lock.yaml', 'lockfileVersion: 9\n# development graph changed\n');
     write(repository, 'test/util.test.ts', 'test("development", () => {});\n');
     write(repository, '.github/workflows/ci.yaml', 'name: CI\n');
-    write(repository, 'scripts/check-format.ts', 'export {};\n');
+    write(repository, 'scripts/generate-design-tokens.ts', 'export {};\n');
     write(repository, 'tsconfig.json', '{}\n');
     write(repository, 'vitest.config.ts', 'export default {};\n');
     write(repository, 'docs/API.md', 'Development notes\n');

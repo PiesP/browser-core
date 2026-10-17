@@ -27,12 +27,9 @@ updates:
         update-types:
           - "minor"
           - "patch"
-      # These exact peers must move together. If the updater resolves them
-      # sequentially, update vitest and coverage-v8 atomically; retain strict peers.
-      vitest:
+      toolchain:
         patterns:
-          - "vitest"
-          - "@vitest/*"
+          - "vite-plus"
         update-types:
           - "minor"
           - "patch"

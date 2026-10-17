@@ -711,11 +711,11 @@ ${darkDeclarations
 
 function validateGeneratedCss(css: string, extension: DesignExtension): void {
   assert(
-    !/(^|[\n,]\s*):root(?:\s|[,\{])/.test(css),
+    !/(^|[\n,]\s*):root(?:\s|[,{])/.test(css),
     'generated CSS must not target :root',
   );
   assert(
-    !/(^|[\n,]\s*)html(?:\s|[,\{])/.test(css),
+    !/(^|[\n,]\s*)html(?:\s|[,{])/.test(css),
     'generated CSS must not target html',
   );
   assert(

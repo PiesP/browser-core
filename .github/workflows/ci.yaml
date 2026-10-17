@@ -44,7 +44,7 @@ jobs:
           cache: true
           install: false
       - run: pnpm install --frozen-lockfile --no-runtime
-      - name: Check text hygiene, types, and compiler lint rules
+      - name: Check formatting, lint, design tokens and type projects
         run: pnpm check
       - name: Run coverage-gated tests
         run: pnpm test:cov

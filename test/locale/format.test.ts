@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
 import { formatFileSize, formatDuration } from '../../src/locale/format.js';
 import type { Locale } from '../../src/locale/types.js';
 

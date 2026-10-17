@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import * as core from '../src/index';
 import * as asyncApi from '../src/async/index';
 import * as designApi from '../src/design/index';

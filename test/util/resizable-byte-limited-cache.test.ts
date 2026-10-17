@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vite-plus/test';
 import { ResizableByteLimitedCache } from '../../src/util/resizable-byte-limited-cache.js';
 
 function estimateSize(value: string): number {
@@ -621,7 +621,7 @@ describe('ResizableByteLimitedCache', () => {
   });
 
   it.each([
-    { label: 'object', key: { length: 0, retained: new Array(1_000).fill('value') } },
+    { label: 'object', key: { length: 0, retained: Array.from({ length: 1_000 }, () => 'value') } },
     { label: 'boxed string', key: new String('key') },
     { label: 'function', key: (): void => undefined },
   ])('rejects a non-string runtime $label key before mutation', ({ key }) => {

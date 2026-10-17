@@ -4,7 +4,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vite-plus/test';
 
 import workflow from '../../.github/workflows/security.yaml?raw';
 
@@ -131,7 +131,7 @@ function runBlock(step: string, sandbox: Sandbox, overrides: Record<string, stri
 function prepareTrustedHelper(sandbox: Sandbox): void {
   if (existsSync(join(sandbox.runnerTemp, 'trusted-helper'))) return;
   const result = runBlock('Materialize immutable OSV helper outside the checkout', sandbox);
-  expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+  expect(result.status, `${String(result.stdout)}\n${String(result.stderr)}`).toBe(0);
 }
 
 function runScannerStep(
@@ -201,7 +201,7 @@ describe('OSV scanner workflow result boundary', () => {
       JSON.stringify({ results: [] }),
     );
 
-    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+    expect(result.status, `${String(result.stdout)}\n${String(result.stderr)}`).toBe(0);
   });
 
   it.each(scannerSteps)('accepts a valid vulnerability result for %s', (name) => {
@@ -213,7 +213,7 @@ describe('OSV scanner workflow result boundary', () => {
       1,
     );
 
-    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+    expect(result.status, `${String(result.stdout)}\n${String(result.stderr)}`).toBe(0);
   });
 
   it.each(scannerSteps)('rejects a missing or malformed result for %s', (name) => {
@@ -281,7 +281,7 @@ describe('OSV reporter input boundary', () => {
     const sandbox = createSandbox();
     const result = runReporterStep(extractStepRun(name), sandbox);
 
-    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+    expect(result.status, `${String(result.stdout)}\n${String(result.stderr)}`).toBe(0);
   });
 
   it.each(reporterSteps)('rejects malformed nested input even when the reporter exits successfully for %s', (name) => {
@@ -293,8 +293,8 @@ describe('OSV reporter input boundary', () => {
       JSON.stringify({ results: [{ packages: 'not-an-array' }] }),
     );
 
-    expect(result.status, `${result.stdout}\n${result.stderr}`).not.toBe(0);
-    expect(`${result.stdout}\n${result.stderr}`).toContain('OSV reporter did not parse its result');
+    expect(result.status, `${String(result.stdout)}\n${String(result.stderr)}`).not.toBe(0);
+    expect(`${String(result.stdout)}\n${String(result.stderr)}`).toContain('OSV reporter did not parse its result');
   });
 
   it.each(reporterSteps)('preserves reporter execution failures for %s', (name) => {

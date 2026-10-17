@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import workflow from '../.github/workflows/notify-consumers.yaml?raw';
 
 describe('consumer notification automation', () => {

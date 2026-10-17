@@ -7,7 +7,6 @@ dist/
 coverage/
 test-results/
 playwright-report/
-.stryker-tmp*/
 .cache/
 
 # Local environment and logs
@@ -36,3 +35,4 @@ TESTING.md
 CODEX_WORKFLOW.md
 CLAUDE.md
 GEMINI.md
+.vitest/

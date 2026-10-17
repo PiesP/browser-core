@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { isAbortError, isCancellationError } from '../../src/error/is-abort-error.js';
 
 describe('isAbortError', () => {
