@@ -1,27 +1,33 @@
 import { execFileSync } from 'node:child_process';
 
-const [repository, base, head] = process.argv.slice(2);
-const shaPattern = /^[0-9a-f]{40}$/;
-
-if (!repository || !shaPattern.test(base ?? '') || !shaPattern.test(head ?? '')) {
-  throw new Error('Expected repository path, base SHA, and head SHA (40 lowercase hex characters)');
+function argumentsFromCLI(): [string, string, string] {
+  const [repository, base, head] = process.argv.slice(2);
+  const shaPattern = /^[0-9a-f]{40}$/;
+  if (!repository || !base || !head || !shaPattern.test(base) || !shaPattern.test(head)) {
+    throw new Error(
+      'Expected repository path, base SHA, and head SHA (40 lowercase hex characters)'
+    );
+  }
+  return [repository, base, head];
 }
 
-function git(args) {
+const [repository, base, head] = argumentsFromCLI();
+
+function git(args: readonly string[]): string {
   return execFileSync('git', ['-C', repository, ...args], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 }
 
-function gitBlob(oid) {
+function gitBlob(oid: string): string {
   const bytes = execFileSync('git', ['-C', repository, 'cat-file', 'blob', oid], {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 }
 
-function hasCommit(sha) {
+function hasCommit(sha: string): boolean {
   try {
     git(['cat-file', '-e', `${sha}^{commit}`]);
     return true;
@@ -30,15 +36,19 @@ function hasCommit(sha) {
   }
 }
 
-function packageAt(sha) {
-  const value = JSON.parse(git(['show', `${sha}:package.json`]));
-  if (value === null || Array.isArray(value) || typeof value !== 'object') {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && !Array.isArray(value) && typeof value === 'object';
+}
+
+function packageAt(sha: string): Record<string, unknown> {
+  const value: unknown = JSON.parse(git(['show', `${sha}:package.json`]));
+  if (!isRecord(value)) {
     throw new Error('Invalid browser-core package.json');
   }
   return value;
 }
 
-function hasRuntimeDependencies(pkg) {
+function hasRuntimeDependencies(pkg: Record<string, unknown>): boolean {
   return [
     'dependencies',
     'peerDependencies',
@@ -52,18 +62,21 @@ function hasRuntimeDependencies(pkg) {
   );
 }
 
-function sameValue(left, right) {
+function sameValue(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-function hasContractChange(previous, current) {
+function hasContractChange(
+  previous: Record<string, unknown>,
+  current: Record<string, unknown>
+): boolean {
   const developmentFields = new Set(['devDependencies', 'volta', 'packageManager']);
   return [...new Set([...Object.keys(previous), ...Object.keys(current)])].some(
     (field) => !developmentFields.has(field) && !sameValue(previous[field], current[field])
   );
 }
 
-function isReviewedDevelopmentPath(path) {
+function isReviewedDevelopmentPath(path: string): boolean {
   return (
     path.startsWith('automation/') ||
     path.startsWith('test/') ||
@@ -81,7 +94,7 @@ function isReviewedDevelopmentPath(path) {
   );
 }
 
-function hasExternalEntrypoint(pkg) {
+function hasExternalEntrypoint(pkg: Record<string, unknown>): boolean {
   const targets = [
     pkg.exports,
     pkg.imports,
@@ -97,7 +110,7 @@ function hasExternalEntrypoint(pkg) {
     targets.push(...Object.keys(pkg.browser).filter((key) => key.startsWith('.')));
   }
 
-  function outsideSource(value) {
+  function outsideSource(value: unknown): boolean {
     if (value === undefined || value === null) return false;
     if (typeof value === 'string') return !/^(?:\.\/)?src\//.test(value);
     if (Array.isArray(value)) return value.some(outsideSource);
@@ -108,7 +121,7 @@ function hasExternalEntrypoint(pkg) {
   return targets.some(outsideSource);
 }
 
-function hasInstallLifecycle(pkg) {
+function hasInstallLifecycle(pkg: Record<string, unknown>): boolean {
   const scripts = pkg.scripts;
   if (scripts === undefined) return false;
   if (scripts === null || typeof scripts !== 'object' || Array.isArray(scripts)) return true;
@@ -124,19 +137,24 @@ function hasInstallLifecycle(pkg) {
   ].some((name) => Object.hasOwn(scripts, name));
 }
 
-function hasSourceEscape(sha) {
+function hasSourceEscape(sha: string): boolean {
   const entries = git(['ls-tree', '-r', '-z', sha, '--', 'src']).split('\0').filter(Boolean);
   for (const entry of entries) {
     const match = /^(100644|100755) blob ([0-9a-f]{40,64})\t/.exec(entry);
-    if (!match) return true;
+    if (!match?.[2]) return true;
 
     const source = gitBlob(match[2]);
     if (source.includes('\0')) return true;
     const decoded = source
       .replace(
         /\\(?:x([0-9a-f]{2})|u([0-9a-f]{4})|u\{([0-9a-f]+)\}|([./]))/gi,
-        (_escape, hex, unicode, braced, identity) =>
-          identity ?? String.fromCodePoint(parseInt(hex ?? unicode ?? braced, 16))
+        (
+          _escape: string,
+          hex: string | undefined,
+          unicode: string | undefined,
+          braced: string | undefined,
+          identity: string | undefined
+        ) => identity ?? String.fromCodePoint(parseInt(hex ?? unicode ?? braced ?? '', 16))
       )
       .replace(/\\(?:\r\n|[\n\r\u2028\u2029])/g, '');
     if (decoded.includes('../') || decoded.includes('\0')) return true;
@@ -144,7 +162,7 @@ function hasSourceEscape(sha) {
   return false;
 }
 
-function affectsConsumers() {
+function affectsConsumers(): boolean {
   if (!hasCommit(head)) throw new Error(`Head commit is unavailable: ${head}`);
   if (!hasCommit(base)) return true;
   try {
