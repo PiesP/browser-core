@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
 import { formatFileSize, formatDuration } from '../../src/locale/format.js';
 import type { Locale } from '../../src/locale/types.js';
 
@@ -43,7 +43,7 @@ describe('formatFileSize', () => {
     'rejects invalid runtime locale %s before formatting',
     (locale) => {
       expect(() => formatFileSize(1024, locale as Locale)).toThrow(RangeError);
-    },
+    }
   );
 
   it('rejects negative byte counts', () => {
@@ -105,7 +105,7 @@ describe('formatDuration', () => {
     const numberFormat = new Intl.NumberFormat('en');
 
     expect(formatDuration(60_030_000, 'en')).toBe(
-      `${numberFormat.format(1000)}m ${numberFormat.format(30)}s`,
+      `${numberFormat.format(1000)}m ${numberFormat.format(30)}s`
     );
   });
 
@@ -121,19 +121,16 @@ describe('formatDuration', () => {
     'rejects invalid runtime locale %s before formatting',
     (locale) => {
       expect(() => formatDuration(1500, locale as Locale)).toThrow(RangeError);
-    },
+    }
   );
 
   it('normalizes negative durations to zero', () => {
     expect(formatDuration(-1500, 'en')).toBe('0ms');
   });
 
-  it.each([NaN, Infinity, -Infinity])(
-    'rejects non-finite duration %s',
-    (duration) => {
-      expect(() => formatDuration(duration, 'en')).toThrow(RangeError);
-    },
-  );
+  it.each([NaN, Infinity, -Infinity])('rejects non-finite duration %s', (duration) => {
+    expect(() => formatDuration(duration, 'en')).toThrow(RangeError);
+  });
 });
 
 describe('number formatter reuse', () => {
@@ -147,9 +144,7 @@ describe('number formatter reuse', () => {
       });
     const freshModule = await import('../../src/locale/format.js');
 
-    expect(() => freshModule.formatFileSize(1024, 'not_a_locale' as Locale)).toThrow(
-      RangeError,
-    );
+    expect(() => freshModule.formatFileSize(1024, 'not_a_locale' as Locale)).toThrow(RangeError);
     expect(numberFormatSpy).not.toHaveBeenCalled();
 
     for (let iteration = 0; iteration < 2; iteration++) {

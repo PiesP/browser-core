@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { LruMap } from '../../src/util/lru-map.js';
 
 describe('LruMap', () => {
@@ -83,15 +83,23 @@ describe('LruMap', () => {
     map.set('b', 2);
     const entries: [string, number][] = [];
     map.forEach((v, k) => entries.push([k, v]));
-    expect(entries).toEqual([['a', 1], ['b', 2]]);
+    expect(entries).toEqual([
+      ['a', 1],
+      ['b', 2],
+    ]);
   });
 
-  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, 1.5, Number.MAX_SAFE_INTEGER + 1])(
-    'rejects invalid maxSize %s',
-    (maxSize) => {
-      expect(() => new LruMap<string, number>(maxSize)).toThrow(RangeError);
-    }
-  );
+  it.each([
+    0,
+    -1,
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+    Number.NEGATIVE_INFINITY,
+    1.5,
+    Number.MAX_SAFE_INTEGER + 1,
+  ])('rejects invalid maxSize %s', (maxSize) => {
+    expect(() => new LruMap<string, number>(maxSize)).toThrow(RangeError);
+  });
 
   it('supports maxSize = 1', () => {
     const map = new LruMap<string, number>(1);

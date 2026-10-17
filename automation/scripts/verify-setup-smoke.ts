@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 export function verifySetupSmoke(
   phase: 'prepared' | 'installed' | 'compatibility',
   nodeVersion: string,
-  pnpmVersion?: string,
+  pnpmVersion?: string
 ): void {
   if (phase === 'compatibility') {
     if (!nodeVersion.startsWith('22.')) throw new Error('Expected Node 22 compatibility runtime');
@@ -17,7 +17,8 @@ export function verifySetupSmoke(
   if (phase === 'prepared') {
     const manifest: unknown = JSON.parse(readFileSync('package.json', 'utf8'));
     if (
-      typeof manifest !== 'object' || manifest === null ||
+      typeof manifest !== 'object' ||
+      manifest === null ||
       !('packageManager' in manifest) ||
       manifest.packageManager !== `pnpm@${pnpmVersion}`
     ) {
@@ -33,12 +34,17 @@ export function verifySetupSmoke(
 }
 
 if (
-  process.argv[1] && existsSync(process.argv[1]) &&
+  process.argv[1] &&
+  existsSync(process.argv[1]) &&
   realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1])
 ) {
   const phase = process.argv[2];
   if (phase !== 'prepared' && phase !== 'installed' && phase !== 'compatibility') {
     throw new Error('Expected prepared, installed, or compatibility phase');
   }
-  verifySetupSmoke(phase, process.versions.node, phase === 'prepared' ? process.env.PNPM_VERSION : undefined);
+  verifySetupSmoke(
+    phase,
+    process.versions.node,
+    phase === 'prepared' ? process.env.PNPM_VERSION : undefined
+  );
 }

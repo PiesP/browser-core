@@ -40,11 +40,11 @@ jobs:
         uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
         with:
           working-directory: .
-          runtime: "node@${{ steps.runtime.outputs.version }}"
+          runtime: 'node@${{ steps.runtime.outputs.version }}'
           cache: true
           install: false
       - run: pnpm install --frozen-lockfile --no-runtime
-      - name: Check text hygiene, types, and compiler lint rules
+      - name: Check formatting, lint, design tokens and type projects
         run: pnpm check
       - name: Run coverage-gated tests
         run: pnpm test:cov

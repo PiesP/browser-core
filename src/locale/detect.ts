@@ -59,7 +59,7 @@ export function normalizeLocale(code: string): Locale | null {
   // Primary-language match (e.g., 'zh-TW' → 'zh-CN', 'en-US' → 'en').
   const primaryLanguage = lower.split('-', 1)[0];
   const baseMatch = LOCALE_CODES.find(
-    (locale) => locale.toLowerCase().split('-', 1)[0] === primaryLanguage,
+    (locale) => locale.toLowerCase().split('-', 1)[0] === primaryLanguage
   );
   if (baseMatch) return baseMatch;
 
@@ -109,9 +109,10 @@ export function detectLocale(options: DetectOptions = {}): Locale {
   if (!hasInjectedLanguageSource && typeof navigator !== 'undefined') {
     try {
       const chromeGlobal =
-        typeof chrome !== 'undefined' ? (chrome as { i18n?: { getUILanguage?: () => string } }) : undefined;
-      const uiLang =
-        chromeGlobal?.i18n?.getUILanguage?.() ?? undefined;
+        typeof chrome !== 'undefined'
+          ? (chrome as { i18n?: { getUILanguage?: () => string } })
+          : undefined;
+      const uiLang = chromeGlobal?.i18n?.getUILanguage?.() ?? undefined;
       if (uiLang) {
         const normalized = normalizeLocale(uiLang);
         if (normalized) return normalized;

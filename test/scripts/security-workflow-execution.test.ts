@@ -1,10 +1,19 @@
 /// <reference types="node" />
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vite-plus/test';
 
 import workflow from '../../.github/workflows/security.yaml?raw';
 
@@ -61,10 +70,22 @@ function createSandbox(): Sandbox {
   execFileSync('git', ['-C', workspace, 'switch', '--quiet', '--detach', trustedSha]);
   execFileSync('git', ['-C', workspace, 'config', 'user.name', 'Security fixture']);
   execFileSync('git', ['-C', workspace, 'config', 'user.email', 'security@example.invalid']);
-  writeFileSync(join(workspace, 'scripts/security/osv-workflow.ts'), "throw new Error('PR candidate helper ran');\n");
+  writeFileSync(
+    join(workspace, 'scripts/security/osv-workflow.ts'),
+    "throw new Error('PR candidate helper ran');\n"
+  );
   execFileSync('git', ['-C', workspace, 'add', 'scripts/security/osv-workflow.ts']);
-  execFileSync('git', ['-C', workspace, 'commit', '--quiet', '-m', 'test: collide with helper filename']);
-  const candidateSha = execFileSync('git', ['-C', workspace, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  execFileSync('git', [
+    '-C',
+    workspace,
+    'commit',
+    '--quiet',
+    '-m',
+    'test: collide with helper filename',
+  ]);
+  const candidateSha = execFileSync('git', ['-C', workspace, 'rev-parse', 'HEAD'], {
+    encoding: 'utf8',
+  }).trim();
   execFileSync('git', ['-C', workspace, 'switch', '--quiet', '--force', '--detach', trustedSha]);
 
   const fakeDocker = join(bin, 'docker');
@@ -101,7 +122,7 @@ if [[ "$entrypoint" == '/root/osv-reporter' ]]; then
   exit "\${FAKE_REPORTER_STATUS:-0}"
 fi
 exit "\${FAKE_SCANNER_STATUS:-0}"
-`,
+`
   );
   chmodSync(fakeDocker, 0o755);
 
@@ -131,20 +152,22 @@ function runBlock(step: string, sandbox: Sandbox, overrides: Record<string, stri
 function prepareTrustedHelper(sandbox: Sandbox): void {
   if (existsSync(join(sandbox.runnerTemp, 'trusted-helper'))) return;
   const result = runBlock('Materialize immutable OSV helper outside the checkout', sandbox);
-  expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+  expect(result.status, `${String(result.stdout)}\n${String(result.stderr)}`).toBe(0);
 }
 
 function runScannerStep(
   step: string,
   sandbox: Sandbox,
   source: string | undefined,
-  scannerStatus = 0,
+  scannerStatus = 0
 ): ReturnType<typeof spawnSync> {
   const sourcePath = join(sandbox.root, 'scanner-output.json');
   if (source !== undefined) writeFileSync(sourcePath, source);
   prepareTrustedHelper(sandbox);
   if (step === extractStepRun('Scan dependencies after the PR')) {
-    const switched = runBlock('Checkout the PR result', sandbox, { GITHUB_SHA: sandbox.candidateSha });
+    const switched = runBlock('Checkout the PR result', sandbox, {
+      GITHUB_SHA: sandbox.candidateSha,
+    });
     expect(switched.status, switched.stderr).toBe(0);
   }
   return spawnSync('bash', ['-euo', 'pipefail', '-c', step], {
@@ -162,7 +185,7 @@ function runReporterStep(
   sandbox: Sandbox,
   reporterStatus = 0,
   newResult = JSON.stringify({ results: [] }),
-  validationStatus = 0,
+  validationStatus = 0
 ): ReturnType<typeof spawnSync> {
   prepareTrustedHelper(sandbox);
   mkdirSync(sandbox.resultDirectory, { recursive: true });
@@ -195,13 +218,9 @@ describe('OSV scanner workflow result boundary', () => {
 
   it.each(scannerSteps)('accepts a valid empty result for %s', (name) => {
     const sandbox = createSandbox();
-    const result = runScannerStep(
-      extractStepRun(name),
-      sandbox,
-      JSON.stringify({ results: [] }),
-    );
+    const result = runScannerStep(extractStepRun(name), sandbox, JSON.stringify({ results: [] }));
 
-    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+    expect(result.status, `${String(result.stdout)}\n${String(result.stderr)}`).toBe(0);
   });
 
   it.each(scannerSteps)('accepts a valid vulnerability result for %s', (name) => {
@@ -210,10 +229,10 @@ describe('OSV scanner workflow result boundary', () => {
       extractStepRun(name),
       sandbox,
       JSON.stringify({ results: [{ source: {}, packages: [] }] }),
-      1,
+      1
     );
 
-    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+    expect(result.status, `${String(result.stdout)}\n${String(result.stderr)}`).toBe(0);
   });
 
   it.each(scannerSteps)('rejects a missing or malformed result for %s', (name) => {
@@ -231,7 +250,7 @@ describe('OSV scanner workflow result boundary', () => {
       extractStepRun(name),
       sandbox,
       JSON.stringify({ results: [] }),
-      127,
+      127
     );
 
     expect(result.status).toBe(127);
@@ -239,7 +258,12 @@ describe('OSV scanner workflow result boundary', () => {
 
   it.each(scannerSteps)('fails before parsing a result when the scanner exits 2 for %s', (name) => {
     const sandbox = createSandbox();
-    const result = runScannerStep(extractStepRun(name), sandbox, JSON.stringify({ results: [] }), 2);
+    const result = runScannerStep(
+      extractStepRun(name),
+      sandbox,
+      JSON.stringify({ results: [] }),
+      2
+    );
     expect(result.status).toBe(2);
     expect(result.stderr).toContain('OSV scanner failed before producing a result');
   });
@@ -247,14 +271,23 @@ describe('OSV scanner workflow result boundary', () => {
   it('keeps the immutable helper unchanged when the PR head collides with its filename', () => {
     const sandbox = createSandbox();
     const result = runScannerStep(
-      extractStepRun('Scan dependencies after the PR'), sandbox, JSON.stringify({ results: [] }),
+      extractStepRun('Scan dependencies after the PR'),
+      sandbox,
+      JSON.stringify({ results: [] })
     );
     expect(result.status, String(result.stderr)).toBe(0);
-    expect(readFileSync(join(sandbox.workspace, 'scripts/security/osv-workflow.ts'), 'utf8'))
-      .toContain('PR candidate helper ran');
-    const privateHelper = join(sandbox.runnerTemp, 'trusted-helper/scripts/security/osv-workflow.ts');
+    expect(
+      readFileSync(join(sandbox.workspace, 'scripts/security/osv-workflow.ts'), 'utf8')
+    ).toContain('PR candidate helper ran');
+    const privateHelper = join(
+      sandbox.runnerTemp,
+      'trusted-helper/scripts/security/osv-workflow.ts'
+    );
     const reviewed = execFileSync('git', [
-      '-C', sandbox.workspace, 'show', `${trustedSha}:scripts/security/osv-workflow.ts`,
+      '-C',
+      sandbox.workspace,
+      'show',
+      `${trustedSha}:scripts/security/osv-workflow.ts`,
     ]);
     expect(readFileSync(privateHelper)).toEqual(reviewed);
     expect(statSync(join(sandbox.runnerTemp, 'trusted-helper')).mode & 0o777).toBe(0o700);
@@ -266,8 +299,9 @@ describe('OSV scanner workflow result boundary', () => {
       TRUSTED_HELPER_SHA: 'f'.repeat(40),
     });
     expect(result.status).not.toBe(0);
-    expect(existsSync(join(sandbox.runnerTemp, 'trusted-helper/scripts/security/osv-workflow.ts')))
-      .toBe(false);
+    expect(
+      existsSync(join(sandbox.runnerTemp, 'trusted-helper/scripts/security/osv-workflow.ts'))
+    ).toBe(false);
   });
 });
 
@@ -281,21 +315,26 @@ describe('OSV reporter input boundary', () => {
     const sandbox = createSandbox();
     const result = runReporterStep(extractStepRun(name), sandbox);
 
-    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+    expect(result.status, `${String(result.stdout)}\n${String(result.stderr)}`).toBe(0);
   });
 
-  it.each(reporterSteps)('rejects malformed nested input even when the reporter exits successfully for %s', (name) => {
-    const sandbox = createSandbox();
-    const result = runReporterStep(
-      extractStepRun(name),
-      sandbox,
-      0,
-      JSON.stringify({ results: [{ packages: 'not-an-array' }] }),
-    );
+  it.each(reporterSteps)(
+    'rejects malformed nested input even when the reporter exits successfully for %s',
+    (name) => {
+      const sandbox = createSandbox();
+      const result = runReporterStep(
+        extractStepRun(name),
+        sandbox,
+        0,
+        JSON.stringify({ results: [{ packages: 'not-an-array' }] })
+      );
 
-    expect(result.status, `${result.stdout}\n${result.stderr}`).not.toBe(0);
-    expect(`${result.stdout}\n${result.stderr}`).toContain('OSV reporter did not parse its result');
-  });
+      expect(result.status, `${String(result.stdout)}\n${String(result.stderr)}`).not.toBe(0);
+      expect(`${String(result.stdout)}\n${String(result.stderr)}`).toContain(
+        'OSV reporter did not parse its result'
+      );
+    }
+  );
 
   it.each(reporterSteps)('preserves reporter execution failures for %s', (name) => {
     const sandbox = createSandbox();
@@ -306,7 +345,13 @@ describe('OSV reporter input boundary', () => {
 
   it.each(reporterSteps)('preserves reporter preflight exit 7 for %s', (name) => {
     const sandbox = createSandbox();
-    const result = runReporterStep(extractStepRun(name), sandbox, 0, JSON.stringify({ results: [] }), 7);
+    const result = runReporterStep(
+      extractStepRun(name),
+      sandbox,
+      0,
+      JSON.stringify({ results: [] }),
+      7
+    );
     expect(result.status).toBe(7);
     expect(result.stderr).toContain('OSV reporter failed to validate its result');
     expect(existsSync(join(sandbox.resultDirectory, 'osv-results.sarif'))).toBe(false);
@@ -315,21 +360,26 @@ describe('OSV reporter input boundary', () => {
 
 describe('security summary workflow boundary', () => {
   const goodResults = {
-    OSV_PR_RESULT: 'success', OSV_FULL_RESULT: 'success',
-    CODEQL_RESULT: 'success', SEMGREP_RESULT: 'success',
+    OSV_PR_RESULT: 'success',
+    OSV_FULL_RESULT: 'success',
+    CODEQL_RESULT: 'success',
+    SEMGREP_RESULT: 'success',
   };
 
   it.each(['pull_request', 'push', 'schedule', 'workflow_dispatch'])(
-    'accepts all event-specific successful jobs for %s', (eventName) => {
+    'accepts all event-specific successful jobs for %s',
+    (eventName) => {
       const sandbox = createSandbox();
       prepareTrustedHelper(sandbox);
       const summary = join(sandbox.root, 'summary.md');
       const result = runBlock('Summarize and validate event-specific scans', sandbox, {
-        ...goodResults, EVENT_NAME: eventName, GITHUB_STEP_SUMMARY: summary,
+        ...goodResults,
+        EVENT_NAME: eventName,
+        GITHUB_STEP_SUMMARY: summary,
       });
       expect(result.status, result.stderr).toBe(0);
       expect(readFileSync(summary, 'utf8')).toContain('| CodeQL | success |');
-    },
+    }
   );
 
   it.each([
@@ -344,7 +394,9 @@ describe('security summary workflow boundary', () => {
     prepareTrustedHelper(sandbox);
     const summary = join(sandbox.root, 'summary.md');
     const result = runBlock('Summarize and validate event-specific scans', sandbox, {
-      ...goodResults, [failingJob]: 'failure', EVENT_NAME: eventName,
+      ...goodResults,
+      [failingJob]: 'failure',
+      EVENT_NAME: eventName,
       GITHUB_STEP_SUMMARY: summary,
     });
     expect(result.status).toBe(1);
@@ -357,7 +409,9 @@ describe('security summary workflow boundary', () => {
     prepareTrustedHelper(sandbox);
     const summary = join(sandbox.root, 'summary.md');
     const result = runBlock('Summarize and validate event-specific scans', sandbox, {
-      ...goodResults, EVENT_NAME: 'merge_group', GITHUB_STEP_SUMMARY: summary,
+      ...goodResults,
+      EVENT_NAME: 'merge_group',
+      GITHUB_STEP_SUMMARY: summary,
     });
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('Unsupported security workflow event');

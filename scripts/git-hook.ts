@@ -26,10 +26,11 @@ function run(): void {
   const hook = process.argv[2];
   let error: string | undefined;
   if (hook === 'pre-commit') {
-    const branch = spawnSync('git', ['symbolic-ref', '--quiet', '--short', 'HEAD'], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).stdout?.trim() ?? '';
+    const branch =
+      spawnSync('git', ['symbolic-ref', '--quiet', '--short', 'HEAD'], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).stdout?.trim() ?? '';
     error = preCommitError(branch);
   } else if (hook === 'pre-push') {
     error = prePushError(readFileSync(0, 'utf8'));
@@ -43,7 +44,8 @@ function run(): void {
 }
 
 if (
-  process.argv[1] && existsSync(process.argv[1]) &&
+  process.argv[1] &&
+  existsSync(process.argv[1]) &&
   realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1])
 ) {
   run();

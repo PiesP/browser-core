@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
 import {
   schedulerPostTask,
   schedulerYield,
@@ -39,7 +39,7 @@ describe('schedulerPostTask', () => {
   it('passes priority and signal to the native scheduler API', async () => {
     const controller = new AbortController();
     const postTask = vi.fn(
-      async (callback: () => string | PromiseLike<string>) => await callback(),
+      async (callback: () => string | PromiseLike<string>) => await callback()
     );
     vi.stubGlobal('scheduler', { postTask });
 
@@ -47,7 +47,7 @@ describe('schedulerPostTask', () => {
       schedulerPostTask(async () => 'done', {
         priority: 'user-blocking',
         signal: controller.signal,
-      }),
+      })
     ).resolves.toBe('done');
     expect(postTask).toHaveBeenCalledWith(expect.any(Function), {
       priority: 'user-blocking',
@@ -75,7 +75,7 @@ describe('schedulerPostTask', () => {
     controller.abort(reason);
 
     await expect(
-      schedulerPostTask(() => 'unreachable', { signal: controller.signal }),
+      schedulerPostTask(() => 'unreachable', { signal: controller.signal })
     ).rejects.toBe(reason);
   });
 
@@ -85,7 +85,7 @@ describe('schedulerPostTask', () => {
     controller.abort(null);
 
     await expect(
-      schedulerPostTask(() => 'unreachable', { signal: controller.signal }),
+      schedulerPostTask(() => 'unreachable', { signal: controller.signal })
     ).rejects.toBeNull();
   });
 

@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 
 const script = resolve('automation/actions/setup-project/resolve-runtime.mjs');
 
@@ -43,21 +43,21 @@ describe('official runtime selection', () => {
     expect(run(undefined, '22')).toBe('version=22\n');
   });
 
-  it.each([undefined, 26, '26', 'latest', '26.9.0\nextra=value']) (
+  it.each([undefined, 26, '26', 'latest', '26.9.0\nextra=value'])(
     'rejects a missing, moving, or malformed official pin: %s',
-    (pin) => expect(() => run(pin)).toThrow(),
+    (pin) => expect(() => run(pin)).toThrow()
   );
 
-  it.each(['latest', 'node@26', '26\nextra=value', 'https://example.com']) (
+  it.each(['latest', 'node@26', '26\nextra=value', 'https://example.com'])(
     'rejects a nonnumeric compatibility override: %s',
-    (override) => expect(() => run('26.9.0', override)).toThrow(),
+    (override) => expect(() => run('26.9.0', override)).toThrow()
   );
 
-  it.each([undefined, '{invalid json']) (
+  it.each([undefined, '{invalid json'])(
     'fails closed on a missing or invalid consumer manifest: %s',
     (manifest) => {
       expect(() => runManifest(manifest)).toThrow();
       expect(() => runManifest(manifest, '22')).toThrow();
-    },
+    }
   );
 });

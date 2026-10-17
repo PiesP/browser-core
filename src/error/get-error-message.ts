@@ -4,16 +4,10 @@
  * instances and may expose the native exception through `what` or
  * `description` instead of `message`.
  */
-function getErrorProperty(
-  error: object,
-  key: string,
-  allowEmpty = false
-): string | undefined {
+function getErrorProperty(error: object, key: string, allowEmpty = false): string | undefined {
   try {
     const value = Reflect.get(error, key) as unknown;
-    return typeof value === 'string' && (allowEmpty || value.length > 0)
-      ? value
-      : undefined;
+    return typeof value === 'string' && (allowEmpty || value.length > 0) ? value : undefined;
   } catch {
     return undefined;
   }

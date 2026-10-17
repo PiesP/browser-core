@@ -1,5 +1,16 @@
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, chmodSync, closeSync, fstatSync, openSync, readSync, realpathSync, statSync, unlinkSync, mkdirSync } from 'node:fs';
+import {
+  appendFileSync,
+  chmodSync,
+  closeSync,
+  fstatSync,
+  openSync,
+  readSync,
+  realpathSync,
+  statSync,
+  unlinkSync,
+  mkdirSync,
+} from 'node:fs';
 import { constants } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,8 +31,9 @@ function resultDirectory(): string {
 }
 
 function removeStaleFile(path: string): void {
-  try { unlinkSync(path); }
-  catch (error) {
+  try {
+    unlinkSync(path);
+  } catch (error) {
     if (!(error instanceof Error) || !('code' in error) || error.code !== 'ENOENT') throw error;
   }
 }
@@ -51,22 +63,31 @@ function scan(mode: Scan): number {
   const resultPath = join(directory, resultName);
   removeStaleFile(resultPath);
   const status = docker([
-    'run', '--rm',
-    '--env', 'GOTOOLCHAIN=auto',
-    '--volume', `${requiredEnv('GITHUB_WORKSPACE')}:/src`,
-    '--volume', `${directory}:/results`,
-    '--workdir', '/src',
+    'run',
+    '--rm',
+    '--env',
+    'GOTOOLCHAIN=auto',
+    '--volume',
+    `${requiredEnv('GITHUB_WORKSPACE')}:/src`,
+    '--volume',
+    `${directory}:/results`,
+    '--workdir',
+    '/src',
     requiredEnv('OSV_SCANNER_IMAGE'),
-    '--format=json', `--output-file=/results/${resultName}`,
-    '-r', '--lockfile=pnpm-lock.yaml', '.',
+    '--format=json',
+    `--output-file=/results/${resultName}`,
+    '-r',
+    '--lockfile=pnpm-lock.yaml',
+    '.',
   ]);
   if (status > 1) {
     console.error(`OSV scanner failed before producing a result (exit ${status}).`);
     return status;
   }
   let details;
-  try { details = statSync(resultPath); }
-  catch (error) {
+  try {
+    details = statSync(resultPath);
+  } catch (error) {
     if (!(error instanceof Error) || !('code' in error) || error.code !== 'ENOENT') throw error;
     throw new Error(`OSV scanner did not create a non-empty result: ${resultPath}`);
   }
@@ -78,12 +99,19 @@ function scan(mode: Scan): number {
 }
 
 function reporterArguments(mode: Report, preflight: boolean, directory: string): string[] {
-  const inputs = mode === 'pr'
-    ? ['--old=old-results.json', '--new=new-results.json']
-    : ['--new=osv-results.json'];
+  const inputs =
+    mode === 'pr'
+      ? ['--old=old-results.json', '--new=new-results.json']
+      : ['--new=osv-results.json'];
   const common = [
-    'run', '--rm', '--entrypoint', '/root/osv-reporter',
-    '--volume', `${directory}:/results`, '--workdir', '/results',
+    'run',
+    '--rm',
+    '--entrypoint',
+    '/root/osv-reporter',
+    '--volume',
+    `${directory}:/results`,
+    '--workdir',
+    '/results',
     requiredEnv('OSV_SCANNER_IMAGE'),
   ];
   if (preflight) {
@@ -91,8 +119,11 @@ function reporterArguments(mode: Report, preflight: boolean, directory: string):
   }
   if (mode === 'pr') {
     return [
-      ...common, ...inputs, '--output-files=sarif:osv-results.sarif',
-      '--output-files=gh-annotations:#stderr', '--fail-on-vuln=true',
+      ...common,
+      ...inputs,
+      '--output-files=sarif:osv-results.sarif',
+      '--output-files=gh-annotations:#stderr',
+      '--fail-on-vuln=true',
     ];
   }
   return [...common, '--output-files=sarif:osv-results.sarif', ...inputs, '--fail-on-vuln=true'];
@@ -115,8 +146,9 @@ function report(mode: Report): number {
       position += count;
     }
     log = buffer.toString('utf8');
+  } finally {
+    closeSync(descriptor);
   }
-  finally { closeSync(descriptor); }
   const noun = mode === 'pr' ? 'inputs' : 'input';
   if (validationStatus !== 0) {
     process.stderr.write(log);
@@ -137,27 +169,37 @@ function summarize(): number {
   const full = process.env.OSV_FULL_RESULT ?? '';
   const codeql = process.env.CODEQL_RESULT ?? '';
   const semgrep = process.env.SEMGREP_RESULT ?? '';
-  appendFileSync(requiredEnv('GITHUB_STEP_SUMMARY'), [
-    '## Security scan results', '',
-    '| Check | Result |', '| --- | --- |',
-    `| OSV PR diff | ${pr} |`,
-    `| OSV full | ${full} |`,
-    `| CodeQL | ${codeql} |`,
-    `| Semgrep | ${semgrep} |`,
-    '',
-  ].join('\n'));
+  appendFileSync(
+    requiredEnv('GITHUB_STEP_SUMMARY'),
+    [
+      '## Security scan results',
+      '',
+      '| Check | Result |',
+      '| --- | --- |',
+      `| OSV PR diff | ${pr} |`,
+      `| OSV full | ${full} |`,
+      `| CodeQL | ${codeql} |`,
+      `| Semgrep | ${semgrep} |`,
+      '',
+    ].join('\n')
+  );
 
   let failed = false;
-  for (const [label, value] of [['CodeQL', codeql], ['Semgrep', semgrep]]) {
+  for (const [label, value] of [
+    ['CodeQL', codeql],
+    ['Semgrep', semgrep],
+  ]) {
     if (value !== 'success') {
       console.error(`Expected ${label} to succeed for ${event}, got: ${value}`);
       failed = true;
     }
   }
-  const selected = event === 'pull_request'
-    ? ['OSV PR diff', pr] :
-    event === 'push' || event === 'schedule' || event === 'workflow_dispatch'
-      ? ['OSV full', full] : undefined;
+  const selected =
+    event === 'pull_request'
+      ? ['OSV PR diff', pr]
+      : event === 'push' || event === 'schedule' || event === 'workflow_dispatch'
+        ? ['OSV full', full]
+        : undefined;
   if (selected === undefined) {
     console.error(`Unsupported security workflow event: ${event}`);
     failed = true;
@@ -170,15 +212,25 @@ function summarize(): number {
 
 export function main(args: readonly string[]): number {
   try {
-    if (args.length !== 1) throw new Error('Expected one mode: scan-old|scan-new|scan-full|report-pr|report-full|summary');
+    if (args.length !== 1)
+      throw new Error(
+        'Expected one mode: scan-old|scan-new|scan-full|report-pr|report-full|summary'
+      );
     switch (args[0]) {
-      case 'scan-old': return scan('old');
-      case 'scan-new': return scan('new');
-      case 'scan-full': return scan('full');
-      case 'report-pr': return report('pr');
-      case 'report-full': return report('full');
-      case 'summary': return summarize();
-      default: throw new Error(`Unknown security workflow mode: ${args[0]}`);
+      case 'scan-old':
+        return scan('old');
+      case 'scan-new':
+        return scan('new');
+      case 'scan-full':
+        return scan('full');
+      case 'report-pr':
+        return report('pr');
+      case 'report-full':
+        return report('full');
+      case 'summary':
+        return summarize();
+      default:
+        throw new Error(`Unknown security workflow mode: ${args[0]}`);
     }
   } catch (error) {
     console.error(`security-workflow: ${error instanceof Error ? error.message : String(error)}`);
@@ -188,8 +240,11 @@ export function main(args: readonly string[]): number {
 
 function isCliEntry(): boolean {
   if (!process.argv[1]) return false;
-  try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); }
-  catch { return false; }
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
 }
 
 if (isCliEntry()) process.exitCode = main(process.argv.slice(2));

@@ -60,11 +60,9 @@ function resolveFormattingLocale(locale: unknown): ResolvedFormattingLocale {
 function getOrCreateNumberFormat(
   formats: Map<Locale, Intl.NumberFormat>,
   locale: string,
-  options?: Intl.NumberFormatOptions,
+  options?: Intl.NumberFormatOptions
 ): Intl.NumberFormat {
-  const cacheLocale = LOCALE_CODES.includes(locale as Locale)
-    ? (locale as Locale)
-    : null;
+  const cacheLocale = LOCALE_CODES.includes(locale as Locale) ? (locale as Locale) : null;
   if (!cacheLocale) return new Intl.NumberFormat(locale, options);
 
   let numberFormat = formats.get(cacheLocale);
@@ -77,29 +75,17 @@ function getOrCreateNumberFormat(
 
 function getIntegerNumberFormat(locale: string): Intl.NumberFormat {
   integerNumberFormats ??= new Map();
-  return getOrCreateNumberFormat(
-    integerNumberFormats,
-    locale,
-    INTEGER_NUMBER_FORMAT_OPTIONS,
-  );
+  return getOrCreateNumberFormat(integerNumberFormats, locale, INTEGER_NUMBER_FORMAT_OPTIONS);
 }
 
 function getDecimalNumberFormat(locale: string): Intl.NumberFormat {
   decimalNumberFormats ??= new Map();
-  return getOrCreateNumberFormat(
-    decimalNumberFormats,
-    locale,
-    DECIMAL_NUMBER_FORMAT_OPTIONS,
-  );
+  return getOrCreateNumberFormat(decimalNumberFormats, locale, DECIMAL_NUMBER_FORMAT_OPTIONS);
 }
 
 function getFileSizeNumberFormat(locale: string): Intl.NumberFormat {
   fileSizeNumberFormats ??= new Map();
-  return getOrCreateNumberFormat(
-    fileSizeNumberFormats,
-    locale,
-    FILE_SIZE_NUMBER_FORMAT_OPTIONS,
-  );
+  return getOrCreateNumberFormat(fileSizeNumberFormats, locale, FILE_SIZE_NUMBER_FORMAT_OPTIONS);
 }
 
 // ── File size unit labels per locale ──────────────────────────────────────
@@ -136,13 +122,7 @@ export function formatFileSize(bytes: number, locale: Locale): string {
   }
 
   const unitIndex =
-    bytes >= BYTES_PER_KB ** 3
-      ? 3
-      : bytes >= BYTES_PER_KB ** 2
-        ? 2
-        : bytes >= BYTES_PER_KB
-          ? 1
-          : 0;
+    bytes >= BYTES_PER_KB ** 3 ? 3 : bytes >= BYTES_PER_KB ** 2 ? 2 : bytes >= BYTES_PER_KB ? 1 : 0;
   const value = bytes / BYTES_PER_KB ** unitIndex;
   const units = getFileSizeUnits(resolvedLocale.labelLocale);
 

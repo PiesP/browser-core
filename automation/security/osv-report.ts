@@ -34,24 +34,47 @@ export function validateOsvReport(value: JsonValue, profile: OsvProfile): JsonOb
     const source = mapping(result.source, `${resultLocation}.source`);
     string(source.type, `${resultLocation}.source.type`);
     string(source.path, `${resultLocation}.source.path`);
-    for (const [packageIndex, rawPackage] of list(result.packages, `${resultLocation}.packages`).entries()) {
+    for (const [packageIndex, rawPackage] of list(
+      result.packages,
+      `${resultLocation}.packages`
+    ).entries()) {
       const location = `${resultLocation}.packages[${packageIndex}]`;
       const packageResult = mapping(rawPackage, location);
       const package_ = mapping(packageResult.package, `${location}.package`);
-      for (const key of ['ecosystem', 'name', 'version']) optionalString(package_[key], `${location}.package.${key}`);
-      for (const [index, rawVulnerability] of list(packageResult.vulnerabilities, `${location}.vulnerabilities`).entries()) {
+      for (const key of ['ecosystem', 'name', 'version'])
+        optionalString(package_[key], `${location}.package.${key}`);
+      for (const [index, rawVulnerability] of list(
+        packageResult.vulnerabilities,
+        `${location}.vulnerabilities`
+      ).entries()) {
         const vulnerabilityLocation = `${location}.vulnerabilities[${index}]`;
         const vulnerability = mapping(rawVulnerability, vulnerabilityLocation);
         string(vulnerability.id, `${vulnerabilityLocation}.id`);
         if (profile === 'overlay') {
-          for (const key of ['modified', 'published', 'withdrawn', 'summary', 'details', 'schema_version']) {
+          for (const key of [
+            'modified',
+            'published',
+            'withdrawn',
+            'summary',
+            'details',
+            'schema_version',
+          ]) {
             optionalString(vulnerability[key], `${vulnerabilityLocation}.${key}`);
           }
-          for (const key of ['aliases', 'related', 'affected', 'references', 'severity', 'credits']) {
-            if (Object.hasOwn(vulnerability, key)) list(vulnerability[key], `${vulnerabilityLocation}.${key}`);
+          for (const key of [
+            'aliases',
+            'related',
+            'affected',
+            'references',
+            'severity',
+            'credits',
+          ]) {
+            if (Object.hasOwn(vulnerability, key))
+              list(vulnerability[key], `${vulnerabilityLocation}.${key}`);
           }
           for (const key of ['database_specific', 'ecosystem_specific']) {
-            if (Object.hasOwn(vulnerability, key)) mapping(vulnerability[key], `${vulnerabilityLocation}.${key}`);
+            if (Object.hasOwn(vulnerability, key))
+              mapping(vulnerability[key], `${vulnerabilityLocation}.${key}`);
           }
         }
       }
@@ -59,10 +82,12 @@ export function validateOsvReport(value: JsonValue, profile: OsvProfile): JsonOb
         const groupLocation = `${location}.groups[${index}]`;
         const group = mapping(rawGroup, groupLocation);
         const ids = list(group.ids, `${groupLocation}.ids`);
-        if (ids.length === 0) throw new TypeError(`${groupLocation}.ids must contain non-empty strings`);
+        if (ids.length === 0)
+          throw new TypeError(`${groupLocation}.ids must contain non-empty strings`);
         for (const id of ids) string(id, `${groupLocation}.ids`);
         if (group.aliases !== undefined && group.aliases !== null) {
-          for (const alias of list(group.aliases, `${groupLocation}.aliases`)) string(alias, `${groupLocation}.alias`);
+          for (const alias of list(group.aliases, `${groupLocation}.aliases`))
+            string(alias, `${groupLocation}.alias`);
         }
       }
     }

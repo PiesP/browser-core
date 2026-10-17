@@ -64,14 +64,14 @@ adapters own the visible labels, DOM roles, focus, lifecycle transitions, and
 localized number formatting. No common UI component or identical state names
 are required.
 
-| Expectation | Shared coverage | Consumer responsibility |
-| --- | --- | --- |
-| Unknown versus known progress | `running` accepts `progress: null`; `getOperationProgressRatio` validates finite bounds and clamps overruns. | Omit `aria-valuenow` for unknown work; retain genuine 0% and show ETA only from measured data. |
-| Busy versus terminal | Presentation and type guards depend on status, including running at 0% and 100%. | Keep finalization busy; enter success only when the operation actually finishes. |
-| Cancellation request versus cleanup | A pending operation can remain `running` with `progress: null`. | Display the product's cancellation message while awaiting owned-resource cleanup; enter `cancelled` only afterwards. |
-| Browser handoff versus disk completion | Core does not observe browser downloads or disk writes. | Describe a successful handoff as a handoff; do not claim the file has been saved. |
-| Collection position versus operation progress | Operation progress describes work, not a media index. | Give the current item a localized collection-position description, using the same item as navigation and download. |
-| Selection, focus, proposed change | These independent meanings belong to the interaction contract above. | Render each meaning separately; retain selected state with hover/focus and explain pending changes in text. |
+| Expectation                                   | Shared coverage                                                                                              | Consumer responsibility                                                                                              |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| Unknown versus known progress                 | `running` accepts `progress: null`; `getOperationProgressRatio` validates finite bounds and clamps overruns. | Omit `aria-valuenow` for unknown work; retain genuine 0% and show ETA only from measured data.                       |
+| Busy versus terminal                          | Presentation and type guards depend on status, including running at 0% and 100%.                             | Keep finalization busy; enter success only when the operation actually finishes.                                     |
+| Cancellation request versus cleanup           | A pending operation can remain `running` with `progress: null`.                                              | Display the product's cancellation message while awaiting owned-resource cleanup; enter `cancelled` only afterwards. |
+| Browser handoff versus disk completion        | Core does not observe browser downloads or disk writes.                                                      | Describe a successful handoff as a handoff; do not claim the file has been saved.                                    |
+| Collection position versus operation progress | Operation progress describes work, not a media index.                                                        | Give the current item a localized collection-position description, using the same item as navigation and download.   |
+| Selection, focus, proposed change             | These independent meanings belong to the interaction contract above.                                         | Render each meaning separately; retain selected state with hover/focus and explain pending changes in text.          |
 
 [`operation-state.test.ts`](../test/design/operation-state.test.ts) checks unknown
 progress, lifecycle presentation, and numeric boundaries.

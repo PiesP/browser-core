@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { cx } from '../../src/util/cx.js';
 
 describe('cx', () => {
@@ -12,6 +12,7 @@ describe('cx', () => {
   });
 
   it('ignores falsy values', () => {
+    // oxlint-disable-next-line no-constant-binary-expression -- Exercise a conditional class expression.
     expect(cx('foo', false && 'bar')).toBe('foo');
     expect(cx('foo', null, undefined, false, 0, '')).toBe('foo');
     expect(cx(null, undefined, false, 0, '')).toBe('');

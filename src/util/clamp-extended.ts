@@ -20,12 +20,7 @@ import { clamp } from './clamp.js';
  * clampSoft(-16, 0, 100, 15); // 0 (snapped)
  * ```
  */
-export function clampSoft(
-  value: number,
-  min: number,
-  max: number,
-  tolerance: number,
-): number {
+export function clampSoft(value: number, min: number, max: number, tolerance: number): number {
   if (value < min - tolerance) return min;
   if (value > max + tolerance) return max;
   return value;
@@ -47,11 +42,7 @@ export function clampSoft(
  * // v = 100, clamped = true
  * ```
  */
-export function clampMinmax(
-  value: number,
-  min: number,
-  max: number,
-): [number, boolean] {
+export function clampMinmax(value: number, min: number, max: number): [number, boolean] {
   const clamped = clamp(value, min, max);
   return [clamped, clamped !== value];
 }

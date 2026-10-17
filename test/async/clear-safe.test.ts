@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vite-plus/test';
 import {
   clearSafeTimeout,
   clearSafeInterval,
@@ -49,7 +49,10 @@ describe('clearSafeAnimationFrame', () => {
 
   it('returns null after clearing a valid animation frame', () => {
     const cancelSpy = vi.fn();
-    vi.stubGlobal('requestAnimationFrame', vi.fn(() => 42));
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      vi.fn(() => 42)
+    );
     vi.stubGlobal('cancelAnimationFrame', cancelSpy);
 
     const id = requestAnimationFrame(() => {});
@@ -62,7 +65,10 @@ describe('clearSafeAnimationFrame', () => {
 
   it('does not throw for an already-cleared animation frame', () => {
     const cancelSpy = vi.fn();
-    vi.stubGlobal('requestAnimationFrame', vi.fn(() => 42));
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      vi.fn(() => 42)
+    );
     vi.stubGlobal('cancelAnimationFrame', cancelSpy);
 
     const id = requestAnimationFrame(() => {});
@@ -98,11 +104,16 @@ describe('clearSafeTimer', () => {
 
   it('clears a valid animation frame', () => {
     const cancelSpy = vi.fn();
-    vi.stubGlobal('requestAnimationFrame', vi.fn(() => 42));
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      vi.fn(() => 42)
+    );
     vi.stubGlobal('cancelAnimationFrame', cancelSpy);
 
     const id = requestAnimationFrame(() => {});
-    expect(clearSafeTimer('animation-frame', id as unknown as ReturnType<typeof setTimeout>)).toBeNull();
+    expect(
+      clearSafeTimer('animation-frame', id as unknown as ReturnType<typeof setTimeout>)
+    ).toBeNull();
     expect(cancelSpy).toHaveBeenCalledWith(42);
 
     vi.unstubAllGlobals();
@@ -118,13 +129,16 @@ describe('clearSafeTimer', () => {
     expect(() => clearSafeTimer('interval', intervalId)).not.toThrow();
 
     const cancelSpy = vi.fn();
-    vi.stubGlobal('requestAnimationFrame', vi.fn(() => 42));
+    vi.stubGlobal(
+      'requestAnimationFrame',
+      vi.fn(() => 42)
+    );
     vi.stubGlobal('cancelAnimationFrame', cancelSpy);
 
     const rafId = requestAnimationFrame(() => {});
     cancelAnimationFrame(rafId);
     expect(() =>
-      clearSafeTimer('animation-frame', rafId as unknown as ReturnType<typeof setTimeout>),
+      clearSafeTimer('animation-frame', rafId as unknown as ReturnType<typeof setTimeout>)
     ).not.toThrow();
 
     vi.unstubAllGlobals();

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vite-plus/test';
 import { ResizableByteLimitedCache } from '../../src/util/resizable-byte-limited-cache.js';
 
 function estimateSize(value: string): number {
@@ -22,17 +22,20 @@ describe('ResizableByteLimitedCache', () => {
     expect(cache.currentBytes).toBe(11);
   });
 
-  it.each(['get', 'touch'] as const)('promotes entries with %s before byte-limit eviction', (access) => {
-    cache.set('a', 'a'.repeat(40));
-    cache.set('b', 'b'.repeat(40));
-    cache[access]('a');
-    cache.set('c', 'c'.repeat(40));
+  it.each(['get', 'touch'] as const)(
+    'promotes entries with %s before byte-limit eviction',
+    (access) => {
+      cache.set('a', 'a'.repeat(40));
+      cache.set('b', 'b'.repeat(40));
+      cache[access]('a');
+      cache.set('c', 'c'.repeat(40));
 
-    expect(cache.has('a')).toBe(true);
-    expect(cache.has('b')).toBe(false);
-    expect(cache.has('c')).toBe(true);
-    expect(cache.currentBytes).toBe(84);
-  });
+      expect(cache.has('a')).toBe(true);
+      expect(cache.has('b')).toBe(false);
+      expect(cache.has('c')).toBe(true);
+      expect(cache.currentBytes).toBe(84);
+    }
+  );
 
   it('leaves accounting and recency unchanged for lookups and missing-key operations', () => {
     cache.set('a', 'a'.repeat(40));
@@ -55,10 +58,8 @@ describe('ResizableByteLimitedCache', () => {
 
   it('releases the previous value when replacing an entry', () => {
     const evicted: string[] = [];
-    const replacementCache = new ResizableByteLimitedCache<string>(
-      100,
-      estimateSize,
-      (value) => evicted.push(value),
+    const replacementCache = new ResizableByteLimitedCache<string>(100, estimateSize, (value) =>
+      evicted.push(value)
     );
     replacementCache.set('key', 'old');
 
@@ -73,7 +74,9 @@ describe('ResizableByteLimitedCache', () => {
     const resourceCache = new ResizableByteLimitedCache(
       1024,
       (value: typeof resource) => value.bytes,
-      (value) => { value.cleanupCalls++; },
+      (value) => {
+        value.cleanupCalls++;
+      }
     );
 
     resourceCache.set('image', resource);
@@ -88,7 +91,9 @@ describe('ResizableByteLimitedCache', () => {
     const resourceCache = new ResizableByteLimitedCache(
       1024,
       (value: typeof resource) => value.bytes,
-      (value) => { value.cleanupCalls++; },
+      (value) => {
+        value.cleanupCalls++;
+      }
     );
     resourceCache.set('image', resource);
 
@@ -108,8 +113,13 @@ describe('ResizableByteLimitedCache', () => {
       let estimates = 0;
       const resourceCache = new ResizableByteLimitedCache(
         1024,
-        (value: typeof resource) => { estimates++; return value.bytes; },
-        (value) => { value.cleanupCalls++; },
+        (value: typeof resource) => {
+          estimates++;
+          return value.bytes;
+        },
+        (value) => {
+          value.cleanupCalls++;
+        }
       );
       resourceCache.set('image', resource);
       resource.bytes = updatedBytes;
@@ -118,7 +128,7 @@ describe('ResizableByteLimitedCache', () => {
       expect(estimates).toBe(1);
       expect(resourceCache.currentBytes).toBe(26);
       expect(resource.cleanupCalls).toBe(0);
-    },
+    }
   );
 
   it('promotes same-reference re-registration before entry-limit eviction', () => {
@@ -128,8 +138,10 @@ describe('ResizableByteLimitedCache', () => {
     const resourceCache = new ResizableByteLimitedCache(
       1024,
       (value: typeof first) => value.bytes,
-      (value) => { value.cleanupCalls++; },
-      2,
+      (value) => {
+        value.cleanupCalls++;
+      },
+      2
     );
     resourceCache.set('first', first);
     resourceCache.set('second', second);
@@ -150,8 +162,13 @@ describe('ResizableByteLimitedCache', () => {
     let estimates = 0;
     const resourceCache = new ResizableByteLimitedCache(
       1024,
-      (value: typeof first) => { estimates++; return value.bytes; },
-      (value) => { value.cleanupCalls++; },
+      (value: typeof first) => {
+        estimates++;
+        return value.bytes;
+      },
+      (value) => {
+        value.cleanupCalls++;
+      }
     );
     resourceCache.set('', first);
     resourceCache.set('second', second);
@@ -173,7 +190,9 @@ describe('ResizableByteLimitedCache', () => {
       const resourceCache = new ResizableByteLimitedCache(
         1024,
         (value: typeof resource) => value.bytes,
-        (value) => { value.cleanupCalls++; },
+        (value) => {
+          value.cleanupCalls++;
+        }
       );
       resourceCache.set('image', resource);
       expect(resourceCache.take('image')).toBe(resource);
@@ -190,7 +209,7 @@ describe('ResizableByteLimitedCache', () => {
         expect(resourceCache.set('new', resource)).toBe(updatedBytes === 16);
         expect(resource.cleanupCalls).toBe(updatedBytes === 16 ? 0 : 1);
       }
-    },
+    }
   );
 
   it.each(['delete', 'evict', 'resize', 'clear'] as const)(
@@ -201,8 +220,10 @@ describe('ResizableByteLimitedCache', () => {
       const resourceCache = new ResizableByteLimitedCache(
         1024,
         (value: typeof resource) => value.bytes,
-        (value) => { value.cleanupCalls++; },
-        1,
+        (value) => {
+          value.cleanupCalls++;
+        },
+        1
       );
       resourceCache.set('image', resource);
       if (removal === 'delete') resourceCache.delete('image');
@@ -214,7 +235,7 @@ describe('ResizableByteLimitedCache', () => {
       expect(resource.cleanupCalls).toBe(1);
       expect(resourceCache.size).toBe(0);
       expect(resourceCache.currentBytes).toBe(0);
-    },
+    }
   );
 
   it('preserves distinct resource replacement and oversized rejection ownership', () => {
@@ -224,7 +245,9 @@ describe('ResizableByteLimitedCache', () => {
     const resourceCache = new ResizableByteLimitedCache(
       1024,
       (value: typeof first) => value.bytes,
-      (value) => { value.cleanupCalls++; },
+      (value) => {
+        value.cleanupCalls++;
+      }
     );
     resourceCache.set('image', first);
     expect(resourceCache.set('image', replacement)).toBe(true);
@@ -244,7 +267,9 @@ describe('ResizableByteLimitedCache', () => {
     const resourceCache = new ResizableByteLimitedCache(
       1024,
       (value: typeof first) => value.bytes,
-      () => { throw failure; },
+      () => {
+        throw failure;
+      }
     );
     resourceCache.set('image', first);
     expect(() => resourceCache.set('image', incoming)).toThrow(failure);
@@ -271,7 +296,7 @@ describe('ResizableByteLimitedCache', () => {
           resourceCache.set('fresh', fresh);
           throw new Error('first cleanup failed');
         }
-      },
+      }
     );
     resourceCache.set('first', first);
     resourceCache.set('second', second);
@@ -296,7 +321,7 @@ describe('ResizableByteLimitedCache', () => {
       (value) => {
         cleaned.push(value);
         if (value === first) resourceCache.set('image', nested);
-      },
+      }
     );
     resourceCache.set('image', first);
     resourceCache.set('image', incoming);
@@ -316,7 +341,7 @@ describe('ResizableByteLimitedCache', () => {
         cleanupCalls++;
         resourceCache.resize(1024);
         expect(() => resourceCache.set('again', value)).toThrow(/awaiting/);
-      },
+      }
     );
     expect(resourceCache.set('image', resource)).toBe(false);
     expect(cleanupCalls).toBe(1);
@@ -326,7 +351,13 @@ describe('ResizableByteLimitedCache', () => {
   it('applies exclusive ownership to function resources', () => {
     const resource = (): void => undefined;
     let cleanupCalls = 0;
-    const resourceCache = new ResizableByteLimitedCache(1024, () => 16, () => { cleanupCalls++; });
+    const resourceCache = new ResizableByteLimitedCache(
+      1024,
+      () => 16,
+      () => {
+        cleanupCalls++;
+      }
+    );
     resourceCache.set('image', resource);
     resourceCache.set('image', resource);
     expect(() => resourceCache.set('alias', resource)).toThrow(/already owned/);
@@ -335,17 +366,26 @@ describe('ResizableByteLimitedCache', () => {
     expect(cleanupCalls).toBe(1);
   });
 
-  it.each(['repeat', null, 0, false])('preserves repeated primitive value %s with cleanup', (value) => {
-    const cleaned: unknown[] = [];
-    const valueCache = new ResizableByteLimitedCache(1024, () => 1, (entry) => { cleaned.push(entry); });
-    valueCache.set('a', value);
-    valueCache.set('a', value);
-    valueCache.set('b', value);
-    expect(valueCache.size).toBe(2);
-    expect(cleaned).toEqual([value]);
-    valueCache.clear();
-    expect(cleaned).toEqual([value, value, value]);
-  });
+  it.each(['repeat', null, 0, false])(
+    'preserves repeated primitive value %s with cleanup',
+    (value) => {
+      const cleaned: unknown[] = [];
+      const valueCache = new ResizableByteLimitedCache(
+        1024,
+        () => 1,
+        (entry) => {
+          cleaned.push(entry);
+        }
+      );
+      valueCache.set('a', value);
+      valueCache.set('a', value);
+      valueCache.set('b', value);
+      expect(valueCache.size).toBe(2);
+      expect(cleaned).toEqual([value]);
+      valueCache.clear();
+      expect(cleaned).toEqual([value, value, value]);
+    }
+  );
 
   it('allows object aliases and refreshes estimates without a cleanup callback', () => {
     const resource = { bytes: 16 };
@@ -362,10 +402,8 @@ describe('ResizableByteLimitedCache', () => {
 
   it('rejects a value that cannot fit and releases it', () => {
     const evicted: string[] = [];
-    const limitedCache = new ResizableByteLimitedCache<string>(
-      13,
-      estimateSize,
-      (value) => evicted.push(value),
+    const limitedCache = new ResizableByteLimitedCache<string>(13, estimateSize, (value) =>
+      evicted.push(value)
     );
 
     expect(limitedCache.set('large', 'too large')).toBe(false);
@@ -376,10 +414,8 @@ describe('ResizableByteLimitedCache', () => {
 
   it('rejects an oversized value without evicting existing entries', () => {
     const evicted: string[] = [];
-    const limitedCache = new ResizableByteLimitedCache<string>(
-      13,
-      estimateSize,
-      (value) => evicted.push(value),
+    const limitedCache = new ResizableByteLimitedCache<string>(13, estimateSize, (value) =>
+      evicted.push(value)
     );
     limitedCache.set('small', 'old');
 
@@ -391,10 +427,8 @@ describe('ResizableByteLimitedCache', () => {
 
   it('keeps an existing value when its oversized replacement is rejected', () => {
     const evicted: string[] = [];
-    const limitedCache = new ResizableByteLimitedCache<string>(
-      9,
-      estimateSize,
-      (value) => evicted.push(value),
+    const limitedCache = new ResizableByteLimitedCache<string>(9, estimateSize, (value) =>
+      evicted.push(value)
     );
     limitedCache.set('key', 'old');
 
@@ -407,27 +441,28 @@ describe('ResizableByteLimitedCache', () => {
   it.each([
     { maxEntries: 2, expectedSize: 2, retainsOldest: false },
     { maxEntries: Number.POSITIVE_INFINITY, expectedSize: 3, retainsOldest: true },
-  ])('enforces an optional entry limit of $maxEntries', ({ maxEntries, expectedSize, retainsOldest }) => {
-    const limitedCache = new ResizableByteLimitedCache<string>(
-      100,
-      estimateSize,
-      undefined,
-      maxEntries,
-    );
-    limitedCache.set('a', '1');
-    limitedCache.set('b', '2');
-    limitedCache.set('c', '3');
+  ])(
+    'enforces an optional entry limit of $maxEntries',
+    ({ maxEntries, expectedSize, retainsOldest }) => {
+      const limitedCache = new ResizableByteLimitedCache<string>(
+        100,
+        estimateSize,
+        undefined,
+        maxEntries
+      );
+      limitedCache.set('a', '1');
+      limitedCache.set('b', '2');
+      limitedCache.set('c', '3');
 
-    expect(limitedCache.size).toBe(expectedSize);
-    expect(limitedCache.has('a')).toBe(retainsOldest);
-  });
+      expect(limitedCache.size).toBe(expectedSize);
+      expect(limitedCache.has('a')).toBe(retainsOldest);
+    }
+  );
 
   it('shrinks at runtime and evicts the oldest entries', () => {
     const evicted: string[] = [];
-    const resizableCache = new ResizableByteLimitedCache<string>(
-      100,
-      estimateSize,
-      (value) => evicted.push(value),
+    const resizableCache = new ResizableByteLimitedCache<string>(100, estimateSize, (value) =>
+      evicted.push(value)
     );
     resizableCache.set('a', 'a'.repeat(40));
     resizableCache.set('b', 'b'.repeat(40));
@@ -442,10 +477,8 @@ describe('ResizableByteLimitedCache', () => {
 
   it('retains values and their recency when the byte budget grows', () => {
     const evicted: string[] = [];
-    const growingCache = new ResizableByteLimitedCache<string>(
-      100,
-      estimateSize,
-      (value) => evicted.push(value),
+    const growingCache = new ResizableByteLimitedCache<string>(100, estimateSize, (value) =>
+      evicted.push(value)
     );
     growingCache.set('a', 'a'.repeat(40));
     growingCache.set('b', 'b'.repeat(40));
@@ -468,10 +501,8 @@ describe('ResizableByteLimitedCache', () => {
 
   it('transfers ownership with take without invoking cleanup', () => {
     const evicted: string[] = [];
-    const ownedCache = new ResizableByteLimitedCache<string>(
-      100,
-      estimateSize,
-      (value) => evicted.push(value),
+    const ownedCache = new ResizableByteLimitedCache<string>(100, estimateSize, (value) =>
+      evicted.push(value)
     );
     ownedCache.set('key', 'value');
 
@@ -483,14 +514,10 @@ describe('ResizableByteLimitedCache', () => {
   it('clears state before invoking cleanup callbacks', () => {
     let callbackSize = -1;
     const evicted: string[] = [];
-    const clearedCache = new ResizableByteLimitedCache<string>(
-      100,
-      estimateSize,
-      (value) => {
-        callbackSize = clearedCache.size;
-        evicted.push(value);
-      },
-    );
+    const clearedCache = new ResizableByteLimitedCache<string>(100, estimateSize, (value) => {
+      callbackSize = clearedCache.size;
+      evicted.push(value);
+    });
     clearedCache.set('a', 'one');
     clearedCache.set('b', 'two');
 
@@ -505,13 +532,9 @@ describe('ResizableByteLimitedCache', () => {
 
   it('removes state before invoking a re-entrant deletion callback', () => {
     let callbackSawEntry = true;
-    const deletionCache = new ResizableByteLimitedCache<string>(
-      100,
-      estimateSize,
-      () => {
-        callbackSawEntry = deletionCache.has('key');
-      },
-    );
+    const deletionCache = new ResizableByteLimitedCache<string>(100, estimateSize, () => {
+      callbackSawEntry = deletionCache.has('key');
+    });
     deletionCache.set('key', 'value');
 
     expect(deletionCache.delete('key')).toBe(true);
@@ -569,7 +592,7 @@ describe('ResizableByteLimitedCache', () => {
       (value) => value.bytes,
       (value) => {
         value.bytes = 0;
-      },
+      }
     );
 
     mutationCache.set('first', first);
@@ -595,10 +618,8 @@ describe('ResizableByteLimitedCache', () => {
 
   it('rejects an oversized key without disturbing existing entries', () => {
     const evicted: string[] = [];
-    const limitedCache = new ResizableByteLimitedCache<string>(
-      10,
-      estimateSize,
-      (value) => evicted.push(value),
+    const limitedCache = new ResizableByteLimitedCache<string>(10, estimateSize, (value) =>
+      evicted.push(value)
     );
     limitedCache.set('a', '1234');
 
@@ -612,7 +633,7 @@ describe('ResizableByteLimitedCache', () => {
   it('rejects a derived entry cost outside the safe-integer range', () => {
     const limitedCache = new ResizableByteLimitedCache<string>(
       Number.MAX_SAFE_INTEGER,
-      () => Number.MAX_SAFE_INTEGER,
+      () => Number.MAX_SAFE_INTEGER
     );
 
     expect(limitedCache.set('a', 'value')).toBe(false);
@@ -621,7 +642,7 @@ describe('ResizableByteLimitedCache', () => {
   });
 
   it.each([
-    { label: 'object', key: { length: 0, retained: new Array(1_000).fill('value') } },
+    { label: 'object', key: { length: 0, retained: Array.from({ length: 1_000 }, () => 'value') } },
     { label: 'boxed string', key: new String('key') },
     { label: 'function', key: (): void => undefined },
   ])('rejects a non-string runtime $label key before mutation', ({ key }) => {
@@ -633,11 +654,11 @@ describe('ResizableByteLimitedCache', () => {
         estimateCalls++;
         return estimateSize(value);
       },
-      (value) => evicted.push(value),
+      (value) => evicted.push(value)
     );
     const setWithUnknownKey = limitedCache.set.bind(limitedCache) as (
       unsafeKey: unknown,
-      value: string,
+      value: string
     ) => boolean;
 
     expect(() => setWithUnknownKey(key, 'value')).toThrow(TypeError);
@@ -654,21 +675,18 @@ describe('ResizableByteLimitedCache', () => {
     Number.MAX_VALUE,
     Number.POSITIVE_INFINITY,
     Number.NaN,
-  ])(
-    'rejects invalid maxBytes %s',
-    (maxBytes) => {
-      expect(() => new ResizableByteLimitedCache(maxBytes, estimateSize)).toThrow(RangeError);
-      expect(() => cache.resize(maxBytes)).toThrow(RangeError);
-    },
-  );
+  ])('rejects invalid maxBytes %s', (maxBytes) => {
+    expect(() => new ResizableByteLimitedCache(maxBytes, estimateSize)).toThrow(RangeError);
+    expect(() => cache.resize(maxBytes)).toThrow(RangeError);
+  });
 
   it.each([-1, Number.NaN, 1.5, Number.MAX_SAFE_INTEGER + 1, Number.MAX_VALUE])(
     'rejects invalid maxEntries %s',
     (maxEntries) => {
-      expect(
-        () => new ResizableByteLimitedCache(100, estimateSize, undefined, maxEntries),
-      ).toThrow(RangeError);
-    },
+      expect(() => new ResizableByteLimitedCache(100, estimateSize, undefined, maxEntries)).toThrow(
+        RangeError
+      );
+    }
   );
 
   it.each([
@@ -678,13 +696,10 @@ describe('ResizableByteLimitedCache', () => {
     Number.MAX_VALUE,
     Number.POSITIVE_INFINITY,
     Number.NaN,
-  ])(
-    'rejects invalid estimated size %s',
-    (estimatedSize) => {
-      const invalidCache = new ResizableByteLimitedCache<string>(100, () => estimatedSize);
+  ])('rejects invalid estimated size %s', (estimatedSize) => {
+    const invalidCache = new ResizableByteLimitedCache<string>(100, () => estimatedSize);
 
-      expect(() => invalidCache.set('key', 'value')).toThrow(RangeError);
-      expect(invalidCache.size).toBe(0);
-    },
-  );
+    expect(() => invalidCache.set('key', 'value')).toThrow(RangeError);
+    expect(invalidCache.size).toBe(0);
+  });
 });

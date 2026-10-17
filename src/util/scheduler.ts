@@ -20,7 +20,8 @@
 export function schedulerYield(): Promise<void> {
   if (
     typeof globalThis.scheduler !== 'undefined' &&
-    typeof (globalThis.scheduler as Scheduler & { yield?: () => Promise<void> }).yield === 'function'
+    typeof (globalThis.scheduler as Scheduler & { yield?: () => Promise<void> }).yield ===
+      'function'
   ) {
     return (globalThis.scheduler as Scheduler & { yield: () => Promise<void> }).yield();
   }
@@ -60,7 +61,7 @@ export interface SchedulerPostTaskOptions {
  */
 export function schedulerPostTask<T = void>(
   callback: () => T | PromiseLike<T>,
-  options: SchedulerPostTaskOptions = {},
+  options: SchedulerPostTaskOptions = {}
 ): Promise<Awaited<T>> {
   const { signal, priority = 'user-visible' } = options;
 
@@ -72,7 +73,7 @@ export function schedulerPostTask<T = void>(
       globalThis.scheduler as Scheduler & {
         postTask: <R>(
           cb: () => R | PromiseLike<R>,
-          opts: { priority?: TaskPriority; signal?: AbortSignal },
+          opts: { priority?: TaskPriority; signal?: AbortSignal }
         ) => Promise<Awaited<R>>;
       }
     ).postTask(callback, { priority, ...(signal ? { signal } : {}) });
@@ -137,11 +138,7 @@ export function schedulerPostTask<T = void>(
  * }
  * ```
  */
-export function yieldIfOverBudget(
-  now: number,
-  lastYield: number,
-  budgetMs = 8,
-): number {
+export function yieldIfOverBudget(now: number, lastYield: number, budgetMs = 8): number {
   if (now - lastYield > budgetMs) {
     return now;
   }
@@ -174,7 +171,7 @@ function getAbortReason(signal: AbortSignal | undefined): unknown {
 export async function yieldIfOverBudgetAsync(
   now: number,
   lastYield: number,
-  budgetMs = 8,
+  budgetMs = 8
 ): Promise<number> {
   if (now - lastYield > budgetMs) {
     await schedulerYield();

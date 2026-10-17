@@ -12,7 +12,11 @@ export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   // Fast path: immediate resolution
   if (ms <= 0) {
     if (signal?.aborted) {
-      return Promise.reject(signal.reason instanceof DOMException ? signal.reason : new DOMException('The operation was aborted.', 'AbortError'));
+      return Promise.reject(
+        signal.reason instanceof DOMException
+          ? signal.reason
+          : new DOMException('The operation was aborted.', 'AbortError')
+      );
     }
     return Promise.resolve();
   }
@@ -20,7 +24,11 @@ export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     // Already aborted — reject immediately
     if (signal?.aborted) {
-      reject(signal.reason instanceof DOMException ? signal.reason : new DOMException('The operation was aborted.', 'AbortError'));
+      reject(
+        signal.reason instanceof DOMException
+          ? signal.reason
+          : new DOMException('The operation was aborted.', 'AbortError')
+      );
       return;
     }
 

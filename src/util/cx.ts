@@ -67,8 +67,7 @@ export function cx(...args: unknown[]): string {
       if (
         !Number.isSafeInteger(arrayLength) ||
         arrayLength < 0 ||
-        processedNodes + pendingValueFrames + arrayLength >
-        MAX_CLASS_VALUE_NODES
+        processedNodes + pendingValueFrames + arrayLength > MAX_CLASS_VALUE_NODES
       ) {
         throw new RangeError(`cx input exceeds ${MAX_CLASS_VALUE_NODES} processed values`);
       }

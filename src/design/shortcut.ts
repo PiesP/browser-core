@@ -7,18 +7,14 @@ interface ShortcutTarget {
 }
 
 function toShortcutTarget(target: EventTarget | null): ShortcutTarget | null {
-  return typeof target === 'object' && target !== null
-    ? (target as ShortcutTarget)
-    : null;
+  return typeof target === 'object' && target !== null ? (target as ShortcutTarget) : null;
 }
 
 /**
  * Detects text-entry surfaces without depending on one DOM realm. The closest
  * lookup also covers descendants inside a contenteditable host.
  */
-export function isEditableShortcutTarget(
-  target: EventTarget | null,
-): boolean {
+export function isEditableShortcutTarget(target: EventTarget | null): boolean {
   const candidate = toShortcutTarget(target);
   if (!candidate) return false;
 
@@ -36,10 +32,7 @@ export function isEditableShortcutTarget(
     const contentEditableHost = candidate.closest('[contenteditable]') as {
       readonly getAttribute?: unknown;
     } | null;
-    if (
-      !contentEditableHost ||
-      typeof contentEditableHost.getAttribute !== 'function'
-    ) {
+    if (!contentEditableHost || typeof contentEditableHost.getAttribute !== 'function') {
       return false;
     }
     const value = contentEditableHost.getAttribute('contenteditable');
@@ -59,9 +52,7 @@ export type GlobalShortcutEvent = Pick<
  * each product; this guard prevents interception during IME composition or
  * text entry, including targets reached through a composed event path.
  */
-export function shouldHandleGlobalShortcut(
-  event: GlobalShortcutEvent,
-): boolean {
+export function shouldHandleGlobalShortcut(event: GlobalShortcutEvent): boolean {
   if (event.defaultPrevented || event.isComposing) return false;
 
   let path: EventTarget[] = [];

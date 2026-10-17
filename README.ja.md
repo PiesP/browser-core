@@ -11,18 +11,18 @@ TypeScript を処理できるワークスペースのバンドラーが、SHA �
 
 ## API
 
-| インポートパス | 主なエクスポート |
-| --- | --- |
-| `@piesp/browser-core` | すべてのランタイムエクスポート |
-| `@piesp/browser-core/async` | タイマー、デバウンス、タイムアウト、遅延 Promise |
-| `@piesp/browser-core/error` | エラーとキャンセルのヘルパー |
-| `@piesp/browser-core/events` | `MessageBus`、`createEventEmitter` |
-| `@piesp/browser-core/locale` | ロケール検出とフォーマット |
-| `@piesp/browser-core/logging` | ロガー契約とコンソール/no-op 実装 |
-| `@piesp/browser-core/util` | ガード、コレクション、キャッシュ、色、スケジューラーヘルパー |
-| `@piesp/browser-core/design` | Quiet Instruments のトークンと操作契約 |
-| `@piesp/browser-core/design/tokens.css` | `.pp-design` スコープのカスタムプロパティ |
-| `@piesp/browser-core/design/tokens.json` | DTCG デザイントークンのソース |
+| インポートパス                           | 主なエクスポート                                             |
+| ---------------------------------------- | ------------------------------------------------------------ |
+| `@piesp/browser-core`                    | すべてのランタイムエクスポート                               |
+| `@piesp/browser-core/async`              | タイマー、デバウンス、タイムアウト、遅延 Promise             |
+| `@piesp/browser-core/error`              | エラーとキャンセルのヘルパー                                 |
+| `@piesp/browser-core/events`             | `MessageBus`、`createEventEmitter`                           |
+| `@piesp/browser-core/locale`             | ロケール検出とフォーマット                                   |
+| `@piesp/browser-core/logging`            | ロガー契約とコンソール/no-op 実装                            |
+| `@piesp/browser-core/util`               | ガード、コレクション、キャッシュ、色、スケジューラーヘルパー |
+| `@piesp/browser-core/design`             | Quiet Instruments のトークンと操作契約                       |
+| `@piesp/browser-core/design/tokens.css`  | `.pp-design` スコープのカスタムプロパティ                    |
+| `@piesp/browser-core/design/tokens.json` | DTCG デザイントークンのソース                                |
 
 ```ts
 import { sleep } from '@piesp/browser-core/async';

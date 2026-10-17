@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vite-plus/test';
 import { withTimeout } from '../../src/async/with-timeout.js';
 
 describe('withTimeout', () => {
@@ -21,16 +21,14 @@ describe('withTimeout', () => {
 
   it('rejects with custom timeout message', async () => {
     const never = new Promise<number>(() => {});
-    await expect(withTimeout(never, 10, 'Custom timeout')).rejects.toThrow(
-      'Custom timeout',
-    );
+    await expect(withTimeout(never, 10, 'Custom timeout')).rejects.toThrow('Custom timeout');
   });
 
   it('returns a rejected promise if signal is already aborted', async () => {
     const controller = new AbortController();
     controller.abort();
     await expect(
-      withTimeout(Promise.resolve(42), 5000, undefined, undefined, controller.signal),
+      withTimeout(Promise.resolve(42), 5000, undefined, undefined, controller.signal)
     ).rejects.toThrow('aborted');
   });
 
@@ -40,7 +38,7 @@ describe('withTimeout', () => {
     const sourceError = new Error('source rejected first');
 
     await expect(
-      withTimeout(Promise.reject(sourceError), 5000, undefined, undefined, controller.signal),
+      withTimeout(Promise.reject(sourceError), 5000, undefined, undefined, controller.signal)
     ).rejects.toThrow('aborted');
 
     // Give Node a turn to report an unhandled source rejection. Vitest fails
@@ -78,17 +76,12 @@ describe('withTimeout', () => {
     const callbackError = new Error('timeout cleanup failed');
 
     try {
-      const result = withTimeout(
-        new Promise<never>(() => {}),
-        10,
-        undefined,
-        () => {
-          throw callbackError;
-        },
-      );
+      const result = withTimeout(new Promise<never>(() => {}), 10, undefined, () => {
+        throw callbackError;
+      });
       const outcome = result.then(
         () => ({ status: 'resolved' as const }),
-        (reason: unknown) => ({ status: 'rejected' as const, reason }),
+        (reason: unknown) => ({ status: 'rejected' as const, reason })
       );
 
       expect(() => vi.advanceTimersByTime(10)).not.toThrow();
@@ -106,17 +99,12 @@ describe('withTimeout', () => {
     const callbackError = new Error('asynchronous timeout cleanup failed');
 
     try {
-      const result = withTimeout(
-        new Promise<never>(() => {}),
-        10,
-        undefined,
-        async () => {
-          throw callbackError;
-        },
-      );
+      const result = withTimeout(new Promise<never>(() => {}), 10, undefined, async () => {
+        throw callbackError;
+      });
       const outcome = result.then(
         () => ({ status: 'resolved' as const }),
-        (reason: unknown) => ({ status: 'rejected' as const, reason }),
+        (reason: unknown) => ({ status: 'rejected' as const, reason })
       );
 
       await vi.advanceTimersByTimeAsync(10);
@@ -201,7 +189,7 @@ describe('withTimeout', () => {
     const controller = new AbortController();
     controller.abort('just a string');
     await expect(
-      withTimeout(Promise.resolve(42), 5000, undefined, undefined, controller.signal),
+      withTimeout(Promise.resolve(42), 5000, undefined, undefined, controller.signal)
     ).rejects.toThrow('aborted');
   });
 });

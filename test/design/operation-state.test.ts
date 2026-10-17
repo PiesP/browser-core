@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import {
   OPERATION_PRESENTATION,
   getOperationPresentation,
@@ -24,9 +24,7 @@ describe('operation state contract', () => {
       busy: true,
       terminal: false,
     });
-    expect(
-      getOperationPresentation({ status: 'running', progress: null }),
-    ).toMatchObject({
+    expect(getOperationPresentation({ status: 'running', progress: null })).toMatchObject({
       icon: 'activity',
       announcement: 'none',
       busy: true,
@@ -42,7 +40,7 @@ describe('operation state contract', () => {
         status: 'error',
         error: new Error('failed'),
         retryable: true,
-      }),
+      })
     ).toMatchObject({
       tone: 'danger',
       icon: 'alert',
@@ -52,7 +50,7 @@ describe('operation state contract', () => {
     expect(
       Object.entries(OPERATION_PRESENTATION)
         .filter(([, presentation]) => presentation.icon === 'check')
-        .map(([status]) => status),
+        .map(([status]) => status)
     ).toEqual(['success']);
   });
 
@@ -70,9 +68,11 @@ describe('operation state contract', () => {
       'starting',
       'running',
     ]);
-    expect(
-      states.filter(isOperationTerminal).map((state) => state.status),
-    ).toEqual(['success', 'error', 'cancelled']);
+    expect(states.filter(isOperationTerminal).map((state) => state.status)).toEqual([
+      'success',
+      'error',
+      'cancelled',
+    ]);
   });
 
   it('calculates determinate progress without inventing values', () => {
@@ -94,7 +94,7 @@ describe('operation state contract', () => {
         icon: 'activity',
         announcement: 'none',
       });
-    },
+    }
   );
 
   it.each([

@@ -43,7 +43,7 @@ export function clearSafeAnimationFrame(id: number | null): null {
  */
 export function clearSafeTimer(
   type: 'timeout' | 'interval' | 'animation-frame',
-  id: ReturnType<typeof setTimeout> | null,
+  id: ReturnType<typeof setTimeout> | null
 ): null {
   if (id === null) return null;
   switch (type) {

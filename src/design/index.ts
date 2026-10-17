@@ -13,16 +13,9 @@ export {
   isOperationBusy,
   isOperationTerminal,
 } from './operation-state.js';
-export {
-  isEditableShortcutTarget,
-  shouldHandleGlobalShortcut,
-} from './shortcut.js';
+export { isEditableShortcutTarget, shouldHandleGlobalShortcut } from './shortcut.js';
 
-export type {
-  DesignProduct,
-  DesignTheme,
-  QuietInstrumentsTokenPath,
-} from './generated/tokens.js';
+export type { DesignProduct, DesignTheme, QuietInstrumentsTokenPath } from './generated/tokens.js';
 export type { DesignIconSize } from './icon-contract.js';
 export type {
   BusyOperationState,

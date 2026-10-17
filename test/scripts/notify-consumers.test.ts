@@ -1,9 +1,18 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vite-plus/test';
 
 const entry = resolve(import.meta.dirname, '../../scripts/notify-consumers.ts');
 const sha = 'a'.repeat(40);
@@ -23,7 +32,9 @@ function fixture(): { root: string; bin: string; log: string; output: string } {
   const output = join(root, 'github-output');
   mkdirSync(bin);
   const gh = join(bin, 'gh');
-  writeFileSync(gh, `#!/usr/bin/env node
+  writeFileSync(
+    gh,
+    `#!/usr/bin/env node
 const fs = require('node:fs');
 const args = process.argv.slice(2);
 const stdin = fs.readFileSync(0, 'utf8');
@@ -35,7 +46,9 @@ if (process.env.GH_FAIL_AT === kind) {
 }
 if (kind === 'commit') process.stdout.write(process.env.GH_COMMIT_SHA + '\\n');
 if (kind === 'compare') process.stdout.write(process.env.GH_COMPARE_STATUS + '\\n');
-`, { mode: 0o755 });
+`,
+    { mode: 0o755 }
+  );
   chmodSync(gh, 0o755);
   return { root, bin, log, output };
 }
@@ -44,7 +57,7 @@ function run(
   paths: ReturnType<typeof fixture>,
   command: string,
   overrides: Record<string, string> = {},
-  script = entry,
+  script = entry
 ) {
   return spawnSync(process.execPath, [script, command], {
     cwd: paths.root,
@@ -67,7 +80,10 @@ function run(
 
 function calls(log: string): GhCall[] {
   if (!existsSync(log)) return [];
-  return readFileSync(log, 'utf8').trim().split('\n').map((line) => JSON.parse(line) as GhCall);
+  return readFileSync(log, 'utf8')
+    .trim()
+    .split('\n')
+    .map((line) => JSON.parse(line) as GhCall);
 }
 
 afterEach(() => {
@@ -76,37 +92,50 @@ afterEach(() => {
 
 describe('notification CLI', () => {
   it.each(['', 'HEAD', 'A'.repeat(40), 'a'.repeat(39), 'g'.repeat(40)])(
-    'rejects malformed source SHA %j before calling gh', (candidate) => {
+    'rejects malformed source SHA %j before calling gh',
+    (candidate) => {
       const paths = fixture();
       const result = run(paths, 'validate', { CORE_SHA: candidate });
       expect(result.status).toBe(1);
       expect(result.stderr).toContain('core_sha must be a 40-character lowercase commit SHA');
       expect(calls(paths.log)).toEqual([]);
       expect(existsSync(paths.output)).toBe(false);
-    },
+    }
   );
 
-  it.each(['ahead', 'identical'])('accepts %s with exact API arguments and one output', (status) => {
-    const paths = fixture();
-    writeFileSync(paths.output, 'existing=1\n');
-    const result = run(paths, 'validate', { GH_COMPARE_STATUS: status });
-    expect(result.status).toBe(0);
-    expect(readFileSync(paths.output, 'utf8')).toBe(`existing=1\ncore_sha=${sha}\n`);
-    expect(calls(paths.log)).toEqual([
-      { args: ['api', `/repos/PiesP/browser-core/commits/${sha}`, '--jq', '.sha'], stdin: '', token: 'fixture-token' },
-      { args: ['api', `/repos/PiesP/browser-core/compare/${sha}...master`, '--jq', '.status'], stdin: '', token: 'fixture-token' },
-    ]);
-  });
+  it.each(['ahead', 'identical'])(
+    'accepts %s with exact API arguments and one output',
+    (status) => {
+      const paths = fixture();
+      writeFileSync(paths.output, 'existing=1\n');
+      const result = run(paths, 'validate', { GH_COMPARE_STATUS: status });
+      expect(result.status).toBe(0);
+      expect(readFileSync(paths.output, 'utf8')).toBe(`existing=1\ncore_sha=${sha}\n`);
+      expect(calls(paths.log)).toEqual([
+        {
+          args: ['api', `/repos/PiesP/browser-core/commits/${sha}`, '--jq', '.sha'],
+          stdin: '',
+          token: 'fixture-token',
+        },
+        {
+          args: ['api', `/repos/PiesP/browser-core/compare/${sha}...master`, '--jq', '.status'],
+          stdin: '',
+          token: 'fixture-token',
+        },
+      ]);
+    }
+  );
 
   it.each(['b'.repeat(40), ` ${sha}`, `${sha} `])(
-    'rejects a non-identical resolved SHA %j before comparing or writing output', (resolved) => {
+    'rejects a non-identical resolved SHA %j before comparing or writing output',
+    (resolved) => {
       const paths = fixture();
       const result = run(paths, 'validate', { GH_COMMIT_SHA: resolved });
       expect(result.status).toBe(1);
       expect(result.stderr).toContain('core_sha does not resolve to the requested commit');
       expect(calls(paths.log)).toHaveLength(1);
       expect(existsSync(paths.output)).toBe(false);
-    },
+    }
   );
 
   it.each(['behind', 'diverged', 'unknown'])('rejects unreachable compare status %s', (status) => {
@@ -118,7 +147,10 @@ describe('notification CLI', () => {
     expect(existsSync(paths.output)).toBe(false);
   });
 
-  it.each([['commit', 1], ['compare', 2]])('propagates %s API failure', (failure, count) => {
+  it.each([
+    ['commit', 1],
+    ['compare', 2],
+  ])('propagates %s API failure', (failure, count) => {
     const paths = fixture();
     const result = run(paths, 'validate', { GH_FAIL_AT: failure });
     expect(result.status).toBe(23);
@@ -141,14 +173,27 @@ describe('notification CLI', () => {
     const paths = fixture();
     const result = run(paths, 'dispatch');
     expect(result.status).toBe(0);
-    expect(calls(paths.log)).toEqual([{
-      args: ['api', '--method', 'POST', '/repos/PiesP/yt-live-chat-overlay/dispatches', '--input', '-'],
-      stdin: `${JSON.stringify({
-        event_type: 'browser-core-updated',
-        client_payload: { core_repository: 'PiesP/browser-core', core_sha: sha },
-      }, null, 2)}\n`,
-      token: 'fixture-token',
-    }]);
+    expect(calls(paths.log)).toEqual([
+      {
+        args: [
+          'api',
+          '--method',
+          'POST',
+          '/repos/PiesP/yt-live-chat-overlay/dispatches',
+          '--input',
+          '-',
+        ],
+        stdin: `${JSON.stringify(
+          {
+            event_type: 'browser-core-updated',
+            client_payload: { core_repository: 'PiesP/browser-core', core_sha: sha },
+          },
+          null,
+          2
+        )}\n`,
+        token: 'fixture-token',
+      },
+    ]);
     expect(existsSync(paths.output)).toBe(false);
   });
 
@@ -162,12 +207,15 @@ describe('notification CLI', () => {
 
   it('does nothing on import and supports a symlinked CLI entry', () => {
     const paths = fixture();
-    const imported = spawnSync(process.execPath, ['--input-type=module', '-e',
-      `import ${JSON.stringify(pathToFileURL(entry).href)};`], {
-      cwd: paths.root,
-      encoding: 'utf8',
-      env: { ...process.env, GH_LOG: paths.log, GITHUB_OUTPUT: paths.output },
-    });
+    const imported = spawnSync(
+      process.execPath,
+      ['--input-type=module', '-e', `import ${JSON.stringify(pathToFileURL(entry).href)};`],
+      {
+        cwd: paths.root,
+        encoding: 'utf8',
+        env: { ...process.env, GH_LOG: paths.log, GITHUB_OUTPUT: paths.output },
+      }
+    );
     expect(imported.status).toBe(0);
     expect(imported.stdout).toBe('');
     expect(imported.stderr).toBe('');

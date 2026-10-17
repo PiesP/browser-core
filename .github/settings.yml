@@ -23,13 +23,13 @@ branches:
         # Bind every required check to GitHub Actions explicitly.
         contexts: []
         checks:
-          - context: "quality"
+          - context: 'quality'
             app_id: 15368
-          - context: "OSV Vulnerability Scan (PR Diff)"
+          - context: 'OSV Vulnerability Scan (PR Diff)'
             app_id: 15368
-          - context: "Static Analysis (Semgrep)"
+          - context: 'Static Analysis (Semgrep)'
             app_id: 15368
-          - context: "Security scan summary"
+          - context: 'Security scan summary'
             app_id: 15368
       enforce_admins: true
       required_linear_history: false

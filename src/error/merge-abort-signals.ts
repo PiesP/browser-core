@@ -53,9 +53,7 @@ function createMergedAbortController(signals: readonly AbortSignal[]): MergedAbo
  * Create a signal that aborts when any input signal aborts and expose an
  * idempotent cleanup function for successful operations.
  */
-export function mergeAbortSignalsWithCleanup(
-  signals: readonly AbortSignal[],
-): MergedAbortSignal {
+export function mergeAbortSignalsWithCleanup(signals: readonly AbortSignal[]): MergedAbortSignal {
   const { signal, cleanup } = createMergedAbortController(signals);
   return { signal, cleanup };
 }

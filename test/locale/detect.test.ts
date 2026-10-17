@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { detectLocale, normalizeLocale } from '../../src/locale/detect';
 
 describe('normalizeLocale', () => {
@@ -125,13 +125,13 @@ describe('detectLocale', () => {
       detectLocale({
         languages: ['fr'],
         defaultLocale: 'ja-JP' as unknown as 'ja',
-      }),
+      })
     ).toBe('ja');
     expect(
       detectLocale({
         languages: ['fr'],
         defaultLocale: 'fr' as unknown as 'en',
-      }),
+      })
     ).toBe('en');
   });
 });

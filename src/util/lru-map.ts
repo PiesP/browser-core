@@ -110,9 +110,7 @@ export class LruMap<K, V> {
    *
    * @param callback - Called with value, key, and this LruMap
    */
-  forEach(
-    callback: (value: V, key: K, map: LruMap<K, V>) => void,
-  ): void {
+  forEach(callback: (value: V, key: K, map: LruMap<K, V>) => void): void {
     this._map.forEach((value, key) => {
       callback(value, key, this);
     });

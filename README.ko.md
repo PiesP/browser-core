@@ -11,18 +11,18 @@ PiesP 브라우저 프로젝트에서 공유하는 TypeScript 유틸리티와 �
 
 ## API
 
-| 가져오기 경로 | 주요 내보내기 |
-| --- | --- |
-| `@piesp/browser-core` | 모든 런타임 내보내기 |
-| `@piesp/browser-core/async` | 타이머, 디바운스, 타임아웃, 지연 프로미스 |
-| `@piesp/browser-core/error` | 오류 및 취소 도우미 |
-| `@piesp/browser-core/events` | `MessageBus`, `createEventEmitter` |
-| `@piesp/browser-core/locale` | 로케일 감지 및 서식 지정 |
-| `@piesp/browser-core/logging` | 로거 계약과 콘솔/no-op 구현 |
-| `@piesp/browser-core/util` | 가드, 컬렉션, 캐시, 색상, 스케줄러 도우미 |
-| `@piesp/browser-core/design` | Quiet Instruments 토큰과 상호작용 계약 |
-| `@piesp/browser-core/design/tokens.css` | `.pp-design` 범위의 사용자 지정 속성 |
-| `@piesp/browser-core/design/tokens.json` | DTCG 디자인 토큰 원본 |
+| 가져오기 경로                            | 주요 내보내기                             |
+| ---------------------------------------- | ----------------------------------------- |
+| `@piesp/browser-core`                    | 모든 런타임 내보내기                      |
+| `@piesp/browser-core/async`              | 타이머, 디바운스, 타임아웃, 지연 프로미스 |
+| `@piesp/browser-core/error`              | 오류 및 취소 도우미                       |
+| `@piesp/browser-core/events`             | `MessageBus`, `createEventEmitter`        |
+| `@piesp/browser-core/locale`             | 로케일 감지 및 서식 지정                  |
+| `@piesp/browser-core/logging`            | 로거 계약과 콘솔/no-op 구현               |
+| `@piesp/browser-core/util`               | 가드, 컬렉션, 캐시, 색상, 스케줄러 도우미 |
+| `@piesp/browser-core/design`             | Quiet Instruments 토큰과 상호작용 계약    |
+| `@piesp/browser-core/design/tokens.css`  | `.pp-design` 범위의 사용자 지정 속성      |
+| `@piesp/browser-core/design/tokens.json` | DTCG 디자인 토큰 원본                     |
 
 ```ts
 import { sleep } from '@piesp/browser-core/async';

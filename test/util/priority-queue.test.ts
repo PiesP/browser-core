@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { PriorityBucketQueue } from '../../src/util/priority-queue.js';
 
 describe('PriorityBucketQueue', () => {
@@ -97,7 +97,7 @@ describe('PriorityBucketQueue', () => {
       expect(() => queue.enqueue('invalid', priority)).toThrow(RangeError);
       expect(queue.size).toBe(0);
       expect(queue.isEmpty).toBe(true);
-    },
+    }
   );
 
   it('handles safe-integer priorities with an extreme gap', () => {

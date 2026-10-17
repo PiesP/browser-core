@@ -23,11 +23,13 @@ function validateRevision(): void {
   }
 
   const compareStatus = ghApi([
-    `/repos/${repository}/compare/${coreSha}...master`, '--jq', '.status',
+    `/repos/${repository}/compare/${coreSha}...master`,
+    '--jq',
+    '.status',
   ]);
   if (compareStatus !== 'ahead' && compareStatus !== 'identical') {
     throw new Error(
-      `core_sha must be reachable from browser-core master (status: ${compareStatus})`,
+      `core_sha must be reachable from browser-core master (status: ${compareStatus})`
     );
   }
 
@@ -45,7 +47,7 @@ function dispatchUpdate(): void {
   };
   ghApi(
     ['--method', 'POST', `/repos/${repository}/dispatches`, '--input', '-'],
-    `${JSON.stringify(payload, null, 2)}\n`,
+    `${JSON.stringify(payload, null, 2)}\n`
   );
 }
 
@@ -57,13 +59,15 @@ function run(): void {
     else throw new Error(`Unknown notification command: ${command ?? '<missing>'}`);
   } catch (error) {
     console.error(`::error::${error instanceof Error ? error.message : String(error)}`);
-    const status = error && typeof error === 'object' && 'status' in error ? error.status : undefined;
+    const status =
+      error && typeof error === 'object' && 'status' in error ? error.status : undefined;
     process.exitCode = typeof status === 'number' && status > 0 ? status : 1;
   }
 }
 
 if (
-  process.argv[1] && existsSync(process.argv[1]) &&
+  process.argv[1] &&
+  existsSync(process.argv[1]) &&
   realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1])
 ) {
   run();

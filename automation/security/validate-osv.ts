@@ -1,4 +1,13 @@
-import { closeSync, openSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  closeSync,
+  openSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,8 +18,9 @@ import { parseStrictJson } from './strict-json.ts';
 import type { JsonValue } from './strict-json.ts';
 
 function canonical(path: string): string {
-  try { return realpathSync(path); }
-  catch (error) {
+  try {
+    return realpathSync(path);
+  } catch (error) {
     if (!(error instanceof Error) || !('code' in error) || error.code !== 'ENOENT') throw error;
     const parent = dirname(resolve(path));
     if (parent === resolve(path)) return parent;
@@ -31,8 +41,9 @@ function sameFile(first: string, second: string): boolean {
 }
 
 function removeOutput(path: string): void {
-  try { unlinkSync(path); }
-  catch (error) {
+  try {
+    unlinkSync(path);
+  } catch (error) {
     if (!(error instanceof Error) || !('code' in error) || error.code !== 'ENOENT') throw error;
   }
 }
@@ -87,25 +98,38 @@ export function main(args: readonly string[]): number {
     for (let index = 0; index < args.length; index += 2) {
       const flag = args[index];
       const value = args[index + 1];
-      if (value === undefined || value.startsWith('--')) throw new TypeError(`Missing value for ${flag}`);
+      if (value === undefined || value.startsWith('--'))
+        throw new TypeError(`Missing value for ${flag}`);
       if (flag === '--input') input = value;
       else if (flag === '--output') output = value;
-      else if (flag === '--profile' && (value === 'minimal' || value === 'consumer' || value === 'overlay')) profile = value;
+      else if (
+        flag === '--profile' &&
+        (value === 'minimal' || value === 'consumer' || value === 'overlay')
+      )
+        profile = value;
       else throw new TypeError(`Unknown argument: ${flag}`);
     }
-    if (!input) throw new TypeError('Expected --input PATH [--output PATH] [--profile minimal|consumer|overlay]');
+    if (!input)
+      throw new TypeError(
+        'Expected --input PATH [--output PATH] [--profile minimal|consumer|overlay]'
+      );
     validateOsvFile(input, profile, output);
     return 0;
   } catch (error) {
-    console.error(`validate-osv-results: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(
+      `validate-osv-results: ${error instanceof Error ? error.message : String(error)}`
+    );
     return 2;
   }
 }
 
 function isCliEntry(): boolean {
   if (!process.argv[1]) return false;
-  try { return realpathSync(process.argv[1]) === fileURLToPath(import.meta.url); }
-  catch { return false; }
+  try {
+    return realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
+  } catch {
+    return false;
+  }
 }
 
 if (isCliEntry()) {

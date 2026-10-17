@@ -1,5 +1,18 @@
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, chmodSync, closeSync, fstatSync, mkdirSync, openSync, readFileSync, readSync, realpathSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  chmodSync,
+  closeSync,
+  fstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  readSync,
+  realpathSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { constants } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,8 +32,9 @@ function requiredEnv(name: string): string {
 }
 
 function removeStale(path: string): void {
-  try { unlinkSync(path); }
-  catch (error) {
+  try {
+    unlinkSync(path);
+  } catch (error) {
     if (!(error instanceof Error) || !('code' in error) || error.code !== 'ENOENT') throw error;
   }
 }
@@ -36,18 +50,34 @@ function statusOf(result: ReturnType<typeof spawnSync>): number {
 }
 
 function docker(arguments_: readonly string[], descriptor?: number): number {
-  return statusOf(spawnSync('docker', [...arguments_], {
-    stdio: descriptor === undefined ? 'inherit' : ['ignore', descriptor, descriptor],
-  }));
+  return statusOf(
+    spawnSync('docker', [...arguments_], {
+      stdio: descriptor === undefined ? 'inherit' : ['ignore', descriptor, descriptor],
+    })
+  );
 }
 
-function reporterArguments(directory: string, input: string, output: string, failOnVulnerability: boolean, old?: string): string[] {
+function reporterArguments(
+  directory: string,
+  input: string,
+  output: string,
+  failOnVulnerability: boolean,
+  old?: string
+): string[] {
   return [
-    'run', '--rm', '--entrypoint', '/root/osv-reporter',
-    '--volume', `${directory}:/results`, '--workdir', '/results',
+    'run',
+    '--rm',
+    '--entrypoint',
+    '/root/osv-reporter',
+    '--volume',
+    `${directory}:/results`,
+    '--workdir',
+    '/results',
     requiredEnv('OSV_SCANNER_IMAGE'),
     ...(old ? [`--old=${old}`] : []),
-    ...(failOnVulnerability && !old ? [`--output-files=${output}`, `--new=${input}`] : [`--new=${input}`, `--output-files=${output}`]),
+    ...(failOnVulnerability && !old
+      ? [`--output-files=${output}`, `--new=${input}`]
+      : [`--new=${input}`, `--output-files=${output}`]),
     ...(failOnVulnerability && old ? ['--output-files=gh-annotations:#stderr'] : []),
     `--fail-on-vuln=${failOnVulnerability}`,
   ];
@@ -55,7 +85,10 @@ function reporterArguments(directory: string, input: string, output: string, fai
 
 // Keep the descriptor across child execution and reading: the child may replace
 // the pathname, but cannot change which log we inspect. Always replay its bytes.
-function loggedDocker(arguments_: readonly string[], path: string): { status: number; log: string } {
+function loggedDocker(
+  arguments_: readonly string[],
+  path: string
+): { status: number; log: string } {
   removeStale(path);
   const descriptor = openSync(path, 'wx+', 0o600);
   try {
@@ -83,11 +116,15 @@ function resultDirectory(): string {
   return join(requiredEnv('RUNNER_TEMP'), 'osv-results');
 }
 
-function scan(mode: Extract<Mode, 'scan-old' | 'scan-new' | 'scan-full'>, profile: Profile): number {
+function scan(
+  mode: Extract<Mode, 'scan-old' | 'scan-new' | 'scan-full'>,
+  profile: Profile
+): number {
   const directory = resultDirectory();
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   chmodSync(directory, 0o700);
-  const name = mode === 'scan-full' ? 'osv-results' : mode === 'scan-old' ? 'old-results' : 'new-results';
+  const name =
+    mode === 'scan-full' ? 'osv-results' : mode === 'scan-old' ? 'old-results' : 'new-results';
   const rawName = `${name}.raw.json`;
   const rawPath = join(directory, rawName);
   const normalizedPath = join(directory, `${name}.json`);
@@ -100,16 +137,28 @@ function scan(mode: Extract<Mode, 'scan-old' | 'scan-new' | 'scan-full'>, profil
   removeStale(configPath);
   writeFileSync(configPath, '', { flag: 'wx', mode: 0o600 });
   const status = docker([
-    'run', '--rm', '--env', 'GOTOOLCHAIN=auto',
-    '--volume', `${requiredEnv('GITHUB_WORKSPACE')}:/src`,
-    '--volume', `${directory}:/results`, '--workdir', '/src',
-    requiredEnv('OSV_SCANNER_IMAGE'), '--config=/results/osv-empty.toml',
-    '--format=json', `--output-file=/results/${rawName}`,
-    '-r', '--lockfile=pnpm-lock.yaml', '.',
+    'run',
+    '--rm',
+    '--env',
+    'GOTOOLCHAIN=auto',
+    '--volume',
+    `${requiredEnv('GITHUB_WORKSPACE')}:/src`,
+    '--volume',
+    `${directory}:/results`,
+    '--workdir',
+    '/src',
+    requiredEnv('OSV_SCANNER_IMAGE'),
+    '--config=/results/osv-empty.toml',
+    '--format=json',
+    `--output-file=/results/${rawName}`,
+    '-r',
+    '--lockfile=pnpm-lock.yaml',
+    '.',
   ]);
   if (status > 1) return status;
   const rawReport = loggedDocker(
-    reporterArguments(directory, rawName, 'json:/dev/null', false), logPath,
+    reporterArguments(directory, rawName, 'json:/dev/null', false),
+    logPath
   );
   if (reporterRejectedInput(rawReport.log)) {
     console.error('OSV reporter rejected the raw scanner output.');
@@ -118,10 +167,13 @@ function scan(mode: Extract<Mode, 'scan-old' | 'scan-new' | 'scan-full'>, profil
   if (rawReport.status !== 0) return rawReport.status;
   try {
     const details = statSync(rawPath);
-    if (!details.isFile() || details.size === 0) throw new Error(`OSV scanner did not create a non-empty result: ${rawPath}`);
+    if (!details.isFile() || details.size === 0)
+      throw new Error(`OSV scanner did not create a non-empty result: ${rawPath}`);
     validateOsvFile(rawPath, profile, normalizedPath);
   } catch (error) {
-    console.error(`Invalid OSV scanner output: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(
+      `Invalid OSV scanner output: ${error instanceof Error ? error.message : String(error)}`
+    );
     return 2;
   }
   return 0;
@@ -133,18 +185,25 @@ function object(value: JsonValue | undefined): value is { [key: string]: JsonVal
 
 function validateSarif(path: string, reportStatus: number): void {
   const bytes = readFileSync(path);
-  const value = parseStrictJson(new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes));
-  if (!object(value) || value.version !== '2.1.0') throw new Error('reporter output is not SARIF 2.1.0');
+  const value = parseStrictJson(
+    new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes)
+  );
+  if (!object(value) || value.version !== '2.1.0')
+    throw new Error('reporter output is not SARIF 2.1.0');
   const runs = value.runs;
-  if (!Array.isArray(runs) || runs.length !== 1) throw new Error('reporter SARIF must contain exactly one run');
+  if (!Array.isArray(runs) || runs.length !== 1)
+    throw new Error('reporter SARIF must contain exactly one run');
   const run = runs[0];
   if (!object(run)) throw new Error('reporter SARIF run must be an object');
   const tool = run.tool;
   const driver = object(tool) ? tool.driver : undefined;
-  if (!object(driver) || driver.name !== 'osv-scanner') throw new Error('reporter SARIF tool identity is invalid');
+  if (!object(driver) || driver.name !== 'osv-scanner')
+    throw new Error('reporter SARIF tool identity is invalid');
   const results = run.results;
-  if (!Array.isArray(results) || !results.every(object)) throw new Error('reporter SARIF results must be an array of objects');
-  if (reportStatus === 1 && results.length === 0) throw new Error('reporter failed for vulnerabilities but emitted no SARIF results');
+  if (!Array.isArray(results) || !results.every(object))
+    throw new Error('reporter SARIF results must be an array of objects');
+  if (reportStatus === 1 && results.length === 0)
+    throw new Error('reporter failed for vulnerabilities but emitted no SARIF results');
 }
 
 function report(mode: Extract<Mode, 'report-pr' | 'report-full'>, profile: Profile): number {
@@ -158,7 +217,8 @@ function report(mode: Extract<Mode, 'report-pr' | 'report-full'>, profile: Profi
   if (old) validateOsvFile(join(directory, old), profile);
   validateOsvFile(join(directory, input), profile);
   const result = loggedDocker(
-    reporterArguments(directory, input, 'sarif:osv-results.sarif', true, old), logPath,
+    reporterArguments(directory, input, 'sarif:osv-results.sarif', true, old),
+    logPath
   );
   if (reporterRejectedInput(result.log)) {
     console.error('OSV reporter rejected an input document.');
@@ -177,23 +237,34 @@ export function main(args: readonly string[]): number {
     }
     const profile = args[1];
     switch (args[0]) {
-      case 'scan-old': return scan('scan-old', profile);
-      case 'scan-new': return scan('scan-new', profile);
-      case 'scan-full': return scan('scan-full', profile);
-      case 'report-pr': return report('report-pr', profile);
-      case 'report-full': return report('report-full', profile);
-      default: throw new Error(`Unknown consumer OSV workflow mode: ${args[0]}`);
+      case 'scan-old':
+        return scan('scan-old', profile);
+      case 'scan-new':
+        return scan('scan-new', profile);
+      case 'scan-full':
+        return scan('scan-full', profile);
+      case 'report-pr':
+        return report('report-pr', profile);
+      case 'report-full':
+        return report('report-full', profile);
+      default:
+        throw new Error(`Unknown consumer OSV workflow mode: ${args[0]}`);
     }
   } catch (error) {
-    console.error(`consumer-osv-workflow: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(
+      `consumer-osv-workflow: ${error instanceof Error ? error.message : String(error)}`
+    );
     return 1;
   }
 }
 
 function isCliEntry(): boolean {
   if (!process.argv[1]) return false;
-  try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); }
-  catch { return false; }
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
 }
 
 if (isCliEntry()) process.exitCode = main(process.argv.slice(2));

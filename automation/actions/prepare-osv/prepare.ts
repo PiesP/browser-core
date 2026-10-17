@@ -1,4 +1,16 @@
-import { appendFileSync, chmodSync, closeSync, constants, fstatSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  chmodSync,
+  closeSync,
+  constants,
+  fstatSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -29,12 +41,18 @@ export function main(args: readonly string[]): number {
       const input = openSync(source, constants.O_RDONLY | constants.O_NOFOLLOW);
       let bytes: Buffer;
       try {
-        if (!fstatSync(input).isFile()) throw new Error(`Provider OSV source is not a regular file: ${name}`);
+        if (!fstatSync(input).isFile())
+          throw new Error(`Provider OSV source is not a regular file: ${name}`);
         bytes = readFileSync(input);
-      } finally { closeSync(input); }
+      } finally {
+        closeSync(input);
+      }
       const output = openSync(join(destination, name), 'wx', 0o600);
-      try { writeFileSync(output, bytes); }
-      finally { closeSync(output); }
+      try {
+        writeFileSync(output, bytes);
+      } finally {
+        closeSync(output);
+      }
       chmodSync(join(destination, name), 0o600);
     }
     appendFileSync(githubOutput, `helper-path=${join(destination, sourceNames[0])}\n`);
@@ -50,8 +68,11 @@ export function main(args: readonly string[]): number {
 
 function isCliEntry(): boolean {
   if (!process.argv[1]) return false;
-  try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); }
-  catch { return false; }
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
 }
 
 if (isCliEntry()) process.exitCode = main(process.argv.slice(2));
