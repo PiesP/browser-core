@@ -10,12 +10,15 @@ const runtimePackage = JSON.parse(runtimePackageJson) as {
 };
 
 function parsePathFilters(workflow: string, key: 'paths' | 'paths-ignore'): string[] {
-  const trigger = workflow.slice(workflow.indexOf('  push:'), workflow.indexOf('  workflow_dispatch:'));
+  const trigger = workflow.slice(
+    workflow.indexOf('  push:'),
+    workflow.indexOf('  workflow_dispatch:')
+  );
   const block = trigger.match(new RegExp(`^    ${key}:\\n((?:      - .+\\n)+)`, 'm'))?.[1];
   if (!block) return [];
 
   return [...block.matchAll(/^      - ["']?(.+?)["']?$/gm)].flatMap((match) =>
-    match[1] === undefined ? [] : [match[1]],
+    match[1] === undefined ? [] : [match[1]]
   );
 }
 
@@ -28,21 +31,20 @@ function matchesPath(path: string, pattern: string): boolean {
 function runtimeNotificationRunsFor(path: string): boolean {
   const included = parsePathFilters(runtimeNotifications, 'paths');
   const ignored = parsePathFilters(runtimeNotifications, 'paths-ignore');
-  const passesInclude = included.length === 0 || included.some((pattern) => matchesPath(path, pattern));
+  const passesInclude =
+    included.length === 0 || included.some((pattern) => matchesPath(path, pattern));
   const passesIgnore = !ignored.some((pattern) => matchesPath(path, pattern));
   return passesInclude && passesIgnore;
 }
 
 describe('central project setup action', () => {
   it('uses an immutable toolchain action and the consumer package manifest', () => {
-    expect(action).toContain(
-      'uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4',
-    );
+    expect(action).toContain('uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4');
     expect(action).toContain('working-directory: .');
     expect(action).not.toContain('package-json-file:');
     expect(ci).toContain('working-directory: .');
     expect(ci).not.toContain('package-json-file:');
-    expect(action).toContain('runtime: "node@${{ steps.runtime.outputs.version }}"');
+    expect(action).toMatch(/runtime: ['"]node@\$\{\{ steps\.runtime\.outputs\.version \}\}['"]/);
     expect(action).toContain('node "$GITHUB_ACTION_PATH/resolve-runtime.mjs"');
     expect(action).toContain('required: false');
     expect(action).toContain('cache: true');
@@ -69,9 +71,7 @@ describe('central project setup action', () => {
 
   it('exposes only the runtime and dependency-install inputs and no secret surface', () => {
     const inputs = action.slice(action.indexOf('inputs:'), action.indexOf('\nruns:'));
-    const inputNames = [...inputs.matchAll(/^  ([a-z][a-z-]+):$/gm)].map(
-      ([, name]) => name,
-    );
+    const inputNames = [...inputs.matchAll(/^  ([a-z][a-z-]+):$/gm)].map(([, name]) => name);
 
     expect(inputNames).toEqual(['node-version', 'install-dependencies']);
     expect(action).not.toContain('secrets:');
@@ -84,9 +84,7 @@ describe('central project setup action', () => {
     expect(ci).toContain('uses: ./.setup-action/automation/actions/setup-project');
     expect(ci).toContain("install-dependencies: 'false'");
     expect(ci).toContain('sha256sum --check fixture.sha256');
-    expect(ci).toContain(
-      'node .setup-action/automation/scripts/verify-setup-smoke.ts prepared',
-    );
+    expect(ci).toContain('node .setup-action/automation/scripts/verify-setup-smoke.ts prepared');
     expect(ci).toContain('test "$SETUP_RESULT" = success');
   });
 });
