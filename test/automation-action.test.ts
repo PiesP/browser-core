@@ -49,7 +49,7 @@ describe('central project setup action', () => {
     expect(ci).not.toContain('pnpm/setup@');
     expect(ci).toContain('uses: ./automation/actions/setup-project');
     expect(ci).toContain(
-      "node-version: ${{ matrix.node-version == 'manifest' && '' || matrix.node-version }}"
+      "node-version: ${{ matrix.node-version != 'manifest' && matrix.node-version || '' }}"
     );
     expect(action).toContain('node "$GITHUB_ACTION_PATH/resolve-runtime.mjs"');
     expect(action).toContain('required: false');

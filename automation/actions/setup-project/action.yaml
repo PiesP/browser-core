@@ -33,6 +33,10 @@ runs:
         run_install: false
         standalone: false
 
+    - name: Prepare the package store cache
+      shell: bash
+      run: mkdir -p "$(pnpm store path --silent)"
+
     - name: Install locked dependencies
       if: ${{ inputs.install-dependencies == 'true' }}
       shell: bash

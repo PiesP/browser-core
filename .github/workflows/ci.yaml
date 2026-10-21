@@ -50,7 +50,7 @@ jobs:
       - name: Install the manifest-pinned toolchain or compatibility runtime
         uses: ./automation/actions/setup-project
         with:
-          node-version: ${{ matrix.node-version == 'manifest' && '' || matrix.node-version }}
+          node-version: ${{ matrix.node-version != 'manifest' && matrix.node-version || '' }}
           install-dependencies: 'false'
       - run: pnpm install --frozen-lockfile --no-runtime
       - name: Check formatting, lint, design tokens and type projects
