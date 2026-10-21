@@ -23,17 +23,24 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        trust: [bundled, openssl]
+        trust: [bundled, openssl, openssl-updated]
     steps:
+      - name: Refresh the Ubuntu certificate package for the updated-store probe
+        if: ${{ matrix.trust == 'openssl-updated' }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update --quiet
+          sudo apt-get install --only-upgrade --yes ca-certificates
+          dpkg-query --show --showformat='${Version}\n' ca-certificates
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Qualify the actual runner-owned Action runtime
         uses: ./.github/actions/qualify-runner-trust
         env:
-          NODE_OPTIONS: ${{ matrix.trust == 'openssl' && '--use-openssl-ca' || '' }}
-          SSL_CERT_FILE: ${{ matrix.trust == 'openssl' && '/etc/ssl/certs/ca-certificates.crt' || '' }}
-          SSL_CERT_DIR: ${{ matrix.trust == 'openssl' && '/etc/ssl/certs' || '' }}
+          NODE_OPTIONS: ${{ matrix.trust != 'bundled' && '--use-openssl-ca' || '' }}
+          SSL_CERT_FILE: ${{ matrix.trust != 'bundled' && '/etc/ssl/certs/ca-certificates.crt' || '' }}
+          SSL_CERT_DIR: ${{ matrix.trust != 'bundled' && '/etc/ssl/certs' || '' }}
 
   quality:
     runs-on: ubuntu-24.04
