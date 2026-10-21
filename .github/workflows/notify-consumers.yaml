@@ -15,6 +15,11 @@ on:
 permissions:
   contents: read
 
+env:
+  NODE_OPTIONS: --use-openssl-ca
+  SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+  SSL_CERT_DIR: /etc/ssl/certs
+
 jobs:
   validate:
     name: Validate browser-core revision
@@ -27,6 +32,9 @@ jobs:
       CORE_REPOSITORY: ${{ github.repository }}
       CORE_SHA: ${{ inputs.core_sha || github.sha }}
     steps:
+      - name: Prepare remediated Node trust
+        uses: PiesP/browser-core/automation/actions/prepare-node-trust@381b4ca733494cf069212cd0d16458389a83c623
+        id: node_trust
       - name: Check out notification workflow source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -77,6 +85,9 @@ jobs:
       CORE_REPOSITORY: ${{ github.repository }}
       CORE_SHA: ${{ needs.validate.outputs.core_sha }}
     steps:
+      - name: Prepare remediated Node trust
+        uses: PiesP/browser-core/automation/actions/prepare-node-trust@381b4ca733494cf069212cd0d16458389a83c623
+        id: node_trust
       - name: Check out notification workflow source
         if: ${{ env.CONSUMER_UPDATE_TOKEN_CONFIGURED == 'true' }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

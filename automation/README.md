@@ -198,9 +198,9 @@ before job steps, container pulls, and tools with separate TLS stores retain
 their own trust boundaries.
 
 Manually dispatch CI to run the Ubuntu and pinned Semgrep Alpine `node24`
-qualification jobs. The publication pilot checks out the candidate first to
-exercise the local helper; that initial checkout is outside its coverage. Each
-job then prepares its own OS store and checks a normal HTTPS control and one
+qualification jobs. The published helper runs first to protect Action bootstrap and checkout. After
+checkout, each job also exercises its local candidate helper, then checks a normal
+HTTPS control and one
 direct plus one cross-signed incident sample in the actual JavaScript Action
 process. Certificate errors establish rejection; timeouts or DNS errors leave
 qualification incomplete. Ordinary push and PR CI skip live incident endpoints.
