@@ -50,6 +50,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Inspect the pinned image package-query format
+        shell: sh
+        run: |
+          apk --version
+          apk info -v ca-certificates-bundle
+          apk info -e ca-certificates-bundle
       - name: Prepare the official Alpine certificate store
         uses: ./automation/actions/prepare-node-trust
       - name: Qualify the actual Action runtime in the refreshed container
