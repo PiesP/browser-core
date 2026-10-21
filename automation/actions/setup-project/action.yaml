@@ -20,13 +20,18 @@ runs:
         NODE_VERSION_OVERRIDE: ${{ inputs.node-version }}
       run: node "$GITHUB_ACTION_PATH/resolve-runtime.mjs"
 
-    - name: Install pnpm and Node.js
-      uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+    - name: Install the selected Node.js runtime
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
       with:
-        working-directory: .
-        runtime: 'node@${{ steps.runtime.outputs.version }}'
+        node-version: ${{ steps.runtime.outputs.version }}
+        package-manager-cache: false
+
+    - name: Install the consumer-pinned pnpm
+      uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      with:
         cache: true
-        install: false
+        run_install: false
+        standalone: false
 
     - name: Install locked dependencies
       if: ${{ inputs.install-dependencies == 'true' }}

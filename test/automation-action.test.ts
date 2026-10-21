@@ -38,30 +38,40 @@ function runtimeNotificationRunsFor(path: string): boolean {
 }
 
 describe('central project setup action', () => {
-  it('uses an immutable toolchain action and the consumer package manifest', () => {
-    expect(action).toContain('uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4');
-    expect(action).toContain('working-directory: .');
+  it('pins Node before installing JavaScript pnpm from the consumer manifest', () => {
+    expect(action).toContain('uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1');
+    expect(action).toContain('uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413');
+    expect(action).toContain('node-version: ${{ steps.runtime.outputs.version }}');
+    expect(action).toContain('package-manager-cache: false');
     expect(action).not.toContain('package-json-file:');
-    expect(ci).toContain('working-directory: .');
+    expect(action).not.toContain('package_json_file:');
     expect(ci).not.toContain('package-json-file:');
-    expect(action).toMatch(/runtime: ['"]node@\$\{\{ steps\.runtime\.outputs\.version \}\}['"]/);
+    expect(ci).not.toContain('pnpm/setup@');
+    expect(ci).toContain('uses: ./automation/actions/setup-project');
+    expect(ci).toContain(
+      "node-version: ${{ matrix.node-version == 'manifest' && '' || matrix.node-version }}"
+    );
     expect(action).toContain('node "$GITHUB_ACTION_PATH/resolve-runtime.mjs"');
     expect(action).toContain('required: false');
     expect(action).toContain('cache: true');
-    expect(action).toContain('install: false');
+    expect(action).toContain('run_install: false');
+    expect(action).toContain('standalone: false');
+    expect(action).not.toContain('pnpm/setup@');
   });
 
   it('configures the pinned runtime before optional locked dependency installation', () => {
     const inputs = action.slice(action.indexOf('inputs:'), action.indexOf('\nruns:'));
     const runtimeIndex = action.indexOf('name: Resolve the manifest-pinned runtime');
-    const setupIndex = action.indexOf('name: Install pnpm and Node.js');
+    const nodeIndex = action.indexOf('name: Install the selected Node.js runtime');
+    const pnpmIndex = action.indexOf('name: Install the consumer-pinned pnpm');
     const installIndex = action.indexOf('name: Install locked dependencies');
     const installStep = action.slice(installIndex);
 
     expect(inputs).toMatch(/  install-dependencies:\n(?:    .+\n)*    default: 'true'/);
     expect(runtimeIndex).toBeGreaterThan(-1);
-    expect(setupIndex).toBeGreaterThan(runtimeIndex);
-    expect(installIndex).toBeGreaterThan(setupIndex);
+    expect(nodeIndex).toBeGreaterThan(runtimeIndex);
+    expect(pnpmIndex).toBeGreaterThan(nodeIndex);
+    expect(installIndex).toBeGreaterThan(pnpmIndex);
     expect(action.slice(runtimeIndex, installIndex)).not.toMatch(/^\s*if:/m);
     expect(installStep).toContain("if: ${{ inputs.install-dependencies == 'true' }}");
     expect(installStep).toContain('run: pnpm install --frozen-lockfile --no-runtime');

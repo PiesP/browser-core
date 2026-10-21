@@ -51,13 +51,13 @@ The existing setup Action and package manifest remain the runtime owners.
 
 The retained languages have explicit stage boundaries:
 
-| Exception or adapter                                             | Reason                                                                                                                                                | Review trigger                                                                                                                                               |
-| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `resolve-runtime.mjs` and the CI matrix's short override adapter | They select the runtime under runner-provided Node before the pinned runtime exists.                                                                  | Every supported bootstrap runner proves dependency-free direct TypeScript execution, including a clean workspace and the compatibility lane.                 |
-| `prepare-setup-smoke.mjs`                                        | CI creates the consumer manifest before its runtime can be selected; raw ESM has no project-loader dependency.                                        | The setup-fixture execution boundary changes or all supported bootstrap runners qualify direct TypeScript execution.                                         |
-| Two executable Bash Git-hook launchers                           | Git supplies the executable-file boundary and stdin; maintained branch/ref policy lives in `scripts/git-hook.ts`.                                     | Hook installation guarantees the same direct Node entry and argument/stdin contract on every supported Git host.                                             |
-| Three fixed-file Bash security materialization steps             | They obtain the reviewed core-local helper before executing it, refuse an existing destination, and preserve private storage across checkout changes. | An immutable provider Action owns the same fixed core-local closure and its trusted-source, permissions, missing-file and checkout-transition fixtures pass. |
-| Semgrep, checkout and package-command launch adapters            | Workflow-owned tool arguments, environment and lifecycle ordering remain beside their jobs; maintained scan/report/summary decisions are TypeScript.  | A launcher acquires parsing, branching or publication decisions that need their own tested local module.                                                     |
+| Exception or adapter                                  | Reason                                                                                                                                                | Review trigger                                                                                                                                               |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `resolve-runtime.mjs`                                 | It selects the runtime under runner-provided Node before the pinned runtime exists.                                                                   | Every supported bootstrap runner proves dependency-free direct TypeScript execution, including a clean workspace and the compatibility lane.                 |
+| `prepare-setup-smoke.mjs`                             | CI creates the consumer manifest before its runtime can be selected; raw ESM has no project-loader dependency.                                        | The setup-fixture execution boundary changes or all supported bootstrap runners qualify direct TypeScript execution.                                         |
+| Two executable Bash Git-hook launchers                | Git supplies the executable-file boundary and stdin; maintained branch/ref policy lives in `scripts/git-hook.ts`.                                     | Hook installation guarantees the same direct Node entry and argument/stdin contract on every supported Git host.                                             |
+| Three fixed-file Bash security materialization steps  | They obtain the reviewed core-local helper before executing it, refuse an existing destination, and preserve private storage across checkout changes. | An immutable provider Action owns the same fixed core-local closure and its trusted-source, permissions, missing-file and checkout-transition fixtures pass. |
+| Semgrep, checkout and package-command launch adapters | Workflow-owned tool arguments, environment and lifecycle ordering remain beside their jobs; maintained scan/report/summary decisions are TypeScript.  | A launcher acquires parsing, branching or publication decisions that need their own tested local module.                                                     |
 
 Host runtimes are the manifest-selected Node/pnpm, the existing Node 22
 compatibility lane, runner-provided bootstrap Node, Git/Bash and the selected
@@ -127,12 +127,14 @@ commit SHA:
   uses: PiesP/browser-core/automation/actions/setup-project@0123456789abcdef0123456789abcdef01234567
 ```
 
-The setup action reads the consumer's root `package.json`, installs its declared
-pnpm version and exact `volta.node` runtime, enables the pnpm cache, and by
-default runs `pnpm install --frozen-lockfile --no-runtime`. Disabling runtime
-installation in the dependency step ensures the preceding pinned setup action
-remains the only runtime owner. The action does not accept executable commands,
-paths, references, URLs, or secrets as inputs.
+The setup action reads the consumer's root `package.json`, installs its exact
+`volta.node` runtime with `actions/setup-node`, then installs its declared pnpm
+version with `pnpm/action-setup` using the plain JavaScript pnpm package. It
+enables the pnpm cache and by default runs
+`pnpm install --frozen-lockfile --no-runtime`. Disabling runtime installation
+in the dependency step keeps the pinned Node setup as the runtime owner. The
+action does not accept executable commands, paths, references, URLs, or secrets
+as inputs.
 
 For tooling that must run before dependency installation, set `install-dependencies: 'false'` and call the action again with
 the default after those checks. The runtime and package manager are configured
@@ -159,30 +161,37 @@ numeric runtime without requiring that official pin.
 The root manifest and executable setup-smoke fixture select released Node builds
 containing the [eMudhra key blocklist](https://github.com/nodejs/node/pull/66871).
 Their supported Node lines retain the security-release floors in `package.json`.
-This selection does not replace the Node embedded in pnpm's standalone binary
-or the runner-owned Node used by JavaScript Actions. Qualify those executable
-paths independently; a project `node --version` result does not cover them.
+The setup action selects plain JavaScript pnpm 11 after the pinned Node setup;
+`standalone: false` leaves the native standalone path disabled for these
+supported Node versions. The JavaScript Action still uses runner-owned Node,
+including when it invokes pnpm's bootstrap `self-update`; a project
+`node --version` result does not cover that executable path.
+Manually dispatch CI to run the `runner-trust` job in the actual `node24`
+JavaScript Action runtime, once with bundled trust and once with the Ubuntu
+OpenSSL store. It checks a normal HTTPS control and one direct plus one
+cross-signed incident sample. Certificate errors establish rejection; timeouts
+or DNS errors leave qualification incomplete. Ordinary push and PR CI skip this
+network diagnostic. Its raw ESM entry is a runner-owned JavaScript Action,
+separate from the two pre-project-runtime helpers described above.
 Keep historical source revisions immutable and defer network replays that select
 an unqualified runtime until that exact runtime or a scoped trust mitigation has
 been independently verified.
 
 `.github/dependabot.yaml` watches both the root workflows and
-`automation/actions/setup-project/action.yaml`. It groups CodeQL, `pnpm/setup`,
-and other Actions separately so one failed update does not hold the others.
+`automation/actions/setup-project/action.yaml`.
 For an Action SHA update, check the full commit against the official upstream
 release and allow at least 24 hours from that release before review. Update the
 independent allowed-SHA assertions in `test/automation-action.test.ts` and any
 affected workflow contract tests in the same PR; never compute an expected SHA
 from the workflow or action being tested. Keep the consumer manifest runtime,
-input allowlist, cache and optional frozen-install behavior intact. In
-particular, retain the reviewed `pnpm/setup` version until a newer version's
-inputs and runner behavior have been reviewed. The v3.1.1 input and runtime
-contract is exercised by the PR-local consumer setup smoke, including the
-manifest-pinned runtime, Node 22 override, and optional frozen installation. Run the focused action/workflow
-tests and `pnpm verify`, then review the hosted checks at the PR head. A stale
-test pin calls for reviewing that specific update, not closing every grouped
-Actions update. This automation-only maintenance does not update runtime
-gitlinks.
+input allowlist, cache and optional frozen-install behavior intact. The reviewed
+`actions/setup-node` v7.1.0 and `pnpm/action-setup` v6.1.0 pins configure Node
+before plain JavaScript pnpm. The PR-local consumer setup smoke exercises the
+manifest-pinned runtime, Node 22 override, and optional frozen installation.
+Run the focused action/workflow tests and `pnpm verify`, then review the hosted
+checks at the PR head. A stale test pin calls for reviewing that specific
+update, not closing every grouped Actions update. This automation-only
+maintenance does not update runtime gitlinks.
 
 After the consumer's manifest-pinned Node setup with
 `install-dependencies: 'false'`, a trusted security workflow can call
