@@ -166,13 +166,47 @@ The setup action selects plain JavaScript pnpm 11 after the pinned Node setup;
 supported Node versions. The JavaScript Action still uses runner-owned Node,
 including when it invokes pnpm's bootstrap `self-update`; a project
 `node --version` result does not cover that executable path.
-Manually dispatch CI to run the `runner-trust` job in the actual `node24`
-JavaScript Action runtime, once with bundled trust and once with the Ubuntu
-OpenSSL store. It checks a normal HTTPS control and one direct plus one
-cross-signed incident sample. Certificate errors establish rejection; timeouts
-or DNS errors leave qualification incomplete. Ordinary push and PR CI skip this
-network diagnostic. Its raw ESM entry is a runner-owned JavaScript Action,
-separate from the two pre-project-runtime helpers described above.
+`automation/actions/prepare-node-trust` is an input-free shell bootstrap for
+Ubuntu 24.04 and Alpine 3.23. It requires the caller's job environment to select
+only the OpenSSL store:
+
+```yaml
+env:
+  NODE_OPTIONS: --use-openssl-ca
+  SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+  SSL_CERT_DIR: /etc/ssl/certs
+```
+
+Invoke the published helper at a reviewed full commit SHA as the first step,
+before checkout or any other JavaScript Action. Keep the environment at workflow
+or job scope so Action bootstrap and post steps inherit it. GitHub forbids setting
+`NODE_OPTIONS` through `GITHUB_ENV`; the helper therefore validates the caller's
+settings rather than writing environment files. Additive `NODE_EXTRA_CA_CERTS`
+and disabled verification are rejected.
+
+The helper accepts only the supported distributions and upgrades the official
+CA packages when their installed versions are below the incident fix floor:
+Ubuntu `ca-certificates` >= `20260816ubuntu0.24.04.1`
+([USN-8944-1](https://ubuntu.com/security/notices/USN-8944-1)), or Alpine
+`ca-certificates` **and** `ca-certificates-bundle` >= `20261020-r0`
+([Alpine package](https://pkgs.alpinelinux.org/package/v3.23/main/x86_64/ca-certificates-bundle)).
+Both the bundle and hashed certificate directory must be present. Unsupported
+systems, package failures, missing fixed versions, or conflicting trust settings
+stop the job before later Actions. This selects remediated OS trust for the
+runner-owned Node; it does not replace the runner's Node binary. Runner downloads
+before job steps, container pulls, and tools with separate TLS stores retain
+their own trust boundaries.
+
+Manually dispatch CI to run the Ubuntu and pinned Semgrep Alpine `node24`
+qualification jobs. The publication pilot checks out the candidate first to
+exercise the local helper; that initial checkout is outside its coverage. Each
+job then prepares its own OS store and checks a normal HTTPS control and one
+direct plus one cross-signed incident sample in the actual JavaScript Action
+process. Certificate errors establish rejection; timeouts or DNS errors leave
+qualification incomplete. Ordinary push and PR CI skip live incident endpoints.
+Historical bundled/old-store failures remain incident evidence rather than
+mandatory failing lanes in the maintained workflow. The diagnostic's raw ESM
+entry runs separately from the manifest resolver and setup-fixture helpers.
 Keep historical source revisions immutable and defer network replays that select
 an unqualified runtime until that exact runtime or a scoped trust mitigation has
 been independently verified.
