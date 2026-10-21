@@ -15,34 +15,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  runner-trust:
+    name: Manual JavaScript Action TLS qualification
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    strategy:
+      fail-fast: false
+      matrix:
+        trust: [bundled, openssl]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Qualify the actual runner-owned Action runtime
+        uses: ./.github/actions/qualify-runner-trust
+        env:
+          NODE_OPTIONS: ${{ matrix.trust == 'openssl' && '--use-openssl-ca' || '' }}
+          SSL_CERT_FILE: ${{ matrix.trust == 'openssl' && '/etc/ssl/certs/ca-certificates.crt' || '' }}
+          SSL_CERT_DIR: ${{ matrix.trust == 'openssl' && '/etc/ssl/certs' || '' }}
+
   quality:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
       matrix:
         # Keep the older-runtime compatibility lane distinct from the official pin.
-        node-version: [22, manifest]
+        node-version: ['22.23.4', manifest]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Workflow execution fixtures restore published helper commits from Git.
           fetch-depth: 0
-      - name: Resolve official or compatibility runtime
-        id: runtime
-        env:
-          MATRIX_NODE_VERSION: ${{ matrix.node-version }}
-        run: |
-          if [[ "$MATRIX_NODE_VERSION" != manifest ]]; then
-            export NODE_VERSION_OVERRIDE="$MATRIX_NODE_VERSION"
-          fi
-          node automation/actions/setup-project/resolve-runtime.mjs
-      - name: Install the manifest-pinned package manager and matrix runtime
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+      - name: Install the manifest-pinned toolchain or compatibility runtime
+        uses: ./automation/actions/setup-project
         with:
-          working-directory: .
-          runtime: 'node@${{ steps.runtime.outputs.version }}'
-          cache: true
-          install: false
+          node-version: ${{ matrix.node-version != 'manifest' && matrix.node-version || '' }}
+          install-dependencies: 'false'
       - run: pnpm install --frozen-lockfile --no-runtime
       - name: Check formatting, lint, design tokens and type projects
         run: pnpm check
@@ -80,7 +89,7 @@ jobs:
       - name: Setup the explicit compatibility runtime without reinstalling
         uses: ./.setup-action/automation/actions/setup-project
         with:
-          node-version: '22'
+          node-version: '22.23.4'
           install-dependencies: 'false'
       - name: Verify the compatibility override and unchanged consumer files
         run: |

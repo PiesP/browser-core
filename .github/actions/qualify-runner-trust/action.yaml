@@ -1,0 +1,5 @@
+name: Qualify runner TLS trust
+description: Manually qualify the JavaScript Action runtime against the incident coordinator's samples
+runs:
+  using: node24
+  main: index.mjs

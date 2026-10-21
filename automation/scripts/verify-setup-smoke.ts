@@ -8,9 +8,9 @@ export function verifySetupSmoke(
   pnpmVersion?: string
 ): void {
   if (phase === 'compatibility') {
-    if (!nodeVersion.startsWith('22.')) throw new Error('Expected Node 22 compatibility runtime');
-  } else if (nodeVersion !== '24.15.0') {
-    throw new Error('Expected consumer-pinned Node 24.15.0 runtime');
+    if (nodeVersion !== '22.23.4') throw new Error('Expected Node 22.23.4 compatibility runtime');
+  } else if (nodeVersion !== '24.22.1') {
+    throw new Error('Expected consumer-pinned Node 24.22.1 runtime');
   }
 
   if (phase === 'prepared') {

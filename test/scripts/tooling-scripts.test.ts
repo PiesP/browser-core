@@ -190,7 +190,7 @@ test('pre-runtime setup fixture preserves the consumer manifest and frozen link'
   expect(JSON.parse(readFileSync(join(fixture, 'package.json'), 'utf8'))).toEqual({
     private: true,
     packageManager: 'pnpm@11.25.0',
-    volta: { node: '24.15.0' },
+    volta: { node: '24.22.1' },
     dependencies: { 'setup-smoke-fixture': 'link:./fixture-package' },
   });
   expect(readFileSync(join(fixture, 'pnpm-lock.yaml'), 'utf8')).toContain(
@@ -218,8 +218,8 @@ test('setup smoke verifier enforces runtime, install boundary, and fixture value
       { cwd: fixture, encoding: 'utf8' }
     );
 
-  expect(verify('prepared', '24.15.0').status).toBe(0);
-  expect(verify('prepared', '24.15.0', '11.26.0').status).toBe(1);
+  expect(verify('prepared', '24.22.1').status).toBe(0);
+  expect(verify('prepared', '24.22.1', '11.26.0').status).toBe(1);
   expect(verify('prepared', '26.9.0').status).toBe(1);
 
   mkdirSync(join(fixture, 'node_modules/setup-smoke-fixture'), { recursive: true });
@@ -227,15 +227,17 @@ test('setup smoke verifier enforces runtime, install boundary, and fixture value
     join(fixture, 'node_modules/setup-smoke-fixture/index.js'),
     'module.exports = 42;\n'
   );
-  expect(verify('prepared', '24.15.0').status).toBe(1);
-  expect(verify('installed', '24.15.0').status).toBe(0);
-  expect(verify('compatibility', '22.22.2').status).toBe(0);
-  expect(verify('compatibility', '24.15.0').status).toBe(1);
+  expect(verify('prepared', '24.22.1').status).toBe(1);
+  expect(verify('installed', '24.22.1').status).toBe(0);
+  expect(verify('compatibility', '22.23.4').status).toBe(0);
+  expect(verify('compatibility', '22.23.3').status).toBe(1);
+  expect(verify('prepared', '24.22.0').status).toBe(1);
+  expect(verify('compatibility', '24.22.1').status).toBe(1);
   writeFileSync(
     join(fixture, 'node_modules/setup-smoke-fixture/index.js'),
     'module.exports = 41;\n'
   );
-  expect(verify('installed', '24.15.0').status).toBe(1);
+  expect(verify('installed', '24.22.1').status).toBe(1);
 });
 
 describe('design token generator CLI', () => {
