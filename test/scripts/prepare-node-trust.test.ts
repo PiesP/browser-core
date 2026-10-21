@@ -38,7 +38,8 @@ function fixture(id: string, release: string) {
     'apk',
     `case "$1" in
   info)
-    package=$3
+    [ "$2" = -e ] && [ "$3" = -v ] || exit 2
+    package=$4
     case "$package" in
       ca-certificates) package_file="$MOCK_ROOT/ca-version" ;;
       ca-certificates-bundle) package_file="$MOCK_ROOT/bundle-version" ;;
@@ -46,7 +47,7 @@ function fixture(id: string, release: string) {
     esac
     [ -f "$package_file" ] || exit 1
     version=$(cat "$package_file")
-    [ "$2" = -e ] || printf '%s-%s\\n' "$package" "$version"
+    printf '%s-%s\\n' "$package" "$version"
     ;;
   version) [ "$3" = 20261020-r0 ]; if [ "$2" = old ]; then printf '<\\n'; else printf '=\\n'; fi ;;
   add)

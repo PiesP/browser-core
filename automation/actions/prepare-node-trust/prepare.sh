@@ -39,11 +39,10 @@ apt_run() {
 
 alpine_version() {
   package=$1
-  if ! apk info -e "$package" >/dev/null; then
+  if ! installed=$(apk info -e -v "$package"); then
     printf 'missing'
     return
   fi
-  installed=$(apk info -v "$package") || fail "Cannot read Alpine $package version."
   case "$installed" in
     "$package"-*) version=${installed#"$package"-} ;;
     *) fail "Unexpected Alpine $package version output." ;;
