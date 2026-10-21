@@ -19,28 +19,21 @@ jobs:
     name: Manual JavaScript Action TLS qualification
     if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 3
-    strategy:
-      fail-fast: false
-      matrix:
-        trust: [bundled, openssl, openssl-updated]
+    timeout-minutes: 5
+    env:
+      NODE_OPTIONS: --use-openssl-ca
+      SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+      SSL_CERT_DIR: /etc/ssl/certs
     steps:
-      - name: Refresh the Ubuntu certificate package for the updated-store probe
-        if: ${{ matrix.trust == 'openssl-updated' }}
-        run: |
-          set -euo pipefail
-          sudo apt-get update --quiet
-          sudo apt-get install --only-upgrade --yes ca-certificates
-          dpkg-query --show --showformat='${Version}\n' ca-certificates
+      # Publication pilot: checkout is required to exercise this candidate helper.
+      # Maintained callers use its published SHA before their first JS Action.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Prepare the official Ubuntu certificate store
+        uses: ./automation/actions/prepare-node-trust
       - name: Qualify the actual runner-owned Action runtime
         uses: ./.github/actions/qualify-runner-trust
-        env:
-          NODE_OPTIONS: ${{ matrix.trust != 'bundled' && '--use-openssl-ca' || '' }}
-          SSL_CERT_FILE: ${{ matrix.trust != 'bundled' && '/etc/ssl/certs/ca-certificates.crt' || '' }}
-          SSL_CERT_DIR: ${{ matrix.trust != 'bundled' && '/etc/ssl/certs' || '' }}
 
   runner-trust-alpine:
     name: Manual Alpine JavaScript Action TLS qualification
@@ -49,22 +42,18 @@ jobs:
     timeout-minutes: 5
     container:
       image: semgrep/semgrep:1.178.0@sha256:fbba1f23d2ef94630c828e8692758f8bc6353a8089841a396a5c041451966ffb
+    env:
+      NODE_OPTIONS: --use-openssl-ca
+      SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+      SSL_CERT_DIR: /etc/ssl/certs
     steps:
-      - name: Refresh the container certificate package
-        shell: sh
-        run: |
-          set -eu
-          apk add --upgrade --no-cache ca-certificates
-          apk info -v ca-certificates ca-certificates-bundle
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Prepare the official Alpine certificate store
+        uses: ./automation/actions/prepare-node-trust
       - name: Qualify the actual Action runtime in the refreshed container
         uses: ./.github/actions/qualify-runner-trust
-        env:
-          NODE_OPTIONS: --use-openssl-ca
-          SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
-          SSL_CERT_DIR: /etc/ssl/certs
 
   quality:
     runs-on: ubuntu-24.04

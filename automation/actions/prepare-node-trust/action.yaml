@@ -1,0 +1,9 @@
+name: Prepare Node.js trust store
+description: Refresh the supported runner's official certificate package before JavaScript actions
+
+runs:
+  using: composite
+  steps:
+    - name: Verify and prepare the runner certificate store
+      shell: sh
+      run: sh "$GITHUB_ACTION_PATH/prepare.sh"
