@@ -39,7 +39,10 @@ apt_run() {
 
 alpine_version() {
   package=$1
-  apk info -e "$package" >/dev/null || fail "Alpine $package is missing."
+  if ! apk info -e "$package" >/dev/null; then
+    printf 'missing'
+    return
+  fi
   installed=$(apk info -v "$package") || fail "Cannot read Alpine $package version."
   case "$installed" in
     "$package"-*) version=${installed#"$package"-} ;;
@@ -52,6 +55,7 @@ alpine_version() {
 }
 
 alpine_current() {
+  [ "$1" != missing ] || return 1
   case "$(apk version -t "$1" "$alpine_floor")" in
     '='|'>') return 0 ;;
     *) return 1 ;;
@@ -78,6 +82,8 @@ case "${ID-}:${VERSION_ID-}" in
       ca_version=$(alpine_version ca-certificates)
       bundle_version=$(alpine_version ca-certificates-bundle)
     fi
+    [ "$ca_version" != missing ] || fail 'Alpine ca-certificates is missing after refresh.'
+    [ "$bundle_version" != missing ] || fail 'Alpine ca-certificates-bundle is missing after refresh.'
     alpine_current "$ca_version" || fail "Alpine ca-certificates is below $alpine_floor."
     alpine_current "$bundle_version" || fail "Alpine ca-certificates-bundle is below $alpine_floor."
     printf 'prepare-node-trust: alpine=%s uid=%s ca-certificates=%s ca-certificates-bundle=%s\n' "$VERSION_ID" "$(id -u)" "$ca_version" "$bundle_version"

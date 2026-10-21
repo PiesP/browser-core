@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vite-plus/test';
@@ -40,10 +40,12 @@ function fixture(id: string, release: string) {
   info)
     package=$3
     case "$package" in
-      ca-certificates) version=$(cat "$MOCK_ROOT/ca-version") ;;
-      ca-certificates-bundle) version=$(cat "$MOCK_ROOT/bundle-version") ;;
+      ca-certificates) package_file="$MOCK_ROOT/ca-version" ;;
+      ca-certificates-bundle) package_file="$MOCK_ROOT/bundle-version" ;;
       *) exit 1 ;;
     esac
+    [ -f "$package_file" ] || exit 1
+    version=$(cat "$package_file")
     [ "$2" = -e ] || printf '%s-%s\\n' "$package" "$version"
     ;;
   version) [ "$3" = 20261020-r0 ]; if [ "$2" = old ]; then printf '<\\n'; else printf '=\\n'; fi ;;
@@ -132,5 +134,21 @@ describe('prepare Node trust action', () => {
     expect(() => nonroot.commands()).toThrow();
     const stale = fixture('alpine', '3.23.3');
     expect(stale.run({ MOCK_KEEP_OLD: '1' }).stderr).toContain('below 20261020-r0');
+  });
+
+  it('installs the missing Alpine certificate package when the image contains only the bundle', () => {
+    const f = fixture('alpine', '3.23.3');
+    unlinkSync(join(f.root, 'ca-version'));
+    const result = f.run();
+    expect(result.status, result.stderr).toBe(0);
+    expect(f.commands()).toEqual([
+      'add --upgrade --no-cache ca-certificates ca-certificates-bundle',
+    ]);
+    expect(result.stdout).toContain('ca-certificates=20261020-r0');
+    const unavailable = fixture('alpine', '3.23.3');
+    unlinkSync(join(unavailable.root, 'ca-version'));
+    expect(unavailable.run({ MOCK_KEEP_OLD: '1' }).stderr).toContain(
+      'Alpine ca-certificates is missing'
+    );
   });
 });
