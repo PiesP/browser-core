@@ -79,7 +79,7 @@ describe('central project setup action', () => {
   });
 
   it('requires the consumer smoke job alongside both existing runtime lanes', () => {
-    expect(ci).toContain('node-version: [22, manifest]');
+    expect(ci).toContain("node-version: ['22.23.4', manifest]");
     expect(ci).toContain('needs: [quality, setup-smoke]');
     expect(ci).toContain('uses: ./.setup-action/automation/actions/setup-project');
     expect(ci).toContain("install-dependencies: 'false'");

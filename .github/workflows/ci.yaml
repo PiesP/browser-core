@@ -21,7 +21,7 @@ jobs:
     strategy:
       matrix:
         # Keep the older-runtime compatibility lane distinct from the official pin.
-        node-version: [22, manifest]
+        node-version: ['22.23.4', manifest]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -80,7 +80,7 @@ jobs:
       - name: Setup the explicit compatibility runtime without reinstalling
         uses: ./.setup-action/automation/actions/setup-project
         with:
-          node-version: '22'
+          node-version: '22.23.4'
           install-dependencies: 'false'
       - name: Verify the compatibility override and unchanged consumer files
         run: |

@@ -22,7 +22,7 @@ export function prepareSetupSmoke() {
   const core = JSON.parse(
     readFileSync(fileURLToPath(new URL('../../package.json', import.meta.url)), 'utf8')
   );
-  if (core.packageManager === 'pnpm@11.25.0' || core.volta.node === '24.15.0') {
+  if (core.packageManager === 'pnpm@11.25.0' || core.volta.node === '24.22.1') {
     throw new Error('Smoke fixture toolchain must differ from browser-core');
   }
   // The copied workspace policy must agree with the fixture's frozen lockfile.
@@ -37,7 +37,7 @@ export function prepareSetupSmoke() {
     JSON.stringify({
       private: true,
       packageManager: 'pnpm@11.25.0',
-      volta: { node: '24.15.0' },
+      volta: { node: '24.22.1' },
       dependencies: { 'setup-smoke-fixture': 'link:./fixture-package' },
     }) + '\n'
   );

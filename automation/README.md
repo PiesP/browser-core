@@ -45,8 +45,8 @@ These JavaScript exceptions are `resolve-runtime.mjs` and
 `prepare-osv/prepare.ts` are dependency-free TypeScript executed after supported
 Node setup; they are not pre-runtime JavaScript exceptions. The classifier
 requires native erasable TypeScript execution under the package manifest
-runtime or the supported Node 22 compatibility runtime (22.22.2 or newer in
-that major). It uses only Node built-ins and Git, before dependency installation.
+runtime or a Node 22 compatibility runtime allowed by `package.json`.
+It uses only Node built-ins and Git, before dependency installation.
 The existing setup Action and package manifest remain the runtime owners.
 
 The retained languages have explicit stage boundaries:
@@ -155,6 +155,16 @@ the existing consumer manifest remains the single official version source.
 Official builds fail before dependency installation when the manifest pin is
 missing or non-exact. Compatibility overrides intentionally select a separate
 numeric runtime without requiring that official pin.
+
+The root manifest and executable setup-smoke fixture select released Node builds
+containing the [eMudhra key blocklist](https://github.com/nodejs/node/pull/66871).
+Their supported Node lines retain the security-release floors in `package.json`.
+This selection does not replace the Node embedded in pnpm's standalone binary
+or the runner-owned Node used by JavaScript Actions. Qualify those executable
+paths independently; a project `node --version` result does not cover them.
+Keep historical source revisions immutable and defer network replays that select
+an unqualified runtime until that exact runtime or a scoped trust mitigation has
+been independently verified.
 
 `.github/dependabot.yaml` watches both the root workflows and
 `automation/actions/setup-project/action.yaml`. It groups CodeQL, `pnpm/setup`,
