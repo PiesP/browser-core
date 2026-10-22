@@ -98,10 +98,10 @@ ownership. Keep `volta.node` while setup readers use it. Finish with a frozen
 install, `pnpm verify`, the supported CI runtime matrix and affected consumer
 acceptance. The standalone paired-updater recovery service is retired.
 
-The managed Vite alias reports the Vite+ version (`1.2.0`), while its package
-metadata records the bundled Vite version (`8.3.4`). Strict peer validation stays
-enabled. The only peer allowances match `vitest@5.0.4` and
-`@vitest/mocker@5.0.4` requesting this exact alias version; their declared Vite 8
+The managed Vite alias reports the selected Vite+ version, while its package
+metadata records the bundled Vite version. Strict peer validation stays enabled.
+The only peer allowances match the exact `vitest` and `@vitest/mocker` versions
+in `pnpm-workspace.yaml` requesting that exact alias version; their declared Vite 8
 ranges include the bundled implementation. Recheck these exact callers, the
 alias and the bundled Vite against their original peer ranges on every update.
 Do not widen these entries or add `allowAny`. Validate dependency resolution

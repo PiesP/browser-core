@@ -48,6 +48,18 @@ remaining pre-runtime language exceptions.
 The required Node.js and pnpm versions are defined in
 [`package.json`](./package.json).
 
+Volta selects Node.js. Install the manifest-selected native pnpm through npm,
+allowing only pnpm's own installation scripts, and place npm's global binary
+directory before Volta's experimental pnpm shim in `PATH`:
+
+```bash
+npm install --global "$(node -p "require('./package.json').packageManager")" --allow-scripts=pnpm
+pnpm --version
+```
+
+The `packageManager` field owns pnpm version selection. Volta's pnpm shim expects
+the older JavaScript entrypoint and cannot launch the native package.
+
 ```bash
 pnpm install
 pnpm check
