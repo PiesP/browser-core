@@ -59,6 +59,14 @@ pnpm --version
 
 The `packageManager` field owns pnpm version selection. Volta's pnpm shim expects
 the older JavaScript entrypoint and cannot launch the native package.
+If Volta already selects pnpm globally, back up
+`$VOLTA_HOME/tools/user/platform.json` and set only its `pnpm` field to `null`.
+Keep the Node selection and downloaded tool images. Volta's Node launcher can
+otherwise prepend the obsolete pnpm image ahead of npm's global directory;
+PATH order alone does not retire that selection. Volta's native pnpm uninstall
+is [not implemented](https://docs.volta.sh/advanced/pnpm#known-limitations).
+Verify that `node -e "require('node:child_process').execFileSync('pnpm', ['--version'], {stdio: 'inherit'})"`
+reports the manifest-selected version before installing project dependencies.
 
 ```bash
 pnpm install
