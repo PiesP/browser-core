@@ -48,6 +48,8 @@ remaining pre-runtime language exceptions.
 The required Node.js and pnpm versions are defined in
 [`package.json`](./package.json).
 
+### Native pnpm bootstrap
+
 Volta selects Node.js. Install the manifest-selected native pnpm through npm,
 allowing only pnpm's own installation scripts, and place npm's global binary
 directory before Volta's experimental pnpm shim in `PATH`:
