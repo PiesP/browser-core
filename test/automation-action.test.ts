@@ -38,7 +38,7 @@ function runtimeNotificationRunsFor(path: string): boolean {
 }
 
 describe('central project setup action', () => {
-  it('pins Node before installing JavaScript pnpm from the consumer manifest', () => {
+  it('pins Node before installing pnpm from the consumer manifest', () => {
     expect(action).toContain('uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1');
     expect(action).toContain('uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413');
     expect(action).toContain('node-version: ${{ steps.runtime.outputs.version }}');
