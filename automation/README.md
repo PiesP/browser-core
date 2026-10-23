@@ -129,7 +129,9 @@ commit SHA:
 
 The setup action reads the consumer's root `package.json`, installs its exact
 `volta.node` runtime with `actions/setup-node`, then installs its declared pnpm
-version with `pnpm/action-setup` using the plain JavaScript pnpm package. It
+version with `pnpm/action-setup` from the consumer's `packageManager` field. The
+selected pnpm version determines whether that package uses JavaScript or a native
+executable; see the version-dependent `standalone` behavior below. The action
 enables the pnpm cache and by default runs
 `pnpm install --frozen-lockfile --no-runtime`. Disabling runtime installation
 in the dependency step keeps the pinned Node setup as the runtime owner. The
@@ -161,11 +163,26 @@ numeric runtime without requiring that official pin.
 The root manifest and executable setup-smoke fixture select released Node builds
 containing the [eMudhra key blocklist](https://github.com/nodejs/node/pull/66871).
 Their supported Node lines retain the security-release floors in `package.json`.
-The setup action selects plain JavaScript pnpm 11 after the pinned Node setup;
-`standalone: false` leaves the native standalone path disabled for these
-supported Node versions. The JavaScript Action still uses runner-owned Node,
-including when it invokes pnpm's bootstrap `self-update`; a project
-`node --version` result does not cover that executable path.
+The provider's current development toolchain is selected by the
+[root manifest](../package.json), with its native pnpm setup documented in
+[Native pnpm bootstrap](../README.md#native-pnpm-bootstrap). The
+[setup-smoke generator](scripts/prepare-setup-smoke.mjs) deliberately selects a
+different pnpm 11 and Node toolchain to prove consumer-manifest selection; it is
+a compatibility fixture, not the provider's development setup.
+
+The setup action retains `standalone: false`. As documented by the
+[pinned upstream Action](https://github.com/pnpm/action-setup/blob/ea17c68df8912ef543352723c149a84f56e3d413/README.md#standalone),
+this selects the JavaScript package rather than `@pnpm/exe` for pnpm 11 and
+earlier, including the smoke fixture. For pnpm 12 the input has no effect: the
+plain `pnpm` package already installs a standalone native executable. It does
+not disable that native path.
+
+Project Node selection, the runner-owned Node executing JavaScript Actions
+(including the package-manager bootstrap), and the selected pnpm executable are
+separate concerns. A project `node --version` result does not establish the
+runtime or trust behavior of every executable. Historical pnpm 11 incident
+observations remain evidence for their recorded source and execution path;
+this description adds no new installation, runtime, or TLS qualification.
 `automation/actions/prepare-node-trust` is an input-free shell bootstrap for
 Ubuntu 24.04 and Alpine 3.23. It requires the caller's job environment to select
 only the OpenSSL store:
@@ -220,8 +237,9 @@ affected workflow contract tests in the same PR; never compute an expected SHA
 from the workflow or action being tested. Keep the consumer manifest runtime,
 input allowlist, cache and optional frozen-install behavior intact. The reviewed
 `actions/setup-node` v7.1.0 and `pnpm/action-setup` v6.1.0 pins configure Node
-before plain JavaScript pnpm. The PR-local consumer setup smoke exercises the
-manifest-pinned runtime, Node 22 override, and optional frozen installation.
+before the consumer-selected pnpm. The PR-local consumer setup smoke exercises
+its deliberately distinct pnpm 11 fixture, the fixture's manifest-pinned runtime,
+Node 22 override, and optional frozen installation.
 Run the focused action/workflow tests and `pnpm verify`, then review the hosted
 checks at the PR head. A stale test pin calls for reviewing that specific
 update, not closing every grouped Actions update. This automation-only
