@@ -74,6 +74,11 @@ formatting; `pnpm check:design` remains their freshness authority. Vite+ task
 caching is disabled and the existing manifest-pinned Node/pnpm setup owns the
 runtime. Consumer installs require no core development tools or lifecycle build.
 
+`pnpm test` and `pnpm test:cov` run once and exit. `pnpm test:watch` starts the
+supported `vp test watch` mode and reruns affected tests as files change.
+`pnpm verify` runs the check sequence and one-shot coverage tests; it does not
+establish a consumer browser or installed-application acceptance result.
+
 | Retained checker                | Command             | Reason                                                                                                                                                                                                                                                   |
 | ------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | TypeScript                      | `pnpm check:types`  | Checks browser/bundler and NodeNext/erasable projects separately. Integrated type checking auto-discovers standard project names and cannot select the custom scripts project; `lint.options.typeCheck` is disabled while type-aware lint stays enabled. |

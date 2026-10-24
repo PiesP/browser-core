@@ -36,7 +36,7 @@
     "test": "vp test run",
     "test:cov": "vp test run --coverage",
     "verify": "pnpm check && pnpm test:cov",
-    "test:watch": "vp test"
+    "test:watch": "vp test watch"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
