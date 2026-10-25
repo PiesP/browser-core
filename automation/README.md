@@ -115,8 +115,12 @@ the latter alone can reuse an unchecked migration lockfile.
 
 Dependabot keeps Vite+ version updates visible, but does not independently update
 its managed Vite alias or upstream Vitest/coverage pins. Those normal component
-updates are excluded with version-update-only filters; security alerts and
-security updates keep their existing handling. A Vite+ update PR still needs
+updates are excluded with version-update-only filters. Keep security alerts and
+security updates enabled, but GitHub's pnpm 12 two-document lockfile ingestion
+limitation can prevent dependency detection and those security notifications.
+Use the existing OSV workflow and the shared
+[monitoring and remediation policy](https://github.com/PiesP/.github/blob/master/MAINTENANCE_POLICY.md#dependency-security-monitoring)
+to handle applicable findings when no automatic security PR appears. A Vite+ update PR still needs
 the pinned migration above, manual catalog/peer review and the required gates
 before merging. Do not merge a package-only bump as an aligned toolchain update.
 See [project updates](https://viteplus.dev/guide/upgrade-project); the global
