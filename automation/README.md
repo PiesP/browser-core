@@ -8,82 +8,61 @@ consumer repositories. It is distributed independently from the
 
 | Surface and owner                                                                                               | Prerequisites and inputs                                                                                                                                                                                      | Output or side effect                                                                                                                                                                                                                                                                              | Verification                                                                                                                                                                                                   |
 | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `check:format`; Vite+ formatter                                                                                 | Manifest-pinned Node; maintained text files                                                                                                                                                                   | Read-only formatting diagnostics and exit status                                                                                                                                                                                                                                                   | `pnpm check`                                                                                                                                                                                                   |
-| `generate:design`, `check:design`; `scripts/generate-design-tokens.ts`, local Node CLI                          | Manifest-pinned Node; `src/design/quiet-instruments.tokens.json`                                                                                                                                              | Generate writes `src/design/generated/*`; check reports stale outputs without writing                                                                                                                                                                                                              | Token tests and `pnpm check`                                                                                                                                                                                   |
-| `check:types`, `check`; TypeScript compiler and local CLI sequence                                              | Manifest-pinned Node/pnpm and frozen dev dependencies; browser `tsconfig.json`, NodeNext/erasable `tsconfig.scripts.json`                                                                                     | Read-only diagnostics; `check` runs Vite+ format/lint, design and both type projects                                                                                                                                                                                                               | Official and Node 22 CI quality jobs                                                                                                                                                                           |
-| `test`, `test:cov`, `test:watch`, `verify`; Vite+ and local CLI sequence                                        | Frozen dev dependencies; product and automation fixtures                                                                                                                                                      | Tests write disposable fixtures; coverage writes reports; watch persists; `verify` runs check and coverage                                                                                                                                                                                         | `pnpm verify` and exact-SHA CI; consumer acceptance has its own gate                                                                                                                                           |
+| `check:format`; Vite+ formatter                                                                                 | `.node-version`-selected Node; maintained text files                                                                                                                                                          | Read-only formatting diagnostics and exit status                                                                                                                                                                                                                                                   | `vp run check`                                                                                                                                                                                                 |
+| `generate:design`, `check:design`; `scripts/generate-design-tokens.ts`, local Node CLI                          | `.node-version`-selected Node; `src/design/quiet-instruments.tokens.json`                                                                                                                                     | Generate writes `src/design/generated/*`; check reports stale outputs without writing                                                                                                                                                                                                              | Token tests and `vp run check`                                                                                                                                                                                 |
+| `check:types`, `check`; TypeScript compiler and local CLI sequence                                              | `.node-version`-selected Node/pnpm and frozen dev dependencies; browser `tsconfig.json`, NodeNext/erasable `tsconfig.scripts.json`                                                                            | Read-only diagnostics; `check` runs Vite+ format/lint, design and both type projects                                                                                                                                                                                                               | Official and Node 22 CI quality jobs                                                                                                                                                                           |
+| `test`, `test:cov`, `test:watch`, `verify`; Vite+ task scripts                                                  | Frozen dev dependencies; product and automation fixtures                                                                                                                                                      | Tests write disposable fixtures; coverage writes reports; watch persists; `verify` runs check and coverage                                                                                                                                                                                         | `vp run verify` and exact-SHA CI; consumer acceptance has its own gate                                                                                                                                         |
 | `.githooks/pre-commit`, `.githooks/pre-push`; Bash adapters to `scripts/git-hook.ts`                            | Git hook opt-in, Node, current branch or pre-push stdin refs                                                                                                                                                  | Exit status and rejection diagnostic; no writes                                                                                                                                                                                                                                                    | `test/scripts/git-hooks.test.ts` exercises executable hooks in temporary Git repositories                                                                                                                      |
-| `automation/actions/setup-project`; composite Action and runner-Node `resolve-runtime.mjs`                      | Consumer root manifest, optional numeric override, `GITHUB_OUTPUT`; runner Node before pinned toolchain                                                                                                       | Resolver writes `version` to `GITHUB_OUTPUT`; Action installs pinned Node/pnpm and optionally frozen dependencies                                                                                                                                                                                  | `test/scripts/resolve-runtime.test.ts`, Action contract tests, CI setup smoke                                                                                                                                  |
+| `automation/actions/setup-project`; composite Action and `setup-vp`                                             | Consumer `.node-version`, `packageManager`, optional numeric override; runner trust prep                                                                                                                      | Pins Vite+ and selects Node/pnpm; optionally installs frozen dependencies                                                                                                                                                                                                                          | `test/automation-action.test.ts`, CI setup smoke                                                                                                                                                               |
 | `automation/actions/consumer-impact`; composite Action and pinned-Node `classify.ts`                            | Supported Node selected by the existing setup Action; existing `packages/core` Git clone and two 40-character SHAs; no installed dependencies                                                                 | Git subprocess reads commits; Action writes `impact` to `GITHUB_OUTPUT`                                                                                                                                                                                                                            | `test/scripts/consumer-impact.test.ts`, notification workflow contract tests                                                                                                                                   |
-| `automation/actions/prepare-osv`; input-free composite Action and pinned-Node `prepare.ts`                      | Immutable provider Action SHA, manifest-pinned Node already selected, trusted `RUNNER_TEMP` and `GITHUB_OUTPUT`                                                                                               | Copies only the four provider-owned OSV TypeScript modules into a new private runner directory and outputs `helper-path` after complete success                                                                                                                                                    | `test/scripts/prepare-osv-helper.test.ts` exercises the real CLI, Action metadata, fixed copy, cleanup and import behavior                                                                                     |
+| `automation/actions/prepare-osv`; input-free composite Action and pinned-Node `prepare.ts`                      | Immutable provider Action SHA, `.node-version`-selected Node already selected, trusted `RUNNER_TEMP` and `GITHUB_OUTPUT`                                                                                      | Copies only the four provider-owned OSV TypeScript modules into a new private runner directory and outputs `helper-path` after complete success                                                                                                                                                    | `test/scripts/prepare-osv-helper.test.ts` exercises the real CLI, Action metadata, fixed copy, cleanup and import behavior                                                                                     |
 | `automation/actions/prepare-scanner-pins`; input-free composite Action and pinned-Node `prepare.ts`             | Immutable provider Action SHA, selected Node, trusted `RUNNER_TEMP` and `GITHUB_OUTPUT`                                                                                                                       | Copies the single provider-owned scanner pin CLI into a new private runner directory and outputs `helper-path` only after success                                                                                                                                                                  | `test/scripts/prepare-scanner-pins.test.ts` checks source, copy, cleanup, and import behavior                                                                                                                  |
 | `automation/security/scanner-pins.ts`; dependency-free Node TypeScript                                          | Explicit absolute path to consumer-owned pinned metadata, `GITHUB_ENV` for `env` or `GH_TOKEN` for `check`, GitHub API and GHCR for `check`                                                                   | Exports validated images or checks OSV release, OSV digest, and Semgrep release independently; newer mature versions warn, while failed checks return nonzero                                                                                                                                      | `test/scripts/scanner-pins.test.ts` covers metadata, cooling, digest, independent attempts, token-safe errors, and private-copy execution                                                                      |
-| `automation/scripts/prepare-setup-smoke.mjs`; runner-Node CI fixture helper                                     | Checked-out `.setup-action` source, empty consumer workspace, no arguments or dependencies                                                                                                                    | Writes consumer manifest, linked package, frozen lockfile, and workspace file                                                                                                                                                                                                                      | Script CLI tests; CI hashes fixture files before and after setup                                                                                                                                               |
+| `automation/scripts/prepare-setup-smoke.mjs`; runner-Node fixture                                               | Checked-out provider, empty consumer workspace                                                                                                                                                                | Writes distinct `.node-version`, pnpm manifest/lockfile, linked package and workspace policy                                                                                                                                                                                                       | Script CLI tests; CI hashes inputs before and after setup                                                                                                                                                      |
 | `automation/scripts/verify-setup-smoke.ts`; pinned-Node CI verifier                                             | Phase, consumer manifest, optional `PNPM_VERSION`, linked fixture after install                                                                                                                               | Exit status only; checks selected runtime, install boundary, and dependency value                                                                                                                                                                                                                  | Script behavior tests; CI runs prepared, installed, and Node 22 compatibility phases                                                                                                                           |
 | `automation/security/validate-osv.ts`; dependency-free Node TypeScript                                          | Explicit input/output paths and schema profile after supported runtime setup                                                                                                                                  | Read/validate JSON; optional atomic validated output, no writes on import                                                                                                                                                                                                                          | `test/scripts/osv-validator.test.ts`; see the OSV contract below                                                                                                                                               |
 | `automation/security/consumer-workflow.ts`; dependency-free Node TypeScript                                     | Fixed scan/report mode, explicit trusted `consumer` or `overlay` profile, pinned scanner image and workflow-owned environment                                                                                 | Scans and raw reporter preflight produce atomic normalized OSV JSON; final reporter validates SARIF and writes `sarif-upload=true` only after a valid exit 0/1 result                                                                                                                              | `test/scripts/consumer-workflow.test.ts` uses the real CLI and fake Docker; Node 22 fixtures and the gallery pilot below                                                                                       |
 | `scripts/notify-consumers.ts`; repository-local Node TypeScript CLI                                             | Default-branch checkout, pinned Node, `CORE_SHA`, repository names, `gh` and `GH_TOKEN` in the invoking step                                                                                                  | `validate` queries commit and master ancestry before appending one `core_sha` output; `dispatch` sends the fixed event to one selected consumer; imports have no side effects                                                                                                                      | `test/scripts/notify-consumers.test.ts`, `test/notify-consumers.test.ts`                                                                                                                                       |
 | `scripts/security/osv-workflow.ts`; repository-local pinned-Node TypeScript helper                              | Fixed `scan-old`, `scan-new`, `scan-full`, `report-pr`, `report-full`, or `summary` mode; immutable reviewed helper files in runner temporary storage, trusted workflow environment and existing Docker image | Scans remove stale results and validate non-empty minimal OSV JSON; reporter performs one parse preflight before one SARIF/fail-on-vuln call; summary appends the existing table then enforces event-specific jobs                                                                                 | `test/scripts/osv-workflow.test.ts` and `test/scripts/security-workflow-execution.test.ts` exercise the CLI and actual workflow run commands with fake Docker; hosted security jobs remain the end-to-end gate |
 | `.github/workflows/ci.yaml`, `notify-consumers.yaml`, `security.yaml`; GitHub YAML and bounded shell            | GitHub event, trusted checkout, job context, runner tools                                                                                                                                                     | Own checks, dispatch, artifacts, permissions, scanner image, and immutable-helper bootstrap. `security.yaml` retains base/head checkout and private file materialization in Bash; its three inline Python validators and scan/report/summary Bash policy have moved to the trusted TypeScript CLI. | Workflow contract and run-block fixture tests, then hosted jobs                                                                                                                                                |
-| `test/scripts/*.test.ts`, `test/automation-action.test.ts`, `test/security-workflow.test.ts`; Vitest TypeScript | Installed test dependencies and disposable Git/workflow fixtures                                                                                                                                              | Assertions and temporary fixture writes                                                                                                                                                                                                                                                            | `pnpm test`, coverage gate in `pnpm verify`                                                                                                                                                                    |
+| `test/scripts/*.test.ts`, `test/automation-action.test.ts`, `test/security-workflow.test.ts`; Vitest TypeScript | Installed test dependencies and disposable Git/workflow fixtures                                                                                                                                              | Assertions and temporary fixture writes                                                                                                                                                                                                                                                            | `vp run test`, coverage gate in `vp run verify`                                                                                                                                                                |
 
-The setup order is runner-provided Node → manifest/override resolution → pinned
-Node and pnpm installation → optional frozen dependency installation → consumer
-tool execution. `install-dependencies: 'false'` stops after toolchain setup.
-The pre-runtime `.mjs` files must not import project dependencies or require
-TypeScript execution. Review each exception if a caller moves after guaranteed
-pin selection, the supported runner Node contract changes, or the Node 22/24
-compatibility matrix changes. A conversion must pass a clean bootstrap with no
-`node_modules` and the existing compatibility jobs first.
-The two retained `.mjs` files receive a Node syntax check under the local
-official pin; their CLI fixtures cover runtime behavior. Hosted CI remains the
-authority for the runner's bootstrap Node and the Node 22 compatibility lane.
-Hosted consumer pilot evidence is recorded below, separately from provider fixtures.
+The setup order is runner trust preparation and checkout → exact consumer
+`.node-version` validation → immutable `setup-vp` installation of Vite+, Node and
+the package manager → optional `vp install --frozen-lockfile -- --no-runtime` →
+consumer tool execution. `install-dependencies: 'false'` stops after toolchain
+setup. The Action accepts a numeric Node override only for compatibility jobs.
+Vite+ selects the consumer's package manager from `packageManager`; the provider
+pins Vite+ until a reviewed provider revision qualifies another release.
 
-These JavaScript exceptions are `resolve-runtime.mjs` and
-`prepare-setup-smoke.mjs`. The consumer-impact `classify.ts` and
-`prepare-osv/prepare.ts` are dependency-free TypeScript executed after supported
-Node setup; they are not pre-runtime JavaScript exceptions. The classifier
-requires native erasable TypeScript execution under the package manifest
-runtime or a Node 22 compatibility runtime allowed by `package.json`.
-It uses only Node built-ins and Git, before dependency installation.
-The existing setup Action and package manifest remain the runtime owners.
-
-The retained languages have explicit stage boundaries:
-
-| Exception or adapter                                  | Reason                                                                                                                                                | Review trigger                                                                                                                                               |
-| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `resolve-runtime.mjs`                                 | It selects the runtime under runner-provided Node before the pinned runtime exists.                                                                   | Every supported bootstrap runner proves dependency-free direct TypeScript execution, including a clean workspace and the compatibility lane.                 |
-| `prepare-setup-smoke.mjs`                             | CI creates the consumer manifest before its runtime can be selected; raw ESM has no project-loader dependency.                                        | The setup-fixture execution boundary changes or all supported bootstrap runners qualify direct TypeScript execution.                                         |
-| Two executable Bash Git-hook launchers                | Git supplies the executable-file boundary and stdin; maintained branch/ref policy lives in `scripts/git-hook.ts`.                                     | Hook installation guarantees the same direct Node entry and argument/stdin contract on every supported Git host.                                             |
-| Three fixed-file Bash security materialization steps  | They obtain the reviewed core-local helper before executing it, refuse an existing destination, and preserve private storage across checkout changes. | An immutable provider Action owns the same fixed core-local closure and its trusted-source, permissions, missing-file and checkout-transition fixtures pass. |
-| Semgrep, checkout and package-command launch adapters | Workflow-owned tool arguments, environment and lifecycle ordering remain beside their jobs; maintained scan/report/summary decisions are TypeScript.  | A launcher acquires parsing, branching or publication decisions that need their own tested local module.                                                     |
-
-Host runtimes are the manifest-selected Node/pnpm, the existing Node 22
-compatibility lane, runner-provided bootstrap Node, Git/Bash and the selected
-Docker/Semgrep/CodeQL tools. No Python runtime remains in core's maintained
-automation. Consumer browser/Windows runtimes are verified by their owners.
-Runtime checking, type checking and hosted Action execution are separate checks.
+`prepare-setup-smoke.mjs` is the sole raw JavaScript bootstrap exception. It
+creates a distinct consumer before any project runtime or dependencies exist,
+and its no-write-on-existing-path behavior is tested directly. The consumer
+impact classifier and OSV helpers are dependency-free TypeScript invoked only
+after supported Node setup. Bash Git hooks preserve the Git executable and stdin
+boundary; `scripts/git-hook.ts` owns their branch policy. The fixed-file security
+materialization steps preserve trusted source and private output handling. Review
+these adapters when their execution stage or underlying platform contract changes.
+Hosted CI is the authority for the runner bootstrap, Node 22 compatibility, and
+the no-install, installed and override setup phases. Consumer browser and Windows
+runtime acceptance remains with the owning repositories.
 
 ## Local toolchain
 
-`pnpm check` runs Vite+ formatting and type-aware lint, generated-token freshness,
-and both explicit TypeScript projects. `vite.config.ts` owns formatting, lint
-and the coverage-gated test runner. Generated design outputs are excluded from
-formatting; `pnpm check:design` remains their freshness authority. Vite+ task
-caching is disabled and the existing manifest-pinned Node/pnpm setup owns the
-runtime. Consumer installs require no core development tools or lifecycle build.
+`vp run check` runs Vite+ formatting and type-aware lint, generated-token
+freshness and both current TypeScript projects. `vite.config.ts` owns formatting,
+lint, coverage and disabled task caching. Generated design outputs remain excluded
+from formatting; `vp run check:design` checks their freshness. `vp run test` and
+`vp run test:cov` run once and exit; `vp run test:watch` persists and reruns.
+`vp run verify` performs checking and coverage tests. A restored cached result
+cannot serve as fresh validation. This does not establish consumer browser or
+installed-application acceptance.
 
-`pnpm test` and `pnpm test:cov` run once and exit. `pnpm test:watch` starts the
-supported `vp test watch` mode and reruns affected tests as files change.
-`pnpm verify` runs the check sequence and one-shot coverage tests; it does not
-establish a consumer browser or installed-application acceptance result.
-
-| Retained checker                | Command             | Reason                                                                                                                                                                                                                                                   |
-| ------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| TypeScript                      | `pnpm check:types`  | Checks browser/bundler and NodeNext/erasable projects separately. Integrated type checking auto-discovers standard project names and cannot select the custom scripts project; `lint.options.typeCheck` is disabled while type-aware lint stays enabled. |
-| Design generator                | `pnpm check:design` | Validates tokens and byte freshness of generated CSS/TypeScript.                                                                                                                                                                                         |
-| Bootstrap and security fixtures | `pnpm test`         | Check dependency-free runtime selection, consumer source boundaries and trusted workflow execution.                                                                                                                                                      |
+| Retained checker                | Command               | Reason                                                                                                                                                                                  |
+| ------------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TypeScript                      | `vp run check:types`  | Checks browser/bundler and NodeNext/erasable projects separately until integrated project discovery is qualified in [browser-core#97](https://github.com/PiesP/browser-core/issues/97). |
+| Design generator                | `vp run check:design` | Validates tokens and byte freshness of generated CSS/TypeScript.                                                                                                                        |
+| Bootstrap and security fixtures | `vp run test`         | Check dependency-free setup boundaries, consumer source and trusted workflow execution.                                                                                                 |
 
 For an update, select an exact stable Vite+ release that satisfies the existing
 npm release-age policy, then use its pinned migrator from the repository root:
@@ -99,9 +78,9 @@ lockfile diff. Retain compatibility aliases and align the direct upstream Vitest
 and coverage entries with the selected toolchain; the upstream package identity
 is still used by ambient test types. Do not accept generated release-age
 exemptions, broad peer-policy relaxations, install hooks or competing runtime/hook
-ownership. Keep `volta.node` while setup readers use it. Finish with a frozen
-install, `pnpm verify`, the supported CI runtime matrix and affected consumer
-acceptance. The standalone paired-updater recovery service is retired.
+ownership. Keep the `.node-version` and `packageManager` authorities coherent.
+Finish with a frozen `vp install`, `vp run verify`, the supported CI runtime
+matrix and affected consumer acceptance. The standalone paired-updater recovery service is retired.
 
 The managed Vite alias reports the selected Vite+ version, while its package
 metadata records the bundled Vite version. Strict peer validation stays enabled.
@@ -136,20 +115,17 @@ commit SHA:
   uses: PiesP/browser-core/automation/actions/setup-project@0123456789abcdef0123456789abcdef01234567
 ```
 
-The setup action reads the consumer's root `package.json`, installs its exact
-`volta.node` runtime with `actions/setup-node`, then installs its declared pnpm
-version with `pnpm/action-setup` from the consumer's `packageManager` field. The
-selected pnpm version determines whether that package uses JavaScript or a native
-executable; see the version-dependent `standalone` behavior below. The action
-enables the pnpm cache and by default runs
-`pnpm install --frozen-lockfile --no-runtime`. Disabling runtime installation
-in the dependency step keeps the pinned Node setup as the runtime owner. The
-action does not accept executable commands, paths, references, URLs, or secrets
-as inputs.
+The shared composite Action validates an exact consumer `.node-version` and
+uses [setup-vp v1.22.0](https://github.com/voidzero-dev/setup-vp/blob/cab1ab9eaff52d4857875f4f2c016e36af8f2c76/action.yml)
+to install Vite+ 1.4.0, the selected Node and the pnpm version from the consumer's
+`packageManager`. It disables both dependency and toolchain caches. By default,
+it runs `vp install --frozen-lockfile -- --no-runtime`; pnpm still enforces the
+workspace's strict peers, engines, build approvals, release age and source
+policies. The Action accepts no executable commands, paths, references, URLs or
+secrets as inputs.
 
-For tooling that must run before dependency installation, set `install-dependencies: 'false'` and call the action again with
-the default after those checks. The runtime and package manager are configured
-before the first action returns, independently of the later dependency install:
+For tooling that must run before dependencies exist, use
+`install-dependencies: 'false'`, then call the same Action again for installation:
 
 ```yaml
 - name: Setup pinned runtime
@@ -162,29 +138,17 @@ before the first action returns, independently of the later dependency install:
   uses: PiesP/browser-core/automation/actions/setup-project@0123456789abcdef0123456789abcdef01234567
 ```
 
-An optional numeric `node-version` input is reserved for explicitly identified
-compatibility jobs. Product CI, deep analysis, and release builds omit it so
-the existing consumer manifest remains the single official version source.
-Official builds fail before dependency installation when the manifest pin is
-missing or non-exact. Compatibility overrides intentionally select a separate
-numeric runtime without requiring that official pin.
-
-The root manifest and executable setup-smoke fixture select released Node builds
-containing the [eMudhra key blocklist](https://github.com/nodejs/node/pull/66871).
-Their supported Node lines retain the security-release floors in `package.json`.
-The provider's current development toolchain is selected by the
-[root manifest](../package.json), with its native pnpm setup documented in
-[Native pnpm bootstrap](../README.md#native-pnpm-bootstrap). The
-[setup-smoke generator](scripts/prepare-setup-smoke.mjs) deliberately selects a
-different pnpm 11 and Node toolchain to prove consumer-manifest selection; it is
-a compatibility fixture, not the provider's development setup.
-
-The setup action retains `standalone: false`. As documented by the
-[pinned upstream Action](https://github.com/pnpm/action-setup/blob/ea17c68df8912ef543352723c149a84f56e3d413/README.md#standalone),
-this selects the JavaScript package rather than `@pnpm/exe` for pnpm 11 and
-earlier, including the smoke fixture. For pnpm 12 the input has no effect: the
-plain `pnpm` package already installs a standalone native executable. It does
-not disable that native path.
+An optional numeric `node-version` input belongs only to explicit compatibility
+jobs. Product and release builds omit it, so the consumer's `.node-version` is
+the exact Node authority. The setup Action rejects a missing, symlinked or
+non-exact pin before installing Vite+. Compatibility overrides are validated
+separately and may run without that pin. The provider's supported Node lines
+retain the security-release floors in `package.json`; the smoke fixture uses a
+distinct Node 24/pnpm 11 pair to verify consumer selection and Node 22 override.
+The Vite+ and setup-vp versions are qualified as a provider revision; consumers
+adopt its immutable Action SHA separately from any runtime `packages/core` gitlink.
+To roll back a consumer, restore its previous reviewed Action SHA and matching
+runtime pin through its protected PR path, preserving any unrelated source edits.
 
 Project Node selection, the runner-owned Node executing JavaScript Actions
 (including the package-manager bootstrap), and the selected pnpm executable are
@@ -232,7 +196,7 @@ process. Certificate errors establish rejection; timeouts or DNS errors leave
 qualification incomplete. Ordinary push and PR CI skip live incident endpoints.
 Historical bundled/old-store failures remain incident evidence rather than
 mandatory failing lanes in the maintained workflow. The diagnostic's raw ESM
-entry runs separately from the manifest resolver and setup-fixture helpers.
+entry runs separately from the setup-fixture helper.
 Keep historical source revisions immutable and defer network replays that select
 an unqualified runtime until that exact runtime or a scoped trust mitigation has
 been independently verified.
@@ -243,18 +207,16 @@ For an Action SHA update, check the full commit against the official upstream
 release and allow at least 24 hours from that release before review. Update the
 independent allowed-SHA assertions in `test/automation-action.test.ts` and any
 affected workflow contract tests in the same PR; never compute an expected SHA
-from the workflow or action being tested. Keep the consumer manifest runtime,
-input allowlist, cache and optional frozen-install behavior intact. The reviewed
-`actions/setup-node` v7.1.0 and `pnpm/action-setup` v6.1.0 pins configure Node
-before the consumer-selected pnpm. The PR-local consumer setup smoke exercises
-its deliberately distinct pnpm 11 fixture, the fixture's manifest-pinned runtime,
-Node 22 override, and optional frozen installation.
-Run the focused action/workflow tests and `pnpm verify`, then review the hosted
+from the workflow or action being tested. Keep the consumer `.node-version`/`packageManager` selection,
+input allowlist, disabled caches and optional frozen-install behavior intact.
+The PR-local setup smoke exercises a distinct pnpm 11 fixture, its exact Node
+pin, Node 22 override and optional frozen installation.
+Run the focused action/workflow tests and `vp run verify`, then review the hosted
 checks at the PR head. A stale test pin calls for reviewing that specific
 update, not closing every grouped Actions update. This automation-only
 maintenance does not update runtime gitlinks.
 
-After the consumer's manifest-pinned Node setup with
+After the consumer's `.node-version` setup with
 `install-dependencies: 'false'`, a trusted security workflow can call
 `PiesP/browser-core/automation/actions/prepare-osv@<reviewed-full-SHA>`.
 The input-free Action reads its own immutable provider source, copies the fixed

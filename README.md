@@ -45,39 +45,20 @@ The [automation catalog](./automation/README.md#maintained-tooling-catalog)
 records command ownership, Git hook adapters, Action bootstrap order, and the
 remaining pre-runtime language exceptions.
 
-The required Node.js and pnpm versions are defined in
-[`package.json`](./package.json).
-
-### Native pnpm bootstrap
-
-Volta selects Node.js. Install the manifest-selected native pnpm through npm,
-allowing only pnpm's own installation scripts, and place npm's global binary
-directory before Volta's experimental pnpm shim in `PATH`:
+Install the selected [Vite+ release](./pnpm-workspace.yaml) using the
+[official environment guide](https://viteplus.dev/guide/env). Vite+ selects Node
+from [`.node-version`](./.node-version) and pnpm from the
+[`packageManager` field](./package.json); the exact Vite+ version is in the
+workspace catalog. Start from a clean checkout with:
 
 ```bash
-npm install --global "$(node -p "require('./package.json').packageManager")" --allow-scripts=pnpm
-pnpm --version
+vp install --frozen-lockfile -- --no-runtime
+vp run check
+vp run test
+vp run verify
 ```
 
-The `packageManager` field owns pnpm version selection. Volta's pnpm shim expects
-the older JavaScript entrypoint and cannot launch the native package.
-If Volta already selects pnpm globally, back up
-`$VOLTA_HOME/tools/user/platform.json` and set only its `pnpm` field to `null`.
-Keep the Node selection and downloaded tool images. Volta's Node launcher can
-otherwise prepend the obsolete pnpm image ahead of npm's global directory;
-PATH order alone does not retire that selection. Volta's native pnpm uninstall
-is [not implemented](https://docs.volta.sh/advanced/pnpm#known-limitations).
-Verify that `node -e "require('node:child_process').execFileSync('pnpm', ['--version'], {stdio: 'inherit'})"`
-reports the manifest-selected version before installing project dependencies.
-
-```bash
-pnpm install
-pnpm check
-pnpm test
-pnpm verify
-```
-
-Vite+ owns formatting, lint and tests; both TypeScript project checks remain
+Vite+ owns setup, task execution, formatting, lint and tests. Both TypeScript project checks remain
 explicit. See the [toolchain and retained checker catalog](automation/README.md#local-toolchain)
 for configuration, dependency updates and runtime ownership.
 

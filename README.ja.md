@@ -41,13 +41,13 @@ await sleep(100);
 
 ## 開発
 
-必要な Node.js と pnpm のバージョンは [`package.json`](./package.json) に定義されています。
+Node.js は [`.node-version`](./.node-version)、pnpm は [`package.json`](./package.json)、Vite+ は [`pnpm-workspace.yaml`](./pnpm-workspace.yaml) でバージョンを選択します。
 
 ```bash
-pnpm install
-pnpm check
-pnpm test
-pnpm verify
+vp install --frozen-lockfile -- --no-runtime
+vp run check
+vp run test
+vp run verify
 ```
 
 利用側リポジトリで再利用する CI 設定は

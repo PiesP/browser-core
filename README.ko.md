@@ -41,13 +41,13 @@ await sleep(100);
 
 ## 개발
 
-필요한 Node.js와 pnpm 버전은 [`package.json`](./package.json)에 정의되어 있습니다.
+Node.js 버전은 [`.node-version`](./.node-version), pnpm 버전은 [`package.json`](./package.json), Vite+ 버전은 [`pnpm-workspace.yaml`](./pnpm-workspace.yaml)에 정의되어 있습니다.
 
 ```bash
-pnpm install
-pnpm check
-pnpm test
-pnpm verify
+vp install --frozen-lockfile -- --no-runtime
+vp run check
+vp run test
+vp run verify
 ```
 
 소비자 저장소에서 재사용하는 CI 설정은

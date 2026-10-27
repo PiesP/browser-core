@@ -1,9 +1,9 @@
 name: Setup project
-description: Configure the consumer-pinned toolchain and install locked dependencies
+description: Configure the consumer-pinned Vite+ toolchain and install locked dependencies
 
 inputs:
   node-version:
-    description: Optional runtime override for explicit compatibility testing; defaults to package.json volta.node
+    description: Optional numeric runtime override for explicit compatibility testing; defaults to .node-version
     required: false
   install-dependencies:
     description: Install locked dependencies after configuring the pinned runtime
@@ -13,31 +13,39 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Resolve the manifest-pinned runtime
-      id: runtime
+    - name: Validate the consumer runtime pin
       shell: bash
       env:
         NODE_VERSION_OVERRIDE: ${{ inputs.node-version }}
-      run: node "$GITHUB_ACTION_PATH/resolve-runtime.mjs"
+      run: |
+        set -euo pipefail
+        if [[ -n "$NODE_VERSION_OVERRIDE" ]]; then
+          [[ "$NODE_VERSION_OVERRIDE" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]] || {
+            echo 'Expected a numeric compatibility runtime override' >&2
+            exit 1
+          }
+        else
+          [[ -f .node-version && ! -L .node-version ]] || {
+            echo 'Expected a regular .node-version file' >&2
+            exit 1
+          }
+          [[ "$(cat .node-version)" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo 'Expected an exact .node-version pin' >&2
+            exit 1
+          }
+        fi
 
-    - name: Install the selected Node.js runtime
-      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+    - name: Install consumer Vite+, Node and package manager
+      uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
       with:
-        node-version: ${{ steps.runtime.outputs.version }}
-        package-manager-cache: false
-
-    - name: Install the consumer-pinned pnpm
-      uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      with:
-        cache: true
-        run_install: false
-        standalone: false
-
-    - name: Prepare the package store cache
-      shell: bash
-      run: mkdir -p "$(pnpm store path --silent)"
+        version: '1.4.0'
+        node-version: ${{ inputs.node-version }}
+        node-version-file: .node-version
+        run-install: 'false'
+        cache: 'false'
+        cache-toolchain: 'false'
 
     - name: Install locked dependencies
       if: ${{ inputs.install-dependencies == 'true' }}
       shell: bash
-      run: pnpm install --frozen-lockfile --no-runtime
+      run: vp install --frozen-lockfile -- --no-runtime

@@ -116,9 +116,9 @@ describe('browser-core consumer impact', () => {
         exports: { '.': './src/index.ts' },
         devDependencies: { vitest: '5.0.0' },
         packageManager: 'pnpm@11.26.0',
-        volta: { node: '26.9.0' },
       })
     );
+    write(repository, '.node-version', '26.9.0\n');
     write(repository, 'pnpm-lock.yaml', 'lockfileVersion: 9\n# development graph changed\n');
     expect(classify(repository, base, commit(repository))).toBe('false');
   });
