@@ -350,7 +350,8 @@ materializes the four required TypeScript files with fixed `git show` paths into
 under `GITHUB_WORKSPACE`. The PR job first checks out its base SHA and configures
 the pinned runtime from that root manifest, then scans the base and PR result
 with the same private helper. The full job fetches the immutable commit while
-keeping its event checkout as the scan target. The always-running summary job
+keeping its event checkout as the scan target and runtime metadata source; its
+reviewed setup Action does not install dependencies. The always-running summary job
 checks out reviewed runtime metadata at
 `b783358a3dd3bf167cf89a6df550166ded36dbd1` with full history for its
 `.node-version`, Vite+ catalog and package manager pins, then uses the reviewed

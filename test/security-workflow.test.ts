@@ -95,12 +95,12 @@ describe('security workflow', () => {
   it('sets the trusted runtime before TypeScript and keeps scan order and SARIF uploads', () => {
     const setup = 'uses: ./automation/actions/setup-project';
     expect(workflow.split(setup)).toHaveLength(2);
-    expect(workflow).toContain(
-      'uses: PiesP/browser-core/automation/actions/setup-project@56b04f7b0594aff593fa135a69777cc172d7704a'
-    );
-    expect(workflow).toContain(
-      'uses: PiesP/browser-core/automation/actions/setup-project@38cd1cb18c9c37e57e8b53a98e811450bb1a18fc'
-    );
+    expect(
+      workflow.split(
+        'uses: PiesP/browser-core/automation/actions/setup-project@38cd1cb18c9c37e57e8b53a98e811450bb1a18fc'
+      )
+    ).toHaveLength(3);
+    expect(workflow).not.toContain('setup-project@56b04f7b0594aff593fa135a69777cc172d7704a');
     expect(workflow.split("install-dependencies: 'false'")).toHaveLength(4);
     expect(workflow.indexOf('git switch --force --detach "$BASE_SHA"')).toBeLessThan(
       workflow.indexOf('Setup trusted Node runtime')
