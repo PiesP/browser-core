@@ -4,6 +4,7 @@ import workflow from '../.github/workflows/security.yaml?raw';
 import settings from '../.github/settings.yml?raw';
 
 const trustedSha = 'e80334d25dd4edb18703d63153ef7630daf4d04b';
+const runtimeMetadataSha = 'b783358a3dd3bf167cf89a6df550166ded36dbd1';
 const helper = '"$RUNNER_TEMP/trusted-helper/scripts/security/osv-workflow.ts"';
 
 describe('security workflow', () => {
@@ -98,7 +99,7 @@ describe('security workflow', () => {
       'uses: PiesP/browser-core/automation/actions/setup-project@56b04f7b0594aff593fa135a69777cc172d7704a'
     );
     expect(workflow).toContain(
-      'uses: PiesP/browser-core/automation/actions/setup-project@af19a6597c351f03a65e49532bdec6276e4b5ae9'
+      'uses: PiesP/browser-core/automation/actions/setup-project@38cd1cb18c9c37e57e8b53a98e811450bb1a18fc'
     );
     expect(workflow.split("install-dependencies: 'false'")).toHaveLength(4);
     expect(workflow.indexOf('git switch --force --detach "$BASE_SHA"')).toBeLessThan(
@@ -124,10 +125,14 @@ describe('security workflow', () => {
     expect(
       extractStep('Convert OSV results to SARIF and enforce the vulnerability gate')
     ).toContain(`run: node ${helper} report-full`);
-    expect(extractStep('Checkout immutable security helper manifest')).toContain(
-      `ref: ${trustedSha}`
+    const summaryCheckout = extractStep('Checkout trusted runtime metadata');
+    expect(summaryCheckout).toContain(`ref: ${runtimeMetadataSha}`);
+    expect(summaryCheckout).toContain('fetch-depth: 0');
+    expect(summaryCheckout).toContain('persist-credentials: false');
+    expect(extractStep('Materialize immutable OSV helper outside the checkout')).toContain(
+      `TRUSTED_HELPER_SHA: ${trustedSha}`
     );
-    expect(workflow.split('fetch-depth: 0')).toHaveLength(3);
+    expect(workflow.split('fetch-depth: 0')).toHaveLength(4);
     expect(
       workflow.split('sarif_file: ${{ runner.temp }}/osv-results/osv-results.sarif')
     ).toHaveLength(3);
