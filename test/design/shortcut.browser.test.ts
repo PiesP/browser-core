@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-
 import { describe, expect, it } from 'vite-plus/test';
 import { isEditableShortcutTarget, shouldHandleGlobalShortcut } from '../../src/design/index.js';
 
