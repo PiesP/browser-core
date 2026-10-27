@@ -61,7 +61,8 @@ vp run verify
 Install Chromium once with `pnpm exec playwright install chromium` before running tests locally.
 Vite+ owns setup, task execution, formatting, lint and tests. Its Node project runs pure and
 automation tests; its Chromium Browser Mode project runs DOM contracts.
-Both TypeScript project checks remain explicit. See the [toolchain and retained checker catalog](automation/README.md#local-toolchain)
+`vp check` discovers the browser project and the NodeNext/erasable automation projects for integrated
+type checking. See the [toolchain and retained checker catalog](automation/README.md#local-toolchain)
 for configuration, dependency updates and runtime ownership.
 
 Reusable consumer CI setup is documented separately in

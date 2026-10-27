@@ -89,7 +89,7 @@ function isReviewedDevelopmentPath(path: string): boolean {
       'README.ja.md',
       '.node-version',
       'tsconfig.json',
-      'tsconfig.scripts.json',
+      'tsconfig.node.json',
       'vitest.config.ts',
     ].includes(path)
   );
