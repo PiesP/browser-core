@@ -123,7 +123,7 @@ jobs:
 
       - name: Setup trusted Node runtime without dependencies
         # The manually selected scan ref may be untrusted; use the reviewed provider.
-        uses: PiesP/browser-core/automation/actions/setup-project@3c230d26afe2fd4fc2a35e62425029a8078a8802
+        uses: PiesP/browser-core/automation/actions/setup-project@56b04f7b0594aff593fa135a69777cc172d7704a
         with:
           install-dependencies: 'false'
 
