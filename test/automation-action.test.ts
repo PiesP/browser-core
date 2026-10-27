@@ -58,6 +58,10 @@ describe('central project setup action', () => {
       "node-version: ${{ matrix.node-version != 'manifest' && matrix.node-version || '' }}"
     );
     expect(ci).toContain('run: vp run check');
+    expect(ci).toContain('run: pnpm exec playwright install --with-deps chromium');
+    expect(ci.indexOf('run: pnpm exec playwright install --with-deps chromium')).toBeLessThan(
+      ci.indexOf('run: vp run test:cov')
+    );
     expect(ci).toContain('run: vp run test:cov');
   });
 

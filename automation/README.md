@@ -56,6 +56,10 @@ freshness and both current TypeScript projects. `vite.config.ts` owns formatting
 lint, coverage and disabled task caching. Generated design outputs remain excluded
 from formatting; `vp run check:design` checks their freshness. `vp run test` and
 `vp run test:cov` run once and exit; `vp run test:watch` persists and reruns.
+The Node project owns pure and automation tests, while the Chromium Browser Mode project
+owns `*.browser.test.ts` DOM contracts. Install its browser locally with
+`pnpm exec playwright install chromium`; CI installs Chromium and its system dependencies.
+Both projects contribute to the same source coverage thresholds.
 `vp run verify` performs checking and coverage tests. A restored cached result
 cannot serve as fresh validation. This does not establish consumer browser or
 installed-application acceptance.

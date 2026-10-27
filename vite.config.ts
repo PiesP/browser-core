@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite-plus';
+import { playwright } from 'vite-plus/test/browser-playwright';
 
 export default defineConfig({
   run: {
@@ -19,7 +20,28 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    include: ['test/**/*.test.ts'],
+    projects: [
+      {
+        test: {
+          name: 'node',
+          environment: 'node',
+          include: ['test/**/*.test.ts'],
+          exclude: ['test/**/*.browser.test.ts'],
+        },
+      },
+      {
+        test: {
+          name: 'browser',
+          include: ['test/**/*.browser.test.ts'],
+          browser: {
+            enabled: true,
+            provider: playwright(),
+            headless: true,
+            instances: [{ browser: 'chromium' }],
+          },
+        },
+      },
+    ],
     coverage: {
       reporter: ['text', 'json-summary'],
       include: ['src/**/*.ts'],
