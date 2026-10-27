@@ -350,8 +350,15 @@ materializes the four required TypeScript files with fixed `git show` paths into
 under `GITHUB_WORKSPACE`. The PR job first checks out its base SHA and configures
 the pinned runtime from that root manifest, then scans the base and PR result
 with the same private helper. The full job fetches the immutable commit while
-keeping its event checkout as the scan target; the always-running summary job
-checks out the immutable manifest before runtime setup. Missing trusted blobs
+keeping its event checkout as the scan target and runtime metadata source; its
+reviewed setup Action does not install dependencies. The always-running summary job
+checks out reviewed runtime metadata at
+`b783358a3dd3bf167cf89a6df550166ded36dbd1` with full history for its
+`.node-version`, Vite+ catalog and package manager pins, then uses the reviewed
+`setup-project` Action at `38cd1cb18c9c37e57e8b53a98e811450bb1a18fc`
+without installing dependencies. Its executable helper still comes only from
+`e80334d25dd4edb18703d63153ef7630daf4d04b`; that older commit has no
+Vite+ catalog. Missing trusted blobs
 fail the job without a candidate fallback. The minimal parser rejects non-finite
 values in unknown JSON metadata that Python's permissive default accepted.
 This is intentional fail-closed hardening. Workflow jobs still own event and

@@ -29,6 +29,7 @@ type Sandbox = {
 const sandboxes: string[] = [];
 const repositoryRoot = resolve(import.meta.dirname, '../..');
 const trustedSha = 'e80334d25dd4edb18703d63153ef7630daf4d04b';
+const runtimeMetadataSha = 'b783358a3dd3bf167cf89a6df550166ded36dbd1';
 
 function extractStepRun(name: string): string {
   const lines = workflow.split('\n');
@@ -67,7 +68,7 @@ function createSandbox(): Sandbox {
   mkdirSync(bin);
   mkdirSync(runnerTemp);
   execFileSync('git', ['clone', '--quiet', '--no-hardlinks', repositoryRoot, workspace]);
-  execFileSync('git', ['-C', workspace, 'switch', '--quiet', '--detach', trustedSha]);
+  execFileSync('git', ['-C', workspace, 'switch', '--quiet', '--detach', runtimeMetadataSha]);
   execFileSync('git', ['-C', workspace, 'config', 'user.name', 'Security fixture']);
   execFileSync('git', ['-C', workspace, 'config', 'user.email', 'security@example.invalid']);
   writeFileSync(
@@ -86,7 +87,15 @@ function createSandbox(): Sandbox {
   const candidateSha = execFileSync('git', ['-C', workspace, 'rev-parse', 'HEAD'], {
     encoding: 'utf8',
   }).trim();
-  execFileSync('git', ['-C', workspace, 'switch', '--quiet', '--force', '--detach', trustedSha]);
+  execFileSync('git', [
+    '-C',
+    workspace,
+    'switch',
+    '--quiet',
+    '--force',
+    '--detach',
+    runtimeMetadataSha,
+  ]);
 
   const fakeDocker = join(bin, 'docker');
   writeFileSync(
@@ -365,6 +374,30 @@ describe('security summary workflow boundary', () => {
     CODEQL_RESULT: 'success',
     SEMGREP_RESULT: 'success',
   };
+
+  it('runs the immutable helper from a separate trusted Vite+ runtime checkout', () => {
+    const sandbox = createSandbox();
+    prepareTrustedHelper(sandbox);
+    expect(
+      execFileSync('git', ['-C', sandbox.workspace, 'rev-parse', 'HEAD'], {
+        encoding: 'utf8',
+      }).trim()
+    ).toBe(runtimeMetadataSha);
+    expect(readFileSync(join(sandbox.workspace, '.node-version'), 'utf8').trim()).toBe('26.12.1');
+    expect(readFileSync(join(sandbox.workspace, 'pnpm-workspace.yaml'), 'utf8')).toContain(
+      '  vite-plus: 1.4.0'
+    );
+    const helperPath = join(sandbox.runnerTemp, 'trusted-helper/scripts/security/osv-workflow.ts');
+    expect(readFileSync(helperPath)).toEqual(
+      execFileSync('git', [
+        '-C',
+        sandbox.workspace,
+        'show',
+        `${trustedSha}:scripts/security/osv-workflow.ts`,
+      ])
+    );
+    expect(statSync(helperPath).mode & 0o777).toBe(0o600);
+  });
 
   it.each(['pull_request', 'push', 'schedule', 'workflow_dispatch'])(
     'accepts all event-specific successful jobs for %s',

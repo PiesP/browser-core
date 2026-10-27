@@ -122,8 +122,8 @@ jobs:
           persist-credentials: false
 
       - name: Setup trusted Node runtime without dependencies
-        # The manually selected scan ref may be untrusted; use the reviewed provider.
-        uses: PiesP/browser-core/automation/actions/setup-project@56b04f7b0594aff593fa135a69777cc172d7704a
+        # The reviewed Action reads runtime pins from the selected scan ref.
+        uses: PiesP/browser-core/automation/actions/setup-project@38cd1cb18c9c37e57e8b53a98e811450bb1a18fc
         with:
           install-dependencies: 'false'
 
@@ -242,16 +242,16 @@ jobs:
       - name: Prepare remediated Node trust
         uses: PiesP/browser-core/automation/actions/prepare-node-trust@381b4ca733494cf069212cd0d16458389a83c623
         id: node_trust
-      - name: Checkout immutable security helper manifest
+      - name: Checkout trusted runtime metadata
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: e80334d25dd4edb18703d63153ef7630daf4d04b
+          ref: b783358a3dd3bf167cf89a6df550166ded36dbd1
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Setup trusted Node runtime without dependencies
-        # This immutable helper checkout still has the matching Volta manifest.
-        # Migrate the helper source and setup pin together when its custody changes.
-        uses: PiesP/browser-core/automation/actions/setup-project@af19a6597c351f03a65e49532bdec6276e4b5ae9
+        # The trusted checkout supplies Vite+ pins; the helper remains at its separate immutable SHA.
+        uses: PiesP/browser-core/automation/actions/setup-project@38cd1cb18c9c37e57e8b53a98e811450bb1a18fc
         with:
           install-dependencies: 'false'
 
