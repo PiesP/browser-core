@@ -8,7 +8,7 @@ import action from '../../automation/actions/setup-project/action.yaml?raw';
 
 const validationStep = action
   .split('    - name: Validate the consumer runtime pin\n')[1]
-  ?.split('    - name: Install consumer Vite+, Node and package manager\n')[0];
+  ?.split('    - name: Validate the consumer Vite+ pin\n')[0];
 if (!validationStep) throw new Error('Runtime validation step is missing');
 const validationShell = [...validationStep.matchAll(/^        (.*)$/gm)]
   .map((match) => match[1])
