@@ -145,6 +145,10 @@ describe('browser-core consumer impact', () => {
     write(repository, '.github/workflows/ci.yaml', 'name: CI\n');
     write(repository, 'scripts/generate-design-tokens.ts', 'export {};\n');
     write(repository, 'tsconfig.json', '{}\n');
+    write(repository, 'tsconfig.node.json', '{}\n');
+    write(repository, 'scripts/tsconfig.json', '{}\n');
+    write(repository, 'automation/tsconfig.json', '{}\n');
+    write(repository, 'test/scripts/tsconfig.json', '{}\n');
     write(repository, 'vitest.config.ts', 'export default {};\n');
     write(repository, 'docs/API.md', 'Development notes\n');
     write(repository, 'README.md', 'Documentation\n');

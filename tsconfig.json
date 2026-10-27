@@ -21,6 +21,6 @@
     "forceConsistentCasingInFileNames": true,
     "types": ["vitest/globals"]
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "include": ["src/**/*.ts", "test/**/*.ts", "vite.config.ts"],
   "exclude": ["test/scripts/**/*.ts"]
 }
