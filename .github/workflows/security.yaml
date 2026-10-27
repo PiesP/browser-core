@@ -55,7 +55,7 @@ jobs:
           git switch --force --detach "$BASE_SHA"
 
       - name: Setup trusted Node runtime without dependencies
-        uses: PiesP/browser-core/automation/actions/setup-project@af19a6597c351f03a65e49532bdec6276e4b5ae9
+        uses: ./automation/actions/setup-project
         with:
           install-dependencies: 'false'
 
@@ -122,7 +122,8 @@ jobs:
           persist-credentials: false
 
       - name: Setup trusted Node runtime without dependencies
-        uses: PiesP/browser-core/automation/actions/setup-project@af19a6597c351f03a65e49532bdec6276e4b5ae9
+        # The manually selected scan ref may be untrusted; use the reviewed provider.
+        uses: PiesP/browser-core/automation/actions/setup-project@3c230d26afe2fd4fc2a35e62425029a8078a8802
         with:
           install-dependencies: 'false'
 
@@ -248,6 +249,8 @@ jobs:
           persist-credentials: false
 
       - name: Setup trusted Node runtime without dependencies
+        # This immutable helper checkout still has the matching Volta manifest.
+        # Migrate the helper source and setup pin together when its custody changes.
         uses: PiesP/browser-core/automation/actions/setup-project@af19a6597c351f03a65e49532bdec6276e4b5ae9
         with:
           install-dependencies: 'false'

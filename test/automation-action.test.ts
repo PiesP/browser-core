@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vite-plus/test';
 import runtimeNotifications from '../.github/workflows/notify-consumers.yaml?raw';
 import ci from '../.github/workflows/ci.yaml?raw';
 import action from '../automation/actions/setup-project/action.yaml?raw';
+import nodeVersion from '../.node-version?raw';
 import runtimePackageJson from '../package.json?raw';
 
 const runtimePackage = JSON.parse(runtimePackageJson) as {
@@ -38,48 +39,51 @@ function runtimeNotificationRunsFor(path: string): boolean {
 }
 
 describe('central project setup action', () => {
-  it('pins Node before installing pnpm from the consumer manifest', () => {
-    expect(action).toContain('uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1');
-    expect(action).toContain('uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413');
-    expect(action).toContain('node-version: ${{ steps.runtime.outputs.version }}');
-    expect(action).toContain('package-manager-cache: false');
-    expect(action).not.toContain('package-json-file:');
-    expect(action).not.toContain('package_json_file:');
-    expect(ci).not.toContain('package-json-file:');
-    expect(ci).not.toContain('pnpm/setup@');
+  it('uses one immutable Vite+ setup owner with the consumer runtime pin', () => {
+    expect(nodeVersion.trim()).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(action).toContain(
+      'uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76'
+    );
+    expect(action).toContain('version-file: pnpm-workspace.yaml');
+    expect(action).toContain('name: Validate the consumer Vite+ pin');
+    expect(action).toContain('node-version-file: .node-version');
+    expect(action).toContain('node-version: ${{ inputs.node-version }}');
+    expect(action).toContain("run-install: 'false'");
+    expect(action).toContain("cache: 'false'");
+    expect(action).toContain("cache-toolchain: 'false'");
+    expect(action).not.toContain('actions/setup-node@');
+    expect(action).not.toContain('pnpm/action-setup@');
     expect(ci).toContain('uses: ./automation/actions/setup-project');
     expect(ci).toContain(
       "node-version: ${{ matrix.node-version != 'manifest' && matrix.node-version || '' }}"
     );
-    expect(action).toContain('node "$GITHUB_ACTION_PATH/resolve-runtime.mjs"');
-    expect(action).toContain('required: false');
-    expect(action).toContain('cache: true');
-    expect(action).toContain('run_install: false');
-    expect(action).toContain('standalone: false');
-    expect(action).not.toContain('pnpm/setup@');
+    expect(ci).toContain('run: vp run check');
+    expect(ci).toContain('run: vp run test:cov');
   });
 
   it('configures the pinned runtime before optional locked dependency installation', () => {
     const inputs = action.slice(action.indexOf('inputs:'), action.indexOf('\nruns:'));
-    const runtimeIndex = action.indexOf('name: Resolve the manifest-pinned runtime');
-    const nodeIndex = action.indexOf('name: Install the selected Node.js runtime');
-    const pnpmIndex = action.indexOf('name: Install the consumer-pinned pnpm');
+    const runtimeIndex = action.indexOf('name: Validate the consumer runtime pin');
+    const vitePlusIndex = action.indexOf('name: Validate the consumer Vite+ pin');
+    const setupIndex = action.indexOf('name: Install consumer Vite+, Node and package manager');
     const installIndex = action.indexOf('name: Install locked dependencies');
     const installStep = action.slice(installIndex);
 
     expect(inputs).toMatch(/  install-dependencies:\n(?:    .+\n)*    default: 'true'/);
     expect(runtimeIndex).toBeGreaterThan(-1);
-    expect(nodeIndex).toBeGreaterThan(runtimeIndex);
-    expect(pnpmIndex).toBeGreaterThan(nodeIndex);
-    expect(installIndex).toBeGreaterThan(pnpmIndex);
+    expect(vitePlusIndex).toBeGreaterThan(runtimeIndex);
+    expect(setupIndex).toBeGreaterThan(vitePlusIndex);
+    expect(installIndex).toBeGreaterThan(setupIndex);
     expect(action.slice(runtimeIndex, installIndex)).not.toMatch(/^\s*if:/m);
+    expect(action).toContain('[[ -f .node-version && ! -L .node-version ]]');
+    expect(action).toContain('[[ "$(cat .node-version)" =~ ^[0-9]+\\.[0-9]+\\.[0-9]+$ ]]');
     expect(installStep).toContain("if: ${{ inputs.install-dependencies == 'true' }}");
-    expect(installStep).toContain('run: pnpm install --frozen-lockfile --no-runtime');
+    expect(installStep).toContain('run: vp install --frozen-lockfile -- --no-runtime');
     expect(action).not.toMatch(/^\s*run: (?:npm|yarn) install/m);
     expect(action).not.toContain('pnpm update');
   });
 
-  it('exposes only the runtime and dependency-install inputs and no secret surface', () => {
+  it('exposes only the compatibility and dependency-install inputs and no secret surface', () => {
     const inputs = action.slice(action.indexOf('inputs:'), action.indexOf('\nruns:'));
     const inputNames = [...inputs.matchAll(/^  ([a-z][a-z-]+):$/gm)].map(([, name]) => name);
 
@@ -93,6 +97,8 @@ describe('central project setup action', () => {
     expect(ci).toContain('needs: [quality, setup-smoke]');
     expect(ci).toContain('uses: ./.setup-action/automation/actions/setup-project');
     expect(ci).toContain("install-dependencies: 'false'");
+    expect(ci).toContain('sha256sum package.json .node-version pnpm-lock.yaml pnpm-workspace.yaml');
+    expect(ci).toContain('test "$(vp --version | head -n 1)" = \'vp v1.4.0\'');
     expect(ci).toContain('sha256sum --check fixture.sha256');
     expect(ci).toContain('node .setup-action/automation/scripts/verify-setup-smoke.ts prepared');
     expect(ci).toContain('test "$SETUP_RESULT" = success');

@@ -1,6 +1,10 @@
 import { defineConfig } from 'vite-plus';
 
 export default defineConfig({
+  run: {
+    cache: false,
+    enablePrePostScripts: true,
+  },
   fmt: {
     singleQuote: true,
     printWidth: 100,

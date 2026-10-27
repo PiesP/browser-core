@@ -78,16 +78,16 @@ jobs:
         with:
           # Workflow execution fixtures restore published helper commits from Git.
           fetch-depth: 0
-      - name: Install the manifest-pinned toolchain or compatibility runtime
+      - name: Install the Vite+-pinned toolchain or compatibility runtime
         uses: ./automation/actions/setup-project
         with:
           node-version: ${{ matrix.node-version != 'manifest' && matrix.node-version || '' }}
           install-dependencies: 'false'
-      - run: pnpm install --frozen-lockfile --no-runtime
+      - run: vp install --frozen-lockfile -- --no-runtime
       - name: Check formatting, lint, design tokens and type projects
-        run: pnpm check
+        run: vp run check
       - name: Run coverage-gated tests
-        run: pnpm test:cov
+        run: vp run test:cov
 
   setup-smoke:
     name: Consumer setup smoke
@@ -104,7 +104,7 @@ jobs:
       - name: Prepare a distinct consumer manifest and frozen local dependency
         run: |
           node .setup-action/automation/scripts/prepare-setup-smoke.mjs
-          sha256sum package.json pnpm-lock.yaml pnpm-workspace.yaml > fixture.sha256
+          sha256sum package.json .node-version pnpm-lock.yaml pnpm-workspace.yaml > fixture.sha256
       - name: Setup consumer runtime without dependencies
         uses: ./.setup-action/automation/actions/setup-project
         with:
@@ -112,6 +112,7 @@ jobs:
       - name: Verify consumer selection and absence of dependency installation
         run: |
           PNPM_VERSION="$(pnpm --version)" node .setup-action/automation/scripts/verify-setup-smoke.ts prepared
+          test "$(vp --version | head -n 1)" = 'vp v1.4.0'
           sha256sum --check fixture.sha256
       - name: Install the consumer frozen dependency graph
         uses: ./.setup-action/automation/actions/setup-project

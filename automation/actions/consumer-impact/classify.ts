@@ -70,7 +70,7 @@ function hasContractChange(
   previous: Record<string, unknown>,
   current: Record<string, unknown>
 ): boolean {
-  const developmentFields = new Set(['devDependencies', 'volta', 'packageManager']);
+  const developmentFields = new Set(['devDependencies', 'packageManager']);
   return [...new Set([...Object.keys(previous), ...Object.keys(current)])].some(
     (field) => !developmentFields.has(field) && !sameValue(previous[field], current[field])
   );
@@ -87,6 +87,7 @@ function isReviewedDevelopmentPath(path: string): boolean {
       'README.md',
       'README.ko.md',
       'README.ja.md',
+      '.node-version',
       'tsconfig.json',
       'tsconfig.scripts.json',
       'vitest.config.ts',

@@ -695,11 +695,11 @@ function checkOrWrite(path: string, contents: string): void {
   try {
     existing = readFileSync(path, 'utf8');
   } catch {
-    fail(`${path.slice(repositoryRoot.length + 1)} is missing; run pnpm generate:design`);
+    fail(`${path.slice(repositoryRoot.length + 1)} is missing; run vp run generate:design`);
   }
   assert(
     existing === contents,
-    `${path.slice(repositoryRoot.length + 1)} is stale; run pnpm generate:design`
+    `${path.slice(repositoryRoot.length + 1)} is stale; run vp run generate:design`
   );
 }
 

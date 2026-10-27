@@ -20,10 +20,7 @@ const generateDesignTokensScript = resolve(repositoryRoot, 'scripts/generate-des
 const gitHookScript = resolve(repositoryRoot, 'scripts/git-hook.ts');
 const prepareSmokeScript = resolve(repositoryRoot, 'automation/scripts/prepare-setup-smoke.mjs');
 const verifySmokeScript = resolve(repositoryRoot, 'automation/scripts/verify-setup-smoke.ts');
-const preRuntimeScripts = [
-  resolve(repositoryRoot, 'automation/actions/setup-project/resolve-runtime.mjs'),
-  prepareSmokeScript,
-];
+const preRuntimeScripts = [prepareSmokeScript];
 const sourceTokens = resolve(repositoryRoot, 'src/design/quiet-instruments.tokens.json');
 const fixtureDirectories: string[] = [];
 
@@ -148,20 +145,23 @@ test('pre-runtime fixture rejects unknown arguments before writing', () => {
   expect(readdirSync(fixture)).toEqual(['.git']);
 });
 
-test.each(['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'fixture-package'])(
-  'pre-runtime fixture preserves an existing reserved path: %s',
-  (path) => {
-    const fixture = createFixtureRepository();
-    writeFileSync(join(fixture, path), 'existing content\n');
-    const result = runScript(prepareSmokeScript, fixture);
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain('would overwrite an existing path');
-    expect(readFileSync(join(fixture, path), 'utf8')).toBe('existing content\n');
-    expect(readdirSync(fixture).sort()).toEqual(
-      ['.git', path].sort((left, right) => left.localeCompare(right))
-    );
-  }
-);
+test.each([
+  'package.json',
+  '.node-version',
+  'pnpm-lock.yaml',
+  'pnpm-workspace.yaml',
+  'fixture-package',
+])('pre-runtime fixture preserves an existing reserved path: %s', (path) => {
+  const fixture = createFixtureRepository();
+  writeFileSync(join(fixture, path), 'existing content\n');
+  const result = runScript(prepareSmokeScript, fixture);
+  expect(result.status).toBe(1);
+  expect(result.stderr).toContain('would overwrite an existing path');
+  expect(readFileSync(join(fixture, path), 'utf8')).toBe('existing content\n');
+  expect(readdirSync(fixture).sort()).toEqual(
+    ['.git', path].sort((left, right) => left.localeCompare(right))
+  );
+});
 
 test('pre-runtime fixture refuses a dangling reserved symlink before writing', () => {
   const fixture = createFixtureRepository();
@@ -190,9 +190,9 @@ test('pre-runtime setup fixture preserves the consumer manifest and frozen link'
   expect(JSON.parse(readFileSync(join(fixture, 'package.json'), 'utf8'))).toEqual({
     private: true,
     packageManager: 'pnpm@11.25.0',
-    volta: { node: '24.22.1' },
     dependencies: { 'setup-smoke-fixture': 'link:./fixture-package' },
   });
+  expect(readFileSync(join(fixture, '.node-version'), 'utf8')).toBe('24.22.1\n');
   expect(readFileSync(join(fixture, 'pnpm-lock.yaml'), 'utf8')).toContain(
     'version: link:fixture-package'
   );
@@ -279,7 +279,7 @@ describe('design token generator CLI', () => {
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(
-      'src/design/generated/tokens.ts is stale; run pnpm generate:design'
+      'src/design/generated/tokens.ts is stale; run vp run generate:design'
     );
   });
 

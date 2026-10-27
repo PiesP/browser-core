@@ -10,7 +10,13 @@ import {
 import { fileURLToPath } from 'node:url';
 
 export function prepareSetupSmoke() {
-  for (const path of ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'fixture-package']) {
+  for (const path of [
+    'package.json',
+    '.node-version',
+    'pnpm-lock.yaml',
+    'pnpm-workspace.yaml',
+    'fixture-package',
+  ]) {
     try {
       lstatSync(path);
     } catch (error) {
@@ -22,7 +28,11 @@ export function prepareSetupSmoke() {
   const core = JSON.parse(
     readFileSync(fileURLToPath(new URL('../../package.json', import.meta.url)), 'utf8')
   );
-  if (core.packageManager === 'pnpm@11.25.0' || core.volta.node === '24.22.1') {
+  const coreNode = readFileSync(
+    fileURLToPath(new URL('../../.node-version', import.meta.url)),
+    'utf8'
+  ).trim();
+  if (core.packageManager === 'pnpm@11.25.0' || coreNode === '24.22.1') {
     throw new Error('Smoke fixture toolchain must differ from browser-core');
   }
   // The copied workspace policy must agree with the fixture's frozen lockfile.
@@ -37,10 +47,10 @@ export function prepareSetupSmoke() {
     JSON.stringify({
       private: true,
       packageManager: 'pnpm@11.25.0',
-      volta: { node: '24.22.1' },
       dependencies: { 'setup-smoke-fixture': 'link:./fixture-package' },
     }) + '\n'
   );
+  writeFileSync('.node-version', '24.22.1\n');
   mkdirSync('fixture-package');
   writeFileSync(
     'fixture-package/package.json',
