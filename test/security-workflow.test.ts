@@ -95,7 +95,7 @@ describe('security workflow', () => {
     const setup = 'uses: ./automation/actions/setup-project';
     expect(workflow.split(setup)).toHaveLength(2);
     expect(workflow).toContain(
-      'uses: PiesP/browser-core/automation/actions/setup-project@3c230d26afe2fd4fc2a35e62425029a8078a8802'
+      'uses: PiesP/browser-core/automation/actions/setup-project@56b04f7b0594aff593fa135a69777cc172d7704a'
     );
     expect(workflow).toContain(
       'uses: PiesP/browser-core/automation/actions/setup-project@af19a6597c351f03a65e49532bdec6276e4b5ae9'
