@@ -112,6 +112,7 @@ jobs:
       - name: Verify consumer selection and absence of dependency installation
         run: |
           PNPM_VERSION="$(pnpm --version)" node .setup-action/automation/scripts/verify-setup-smoke.ts prepared
+          test "$(vp --version | head -n 1)" = 'vp v1.4.0'
           sha256sum --check fixture.sha256
       - name: Install the consumer frozen dependency graph
         uses: ./.setup-action/automation/actions/setup-project

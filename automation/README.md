@@ -32,8 +32,10 @@ The setup order is runner trust preparation and checkout → exact consumer
 the package manager → optional `vp install --frozen-lockfile -- --no-runtime` →
 consumer tool execution. `install-dependencies: 'false'` stops after toolchain
 setup. The Action accepts a numeric Node override only for compatibility jobs.
-Vite+ selects the consumer's package manager from `packageManager`; the provider
-pins Vite+ until a reviewed provider revision qualifies another release.
+Vite+ selects the consumer's package manager from `packageManager` and its exact
+Vite+ version from the default `pnpm-workspace.yaml` catalog. The provider checks
+the catalog pin before `setup-vp` reads it; the selected version can differ by
+consumer after its own qualification.
 
 `prepare-setup-smoke.mjs` is the sole raw JavaScript bootstrap exception. It
 creates a distinct consumer before any project runtime or dependencies exist,
@@ -116,8 +118,9 @@ commit SHA:
 ```
 
 The shared composite Action validates an exact consumer `.node-version` and
+default-catalog `vite-plus` version, then
 uses [setup-vp v1.22.0](https://github.com/voidzero-dev/setup-vp/blob/cab1ab9eaff52d4857875f4f2c016e36af8f2c76/action.yml)
-to install Vite+ 1.4.0, the selected Node and the pnpm version from the consumer's
+to install the catalog-selected Vite+, Node and pnpm version from the consumer's
 `packageManager`. It disables both dependency and toolchain caches. By default,
 it runs `vp install --frozen-lockfile -- --no-runtime`; pnpm still enforces the
 workspace's strict peers, engines, build approvals, release age and source
@@ -145,7 +148,8 @@ non-exact pin before installing Vite+. Compatibility overrides are validated
 separately and may run without that pin. The provider's supported Node lines
 retain the security-release floors in `package.json`; the smoke fixture uses a
 distinct Node 24/pnpm 11 pair to verify consumer selection and Node 22 override.
-The Vite+ and setup-vp versions are qualified as a provider revision; consumers
+The setup-vp Action version is qualified as a provider revision; consumers
+qualify their own exact Vite+ catalog version and
 adopt its immutable Action SHA separately from any runtime `packages/core` gitlink.
 To roll back a consumer, restore its previous reviewed Action SHA and matching
 runtime pin through its protected PR path, preserving any unrelated source edits.

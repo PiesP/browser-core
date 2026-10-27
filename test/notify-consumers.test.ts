@@ -52,8 +52,7 @@ describe('consumer notification automation', () => {
       workflow.indexOf('\n  dispatch:')
     );
     const dispatch = workflow.slice(workflow.indexOf('  dispatch:'));
-    const setup =
-      'uses: PiesP/browser-core/automation/actions/setup-project@af19a6597c351f03a65e49532bdec6276e4b5ae9';
+    const setup = 'uses: ./automation/actions/setup-project';
     for (const job of [validate, dispatch]) {
       const checkoutAt = job.indexOf('name: Check out notification workflow source');
       const setupAt = job.indexOf('name: Setup pinned notification runtime');

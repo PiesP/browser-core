@@ -44,7 +44,8 @@ describe('central project setup action', () => {
     expect(action).toContain(
       'uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76'
     );
-    expect(action).toContain("version: '1.4.0'");
+    expect(action).toContain('version-file: pnpm-workspace.yaml');
+    expect(action).toContain('name: Validate the consumer Vite+ pin');
     expect(action).toContain('node-version-file: .node-version');
     expect(action).toContain('node-version: ${{ inputs.node-version }}');
     expect(action).toContain("run-install: 'false'");
@@ -63,13 +64,15 @@ describe('central project setup action', () => {
   it('configures the pinned runtime before optional locked dependency installation', () => {
     const inputs = action.slice(action.indexOf('inputs:'), action.indexOf('\nruns:'));
     const runtimeIndex = action.indexOf('name: Validate the consumer runtime pin');
+    const vitePlusIndex = action.indexOf('name: Validate the consumer Vite+ pin');
     const setupIndex = action.indexOf('name: Install consumer Vite+, Node and package manager');
     const installIndex = action.indexOf('name: Install locked dependencies');
     const installStep = action.slice(installIndex);
 
     expect(inputs).toMatch(/  install-dependencies:\n(?:    .+\n)*    default: 'true'/);
     expect(runtimeIndex).toBeGreaterThan(-1);
-    expect(setupIndex).toBeGreaterThan(runtimeIndex);
+    expect(vitePlusIndex).toBeGreaterThan(runtimeIndex);
+    expect(setupIndex).toBeGreaterThan(vitePlusIndex);
     expect(installIndex).toBeGreaterThan(setupIndex);
     expect(action.slice(runtimeIndex, installIndex)).not.toMatch(/^\s*if:/m);
     expect(action).toContain('[[ -f .node-version && ! -L .node-version ]]');
@@ -95,6 +98,7 @@ describe('central project setup action', () => {
     expect(ci).toContain('uses: ./.setup-action/automation/actions/setup-project');
     expect(ci).toContain("install-dependencies: 'false'");
     expect(ci).toContain('sha256sum package.json .node-version pnpm-lock.yaml pnpm-workspace.yaml');
+    expect(ci).toContain('test "$(vp --version | head -n 1)" = \'vp v1.4.0\'');
     expect(ci).toContain('sha256sum --check fixture.sha256');
     expect(ci).toContain('node .setup-action/automation/scripts/verify-setup-smoke.ts prepared');
     expect(ci).toContain('test "$SETUP_RESULT" = success');

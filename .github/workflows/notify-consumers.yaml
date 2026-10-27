@@ -42,7 +42,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup pinned notification runtime
-        uses: PiesP/browser-core/automation/actions/setup-project@af19a6597c351f03a65e49532bdec6276e4b5ae9
+        uses: ./automation/actions/setup-project
         with:
           install-dependencies: 'false'
 
@@ -97,7 +97,7 @@ jobs:
 
       - name: Setup pinned notification runtime
         if: ${{ env.CONSUMER_UPDATE_TOKEN_CONFIGURED == 'true' }}
-        uses: PiesP/browser-core/automation/actions/setup-project@af19a6597c351f03a65e49532bdec6276e4b5ae9
+        uses: ./automation/actions/setup-project
         with:
           install-dependencies: 'false'
 
