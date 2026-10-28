@@ -39,6 +39,15 @@ and translations. See [`icon-contract.ts`](../src/design/icon-contract.ts),
 [`operation-state.ts`](../src/design/operation-state.ts), and
 [`shortcut.ts`](../src/design/shortcut.ts).
 
+Shortcut eligibility is only a precondition for a product command. The guard
+neither matches chords nor decides which focused control owns a key. A focused
+native button must retain its Space/Enter activation, as described by the
+[W3C button pattern](https://www.w3.org/WAI/ARIA/apg/patterns/button/). Products
+resolve native/nested-surface key ownership before cancelling an eligible event;
+changing a capture listener to bubble does not undo `preventDefault()`. Do not
+exclude every interactive target from every shortcut as a substitute for that
+product decision. Trusted-action admission also remains consumer-owned.
+
 Control state has independent meanings: selection identifies the current choice,
 focus identifies keyboard input, and a proposed change remains pending until
 execution succeeds. Warnings explain what needs attention; blocked actions
@@ -75,7 +84,7 @@ are required.
 
 [`operation-state.test.ts`](../test/design/operation-state.test.ts) checks unknown
 progress, lifecycle presentation, and numeric boundaries.
-[`shortcut.test.ts`](../test/design/shortcut.test.ts) exercises handled events,
+[`shortcut.browser.test.ts`](../test/design/shortcut.browser.test.ts) exercises handled events,
 inputs, contenteditable boundaries, shadow DOM, and IME composition. Token
 generation and [`tokens.test.ts`](../test/design/tokens.test.ts) retain declared
 aliases, variants, scope, and contrast checks.
@@ -90,13 +99,21 @@ Rendered evidence stays with the owning products:
 - [dropconvert #261](https://github.com/PiesP/wasm-motion-converter/issues/261)
   owns analysis/conversion busy states, cancellation cleanup, focus recovery,
   diagnostics, and animated-result controls. Its component checks include
-  `test/unit/components/progress-bar.test.tsx`; service cancellation tests and
+  `test/browser/components/progress-bar.browser.test.tsx`; service cancellation tests and
   browser/Windows profiles establish different parts of the flow.
+- [XCOM #432](https://github.com/PiesP/xcom-enhanced-gallery/issues/432) owns
+  displayed-item command resolution and focused native-control key ownership.
+  Viewport observation and explicit navigation intent remain distinct; core
+  does not select gallery indices or the keyboard-controlled video.
 - [XCOM #238](https://github.com/PiesP/xcom-enhanced-gallery/issues/238) owns
   position/download identity, selected fit controls, and return-to-post focus.
   `test/e2e/specs/gallery.spec.ts` and `download-flow.spec.ts` exercise the
   rendered gallery; `validation/windows/README.md` distinguishes artifact-only
   checks from installed-extension and optional public-page evidence.
+- [YouTube #373](https://github.com/PiesP/yt-live-chat-overlay/issues/373) owns
+  request deadlines versus session/seek cancellation and the local retry adapter;
+  see the [consumer request lifetime contract](https://github.com/PiesP/yt-live-chat-overlay/blob/master/docs/chat-request-lifetime.md).
+  Provider reason-preservation tests do not establish consumer poll recovery.
 - [YouTube overlay #175](https://github.com/PiesP/yt-live-chat-overlay/issues/175)
   owns font-control grouping, save/reset feedback, and preview motion.
   `test/e2e/specs/accessibility.spec.ts`, `settings-persistence.spec.ts`, and
