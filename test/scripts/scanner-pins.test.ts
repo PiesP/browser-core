@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   chmodSync,
   copyFileSync,
@@ -63,6 +64,11 @@ if (file === 'gh') {
   const age = scenario === 'too-young' ? 23 : 24;
   const published_at = new Date(Number(process.env.NOW_MS) - age * 3600000).toISOString();
   const releases = [{draft:false,prerelease:false,tag_name:'v' + (scenario === 'newer' ? '9.9.9' : version),published_at}];
+  if (scenario === 'young-and-old') {
+    releases[0].published_at = new Date(Number(process.env.NOW_MS) - 23 * 3600000).toISOString();
+    releases[0].tag_name = 'v9.9.9';
+    releases.push({draft:false,prerelease:false,tag_name:'v' + version,published_at:new Date(Number(process.env.NOW_MS) - 25 * 3600000).toISOString()});
+  }
   process.stdout.write(JSON.stringify(releases));
 } else if (file === 'curl') {
   if (args.some(arg => arg.includes('ghcr.io/token'))) {
@@ -189,6 +195,168 @@ describe('reviewed scanner pin CLI', () => {
     const response = failed.run(['check', failed.metadata], { scenario: 'api-fail' });
     expect(response.result.status).toBe(1);
     expect(response.invoked.map((call) => call.file)).toEqual(['gh', 'curl', 'curl', 'gh']);
+  });
+
+  it('emits source-bound independent observations only when JSON is requested', () => {
+    const f = fixture();
+    const { result, invoked } = f.run(['check', '--json', f.metadata]);
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stderr).toBe('');
+    const report = JSON.parse(result.stdout) as {
+      schemaVersion: number;
+      observedAt: string;
+      coolingHours: number;
+      pinsSha256: string;
+      helperSha256: string;
+      checks: {
+        id: string;
+        status: string;
+        observed?: string;
+        publishedAt?: string;
+        platformScope?: string;
+      }[];
+      semgrepDigest: { status: string; pinned: string };
+      ok: boolean;
+    };
+    expect(report.schemaVersion).toBe(1);
+    expect(Date.parse(report.observedAt)).not.toBeNaN();
+    expect(report.coolingHours).toBe(24);
+    expect(report.pinsSha256).toBe(createHash('sha256').update(JSON.stringify(pins)).digest('hex'));
+    expect(report.helperSha256).toBe(
+      createHash('sha256').update(readFileSync(f.helper)).digest('hex')
+    );
+    expect(report.checks.map((item) => [item.id, item.status])).toEqual([
+      ['osv_release', 'match'],
+      ['osv_digest', 'match'],
+      ['semgrep_release', 'match'],
+    ]);
+    expect(report.checks[0]!.publishedAt).toBeDefined();
+    expect(report.checks[1]!.platformScope).toBe('multiarch-tag');
+    expect(report.semgrepDigest).toEqual({
+      status: 'not_checked',
+      pinned: pins.semgrep.image.split('@')[1],
+    });
+    expect(report.ok).toBe(true);
+    expect(invoked.map((item) => item.file)).toEqual(['gh', 'curl', 'curl', 'gh']);
+    expect(existsSync(f.output)).toBe(false);
+  });
+
+  it('keeps mature differences as warnings and under-age releases as pending evidence', () => {
+    const newer = fixture();
+    const difference = newer.run(['check', '--json', newer.metadata], { scenario: 'newer' });
+    expect(difference.result.status, difference.result.stderr).toBe(0);
+    const report = JSON.parse(difference.result.stdout) as {
+      checks: { status: string; observed?: string }[];
+      ok: boolean;
+    };
+    expect(report.checks.map((item) => item.status)).toEqual(['different', 'match', 'different']);
+    expect(report.checks[0]!.observed).toBe('9.9.9');
+    expect(report.ok).toBe(true);
+    const young = fixture();
+    const waiting = young.run(['check', '--json', young.metadata], { scenario: 'too-young' });
+    expect(waiting.result.status).toBe(1);
+    const pending = JSON.parse(waiting.result.stdout) as {
+      checks: {
+        status: string;
+        observationWindow?: string;
+        pendingRelease?: { version: string };
+      }[];
+      ok: boolean;
+    };
+    expect(pending.checks.map((item) => item.status)).toEqual([
+      'incomplete',
+      'match',
+      'incomplete',
+    ]);
+    expect(pending.checks[0]!.observationWindow).toBe('wait');
+    expect(pending.checks[0]!.pendingRelease?.version).toBe('2.6.0');
+    expect(pending.ok).toBe(false);
+    const mixed = fixture();
+    const retained = mixed.run(['check', '--json', mixed.metadata], { scenario: 'young-and-old' });
+    expect(retained.result.status).toBe(0);
+    const mixedReport = JSON.parse(retained.result.stdout) as {
+      checks: {
+        status: string;
+        observationWindow?: string;
+        pendingRelease?: { version: string };
+      }[];
+    };
+    expect(mixedReport.checks[0]!.status).toBe('match');
+    expect(mixedReport.checks[0]!.observationWindow).toBe('wait');
+    expect(mixedReport.checks[0]!.pendingRelease?.version).toBe('9.9.9');
+  });
+
+  it('retains later attempts and distinguishes API failure from digest drift', () => {
+    const unavailable = fixture();
+    const failed = unavailable.run(['check', '--json', unavailable.metadata], {
+      scenario: 'api-fail',
+    });
+    expect(failed.result.status).toBe(1);
+    const failure = JSON.parse(failed.result.stdout) as {
+      checks: { id: string; status: string; reason?: string }[];
+      ok: boolean;
+    };
+    expect(failure.checks.map((item) => [item.id, item.status])).toEqual([
+      ['osv_release', 'incomplete'],
+      ['osv_digest', 'match'],
+      ['semgrep_release', 'match'],
+    ]);
+    expect(failure.checks[0]!.reason).toContain('gh request failed');
+    expect(failed.invoked.map((item) => item.file)).toEqual(['gh', 'curl', 'curl', 'gh']);
+    const drift = fixture();
+    const mismatched = drift.run(['check', '--json', drift.metadata], {
+      scenario: 'mismatch-digest',
+    });
+    expect(mismatched.result.status).toBe(1);
+    const different = JSON.parse(mismatched.result.stdout) as {
+      checks: { id: string; status: string; observed?: string }[];
+      ok: boolean;
+    };
+    expect(different.checks.map((item) => item.status)).toEqual(['match', 'different', 'match']);
+    expect(different.checks[1]!.observed).toBe(`sha256:${'0'.repeat(64)}`);
+    expect(different.ok).toBe(false);
+    expect(`${failed.result.stdout}${mismatched.result.stdout}`).not.toContain(
+      'secret-bearer-token'
+    );
+  });
+
+  it.each([
+    'malformed-api',
+    'missing-token',
+    'missing-digest',
+    'duplicate-digest',
+    'manifest-fail',
+  ])('keeps %s incomplete and excludes auth material from JSON', (scenario) => {
+    const f = fixture();
+    const { result, invoked } = f.run(['check', '--json', f.metadata], { scenario });
+    expect(result.status).toBe(1);
+    const report = JSON.parse(result.stdout) as { checks: { status: string }[]; ok: boolean };
+    expect(report.checks).toHaveLength(3);
+    expect(report.checks.some((item) => item.status === 'incomplete')).toBe(true);
+    expect(report.ok).toBe(false);
+    expect(invoked.at(-1)?.file).toBe('gh');
+    expect(`${result.stdout}${result.stderr}`).not.toContain('secret-bearer-token');
+  });
+
+  it('reports invalid JSON-mode inputs without invoking APIs or echoing pins', () => {
+    const f = fixture();
+    writeFileSync(f.metadata, '{');
+    const invalid = f.run(['check', '--json', f.metadata]);
+    expect(invalid.result.status).toBe(1);
+    expect(invalid.invoked).toEqual([]);
+    const report = JSON.parse(invalid.result.stdout) as {
+      status: string;
+      checks: unknown[];
+      ok: boolean;
+    };
+    expect(report.status).toBe('incomplete');
+    expect(report.checks).toEqual([]);
+    expect(report.ok).toBe(false);
+    const token = f.run(['check', '--json', f.metadata], { env: { GH_TOKEN: '' } });
+    expect(token.result.status).toBe(1);
+    expect(JSON.parse(token.result.stdout) as { status: string }).toMatchObject({
+      status: 'incomplete',
+    });
   });
 
   for (const scenario of [

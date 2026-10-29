@@ -247,6 +247,20 @@ uses the consumer's existing `GH_TOKEN` and leaves release and digest checks
 independent. Workflow owners choose which trusted checkout supplies the JSON
 and clean their private runner storage.
 
+For read-only inventory, `node "$HELPER" check --json "$PIN_METADATA"` emits
+one JSON object while retaining the normal `check` exit status. It reports the
+three independent attempts (`osv_release`, `osv_digest`, `semgrep_release`),
+their matching, differing or incomplete results, the eligible release time or
+pending observation window, and the OSV multiarch tag digest. The Semgrep image
+digest is explicitly `not_checked` by this command. `pinsSha256` identifies the
+validated pin values, `helperSha256` identifies the executed helper bytes, and
+`observedAt` plus `coolingHours` bind the observation policy. A mature release
+difference is advisory; a digest mismatch or incomplete attempt still exits 1.
+The JSON contains no token or API body. It does not approve a version change,
+artifact, or rollback. The existing `env` and `check` invocations keep their
+human diagnostics; consumers can adopt JSON readback without changing scanner
+execution or upload policy.
+
 ## Trust boundary
 
 Repository-local workflows continue to own events, permissions, concurrency,
