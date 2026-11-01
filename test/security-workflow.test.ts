@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test';
 
+import ci from '../.github/workflows/ci.yaml?raw';
 import workflow from '../.github/workflows/security.yaml?raw';
 import settings from '../.github/settings.yml?raw';
 
@@ -8,6 +9,13 @@ const runtimeMetadataSha = 'b783358a3dd3bf167cf89a6df550166ded36dbd1';
 const helper = '"$RUNNER_TEMP/trusted-helper/scripts/security/osv-workflow.ts"';
 
 describe('security workflow', () => {
+  it('uses the reviewed Semgrep linux/amd64 image for scans and Alpine trust qualification', () => {
+    const image =
+      'image: semgrep/semgrep:1.183.0@sha256:fb59331f2772da4a9960692ae31961cd58a7c666c014125e9202c96bdfdc38cc';
+    expect(workflow).toContain(image);
+    expect(ci).toContain(image);
+  });
+
   function extractStep(name: string): string {
     const lines = workflow.split('\n');
     const start = lines.findIndex((line) => line.trim() === `- name: ${name}`);
