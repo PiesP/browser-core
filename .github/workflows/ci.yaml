@@ -44,7 +44,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     container:
-      image: semgrep/semgrep:1.182.0@sha256:50440fe8ec1dcc2fc09a0cab0e527b66b1e0a983f2cfc1219b9c34e2f7b5567c
+      image: semgrep/semgrep:1.183.0@sha256:fb59331f2772da4a9960692ae31961cd58a7c666c014125e9202c96bdfdc38cc
     steps:
       - name: Prepare remediated Node trust
         uses: PiesP/browser-core/automation/actions/prepare-node-trust@381b4ca733494cf069212cd0d16458389a83c623
