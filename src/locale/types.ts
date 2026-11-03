@@ -5,8 +5,10 @@
  * yt-live-chat-overlay) for consistent locale handling.
  */
 
+import type { RegistryLocale } from './constants';
+
 /** BCP 47 locale identifiers supported across all projects */
-export type Locale = 'en' | 'ko' | 'ja' | 'zh-CN' | 'es' | 'ar';
+export type Locale = RegistryLocale;
 
 /** Language setting — may include 'auto' for browser detection */
 export type SettingLocale = 'auto' | Locale;

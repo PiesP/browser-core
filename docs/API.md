@@ -102,8 +102,12 @@ are intentional local alternatives, not migration targets based on naming.
 ## Locale
 
 The locale API supports `en`, `ko`, `ja`, `zh-CN`, `es`, and `ar`. The
-authoritative list is `SUPPORTED_LOCALES` in
+authoritative identifiers and metadata come from the internal registry behind `SUPPORTED_LOCALES` in
 [`src/locale/constants.ts`](../src/locale/constants.ts).
+`Locale` is derived from those identifiers. `isLocale` accepts only exact
+canonical identifiers; it rejects `auto`, regional or case variants, and
+non-strings. `SettingLocale` includes `auto` for product settings, while each
+consumer owns its supported subsets, UI order, and translated resources.
 `normalizeLocale` matches supported tags case-insensitively, maps supported
 language-region variants to their base locale, and returns `null` when no
 supported locale matches. `detectLocale` checks explicitly injected language
