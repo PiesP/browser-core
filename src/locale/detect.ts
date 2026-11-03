@@ -15,6 +15,11 @@ import type { Locale } from './types';
 
 const MAX_LOCALE_CODE_LENGTH = 64;
 
+/** Match an exact supported identifier, without normalization or the 'auto' setting. */
+export function isLocale(value: unknown): value is Locale {
+  return typeof value === 'string' && LOCALE_CODES.some((code) => code === value);
+}
+
 /** Minimal chrome.i18n API shape for platform UI language detection. */
 declare const chrome:
   | {

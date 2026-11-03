@@ -41,6 +41,7 @@ describe('user-facing public API', () => {
     expect(core.DEFAULT_LOCALE).toBe('en');
     expect(core.SUPPORTED_LOCALES.length).toBeGreaterThan(0);
     expect(typeof core.detectLocale).toBe('function');
+    expect(typeof core.isLocale).toBe('function');
     expect(typeof core.normalizeLocale).toBe('function');
     expect(typeof core.formatFileSize).toBe('function');
     expect(typeof core.formatDuration).toBe('function');
@@ -67,6 +68,7 @@ describe('user-facing public API', () => {
     expect(packagedEventsApi.MessageBus).toBe(core.MessageBus);
     expect(packagedEventsApi.createEventEmitter).toBe(core.createEventEmitter);
     expect(localeApi.formatFileSize).toBe(core.formatFileSize);
+    expect(localeApi.isLocale).toBe(core.isLocale);
     expect(localeApi.formatDuration).toBe(core.formatDuration);
     expect(loggingApi.createConsoleLogger).toBe(core.createConsoleLogger);
     expect(loggingApi.createNoopLogger).toBe(core.createNoopLogger);
