@@ -102,7 +102,7 @@ describe('central project setup action', () => {
     expect(ci).toContain('uses: ./.setup-action/automation/actions/setup-project');
     expect(ci).toContain("install-dependencies: 'false'");
     expect(ci).toContain('sha256sum package.json .node-version pnpm-lock.yaml pnpm-workspace.yaml');
-    expect(ci).toContain('test "$(vp --version | head -n 1)" = \'vp v1.4.0\'');
+    expect(ci).toContain('test "$(vp --version | head -n 1)" = \'vp v1.5.0\'');
     expect(ci).toContain('sha256sum --check fixture.sha256');
     expect(ci).toContain('node .setup-action/automation/scripts/verify-setup-smoke.ts prepared');
     expect(ci).toContain('test "$SETUP_RESULT" = success');
