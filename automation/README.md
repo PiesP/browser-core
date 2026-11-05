@@ -77,9 +77,16 @@ npm release-age policy, then use its pinned migrator from the repository root:
 Replace `VERSION` in both commands with that selected exact release.
 
 ```sh
-pnpm dlx --package=vite-plus@VERSION vp help migrate
-pnpm dlx --package=vite-plus@VERSION vp migrate --no-interactive --no-agent --no-editor --no-hooks
+vp exec pnpm dlx --package=vite-plus@VERSION vp help migrate
+vp exec pnpm dlx --package=vite-plus@VERSION vp migrate --no-interactive --no-agent --no-editor --no-hooks
 ```
+
+The repository's overrides also apply to the pinned migrator's dependency
+resolution. If they still force the previous toolchain into that graph, first
+align the reviewed CLI, managed alias, direct Vitest companions and exact peer
+allowances with the selected versions. Keep the existing supply-chain controls
+enabled during this bootstrap; a migrator peer failure does not justify a
+broader exception.
 
 Review every migration finding and the complete manifest, catalog, override and
 lockfile diff. Retain compatibility aliases and align the direct upstream Vitest
@@ -99,6 +106,12 @@ alias and the bundled Vite against their original peer ranges on every update.
 Do not widen these entries or add `allowAny`. Validate dependency resolution
 with a non-frozen lockfile calculation as well as the clean frozen install;
 the latter alone can reuse an unchecked migration lockfile.
+If the migrator generated relaxed policy, retain that attempt separately, restore
+the reviewed controls and resolve a new lockfile without reusing its installed
+graph. Check the complete resolved graph's publication times and integrity,
+then perform a clean frozen install and a repeat frozen install with unchanged
+tracked inputs. Migrator exit status alone does not qualify its generated policy
+or dependencies.
 
 Dependabot keeps Vite+ version updates visible, but does not independently update
 its managed Vite alias or upstream Vitest/coverage pins. Those normal component
