@@ -41,6 +41,44 @@ See [API contracts](./docs/API.md) and the
 
 ## Development
 
+### Architecture and resource ownership
+
+Follow the [composition and behavioral-contract policy](https://github.com/PiesP/.github/blob/master/MAINTENANCE_POLICY.md#composition-and-behavioral-contracts).
+The runtime uses ordinary classes, closures, pure helpers and structural
+interfaces, including interface extension; it does not share implementation or
+state through product-defined base classes. Construct collaborators explicitly
+at their owning boundary rather than adding an interface/factory to every helper.
+Automation-only direct native error subclasses in
+[`scanner-pins.ts`](./automation/security/scanner-pins.ts) are outside this
+product-runtime migration.
+
+Existing examples retain their distinct ownership contracts:
+
+- [`createEventEmitter`](./src/events/emitter.ts) composes lazily created
+  `MessageBus` instances behind `EventEmitter`; subscribers retain their
+  unsubscribe functions, and the last unsubscribe removes that event's bus.
+- [`mergeAbortSignalsWithCleanup`](./src/error/merge-abort-signals.ts) exposes a
+  signal and idempotent listener cleanup without lending controller authority.
+  [`withTimeout`](./src/async/with-timeout.ts) owns its timer/listeners; callers
+  still own cancellation and resource retirement of the underlying operation.
+- [`ByteLimitedCache`](./src/util/byte-limited-cache.ts) retains values with a
+  fixed budget and an automatic-eviction callback. It is not an all-removals
+  resource owner. [`ResizableByteLimitedCache`](./src/util/resizable-byte-limited-cache.ts)
+  can exclusively own resources with cleanup, while `take` transfers ownership
+  without cleanup. Keep their rejection, mutation and cleanup-error ordering
+  distinct under the [canonical cache contracts](./docs/API.md#caches-and-scheduling).
+
+The [API consumer map](./docs/API.md#consumer-and-verification-boundaries) owns
+actual callers and their verification responsibilities. Preserve each consumer's
+cancellation and event-error policy; a similarly named local helper is not an
+interchangeable shared contract. [API.md](./docs/API.md) owns utility semantics;
+[DESIGN.md](./docs/DESIGN.md) owns Quiet Instruments visual/interaction design.
+This policy adoption preserves the private source exports and existing consumer
+gitlinks and automation pins; it adds no runtime abstraction, publication step or
+consumer rollout.
+
+### Toolchain and checks
+
 The [automation catalog](./automation/README.md#maintained-tooling-catalog)
 records command ownership, Git hook adapters, Action bootstrap order, and the
 remaining pre-runtime language exceptions.

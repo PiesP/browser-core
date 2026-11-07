@@ -41,6 +41,9 @@ await sleep(100);
 
 ## 개발
 
+See the [architecture and resource ownership policy](./README.md#architecture-and-resource-ownership)
+for the maintained English contributor contract.
+
 Node.js 버전은 [`.node-version`](./.node-version), pnpm 버전은 [`package.json`](./package.json), Vite+ 버전은 [`pnpm-workspace.yaml`](./pnpm-workspace.yaml)에 정의되어 있습니다.
 
 ```bash

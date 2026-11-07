@@ -41,6 +41,9 @@ await sleep(100);
 
 ## 開発
 
+See the [architecture and resource ownership policy](./README.md#architecture-and-resource-ownership)
+for the maintained English contributor contract.
+
 Node.js は [`.node-version`](./.node-version)、pnpm は [`package.json`](./package.json)、Vite+ は [`pnpm-workspace.yaml`](./pnpm-workspace.yaml) でバージョンを選択します。
 
 ```bash
