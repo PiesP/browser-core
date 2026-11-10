@@ -198,10 +198,10 @@ jobs:
     permissions:
       contents: read
       security-events: write
-    # semgrep/semgrep:1.183.0 (linux/amd64) — last checked: 2026-11-02
+    # semgrep/semgrep:1.184.0 (linux/amd64) — last checked: 2026-11-10
     # Check for updates: https://github.com/semgrep/semgrep/releases
     container:
-      image: semgrep/semgrep:1.183.0@sha256:fb59331f2772da4a9960692ae31961cd58a7c666c014125e9202c96bdfdc38cc
+      image: semgrep/semgrep:1.184.0@sha256:83b9e9ee3df8ab1482dd7680cc78f25f6d9619a0caab7a687cf9eed31e88e4a1
     steps:
       - name: Prepare remediated Node trust
         uses: PiesP/browser-core/automation/actions/prepare-node-trust@381b4ca733494cf069212cd0d16458389a83c623
