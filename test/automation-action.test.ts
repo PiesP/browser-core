@@ -97,8 +97,32 @@ describe('central project setup action', () => {
   });
 
   it('requires the consumer smoke job alongside both existing runtime lanes', () => {
-    expect(ci).toContain("node-version: ['22.23.4', manifest]");
+    expect(ci).toContain("node-version: ['22.23.5', manifest]");
     expect(ci).toContain('needs: [quality, setup-smoke]');
+    const smoke = ci.slice(ci.indexOf('  setup-smoke:'), ci.indexOf('  quality-gate:'));
+    const bootstrap = smoke.slice(
+      smoke.indexOf(
+        '      - name: Select the checked-out provider runtime before preparing the fixture'
+      ),
+      smoke.indexOf(
+        '      - name: Prepare a distinct consumer manifest and frozen local dependency'
+      )
+    );
+    expect(smoke.indexOf('Select the checked-out provider runtime')).toBeLessThan(
+      smoke.indexOf('node .setup-action/automation/scripts/prepare-setup-smoke.mjs')
+    );
+    expect(bootstrap).toContain(
+      'uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76'
+    );
+    expect(bootstrap).toContain('version-file: .setup-action/pnpm-workspace.yaml');
+    expect(bootstrap).toContain('node-version-file: .setup-action/.node-version');
+    expect(bootstrap).toContain("run-install: 'false'");
+    expect(bootstrap).toContain("cache: 'false'");
+    expect(bootstrap).toContain("cache-toolchain: 'false'");
+    expect(smoke).toContain(
+      'test "$(node -p process.versions.node)" = "$(cat .setup-action/.node-version)"'
+    );
+    expect(smoke).toContain('node -p \'process.version + " " + process.execPath\'');
     expect(ci).toContain('uses: ./.setup-action/automation/actions/setup-project');
     expect(ci).toContain("install-dependencies: 'false'");
     expect(ci).toContain('sha256sum package.json .node-version pnpm-lock.yaml pnpm-workspace.yaml');

@@ -69,7 +69,7 @@ jobs:
     strategy:
       matrix:
         # Keep the older-runtime compatibility lane distinct from the official pin.
-        node-version: ['22.23.4', manifest]
+        node-version: ['22.23.5', manifest]
     steps:
       - name: Prepare remediated Node trust
         uses: PiesP/browser-core/automation/actions/prepare-node-trust@381b4ca733494cf069212cd0d16458389a83c623
@@ -103,8 +103,18 @@ jobs:
         with:
           path: .setup-action
           persist-credentials: false
+      - name: Select the checked-out provider runtime before preparing the fixture
+        uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+        with:
+          version-file: .setup-action/pnpm-workspace.yaml
+          node-version-file: .setup-action/.node-version
+          run-install: 'false'
+          cache: 'false'
+          cache-toolchain: 'false'
       - name: Prepare a distinct consumer manifest and frozen local dependency
         run: |
+          test "$(node -p process.versions.node)" = "$(cat .setup-action/.node-version)"
+          node -p 'process.version + " " + process.execPath'
           node .setup-action/automation/scripts/prepare-setup-smoke.mjs
           sha256sum package.json .node-version pnpm-lock.yaml pnpm-workspace.yaml > fixture.sha256
       - name: Setup consumer runtime without dependencies
@@ -126,7 +136,7 @@ jobs:
       - name: Setup the explicit compatibility runtime without reinstalling
         uses: ./.setup-action/automation/actions/setup-project
         with:
-          node-version: '22.23.4'
+          node-version: '22.23.5'
           install-dependencies: 'false'
       - name: Verify the compatibility override and unchanged consumer files
         run: |
