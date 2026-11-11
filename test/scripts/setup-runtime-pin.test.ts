@@ -40,21 +40,21 @@ afterEach(() => {
 
 describe('consumer runtime selection before setup-vp', () => {
   it('accepts an exact official pin', () => {
-    expect(validate('24.22.1\n').status).toBe(0);
+    expect(validate('24.22.3\n').status).toBe(0);
   });
 
-  it.each([undefined, '24', 'latest\n', '24.22.1\nextra\n'])(
+  it.each([undefined, '24', 'latest\n', '24.22.3\nextra\n'])(
     'rejects an absent or non-exact official pin: %s',
     (pin) => expect(validate(pin).status).toBe(1)
   );
 
   it('rejects a symlinked runtime pin', () => {
-    expect(validate('24.22.1\n', '', true).status).toBe(1);
+    expect(validate('24.22.3\n', '', true).status).toBe(1);
   });
 
   it('permits only numeric compatibility overrides without the official pin', () => {
     expect(validate(undefined, '22').status).toBe(0);
-    expect(validate(undefined, '22.23.4').status).toBe(0);
+    expect(validate(undefined, '22.23.5').status).toBe(0);
     expect(validate(undefined, 'latest').status).toBe(1);
     expect(validate(undefined, '22\nextra').status).toBe(1);
   });

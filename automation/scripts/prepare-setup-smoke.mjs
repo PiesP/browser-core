@@ -32,7 +32,7 @@ export function prepareSetupSmoke() {
     fileURLToPath(new URL('../../.node-version', import.meta.url)),
     'utf8'
   ).trim();
-  if (core.packageManager === 'pnpm@11.25.0' || coreNode === '24.22.1') {
+  if (core.packageManager === 'pnpm@11.25.0' || coreNode === '24.22.3') {
     throw new Error('Smoke fixture toolchain must differ from browser-core');
   }
   // The copied workspace policy must agree with the fixture's frozen lockfile.
@@ -50,7 +50,7 @@ export function prepareSetupSmoke() {
       dependencies: { 'setup-smoke-fixture': 'link:./fixture-package' },
     }) + '\n'
   );
-  writeFileSync('.node-version', '24.22.1\n');
+  writeFileSync('.node-version', '24.22.3\n');
   mkdirSync('fixture-package');
   writeFileSync(
     'fixture-package/package.json',
