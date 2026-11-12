@@ -5,7 +5,7 @@ import workflow from '../.github/workflows/security.yaml?raw';
 import settings from '../.github/settings.yml?raw';
 
 const trustedSha = 'e80334d25dd4edb18703d63153ef7630daf4d04b';
-const runtimeMetadataSha = 'b783358a3dd3bf167cf89a6df550166ded36dbd1';
+const runtimeMetadataSha = '4638d703806b38734430a761104ee73512cbdf5c';
 const helper = '"$RUNNER_TEMP/trusted-helper/scripts/security/osv-workflow.ts"';
 
 describe('security workflow', () => {
