@@ -245,7 +245,7 @@ jobs:
       - name: Checkout trusted runtime metadata
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: 4638d703806b38734430a761104ee73512cbdf5c
+          ref: 4e14b25c55ee0c80dee8ef75bedd41363aa0adde
           fetch-depth: 0
           persist-credentials: false
 

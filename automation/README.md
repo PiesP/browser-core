@@ -385,7 +385,7 @@ with the same private helper. The full job fetches the immutable commit while
 keeping its event checkout as the scan target and runtime metadata source; its
 reviewed setup Action does not install dependencies. The always-running summary job
 checks out reviewed runtime metadata at
-`4638d703806b38734430a761104ee73512cbdf5c` with full history for its
+`4e14b25c55ee0c80dee8ef75bedd41363aa0adde` with full history for its
 `.node-version`, Vite+ catalog and package manager pins, then uses the reviewed
 `setup-project` Action at `38cd1cb18c9c37e57e8b53a98e811450bb1a18fc`
 without installing dependencies. Its executable helper still comes only from
