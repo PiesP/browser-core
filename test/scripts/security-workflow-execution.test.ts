@@ -29,7 +29,7 @@ type Sandbox = {
 const sandboxes: string[] = [];
 const repositoryRoot = resolve(import.meta.dirname, '../..');
 const trustedSha = 'e80334d25dd4edb18703d63153ef7630daf4d04b';
-const runtimeMetadataSha = '4638d703806b38734430a761104ee73512cbdf5c';
+const runtimeMetadataSha = '4e14b25c55ee0c80dee8ef75bedd41363aa0adde';
 
 function extractStepRun(name: string): string {
   const lines = workflow.split('\n');
@@ -385,7 +385,7 @@ describe('security summary workflow boundary', () => {
     ).toBe(runtimeMetadataSha);
     expect(readFileSync(join(sandbox.workspace, '.node-version'), 'utf8').trim()).toBe('26.13.1');
     expect(readFileSync(join(sandbox.workspace, 'pnpm-workspace.yaml'), 'utf8')).toContain(
-      '  vite-plus: 1.5.0'
+      '  vite-plus: 1.5.1'
     );
     const helperPath = join(sandbox.runnerTemp, 'trusted-helper/scripts/security/osv-workflow.ts');
     expect(readFileSync(helperPath)).toEqual(
