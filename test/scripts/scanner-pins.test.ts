@@ -78,10 +78,31 @@ if (file === 'gh') {
       process.stderr.write('secret-bearer-token must not appear in diagnostics\\n');
       process.exit(7);
     }
+    const requiredMediaTypes = {
+      'oci-index': 'application/vnd.oci.image.index.v1+json',
+      'docker-list': 'application/vnd.docker.distribution.manifest.list.v2+json',
+    };
+    const required = requiredMediaTypes[scenario];
+    const accept = args.find(arg => arg.startsWith('Accept: ')) ?? '';
+    if (required && !accept.includes(required)) process.exit(22);
     const digest = '${pins.osv.image.split('@')[1]}';
-    if (scenario === 'duplicate-digest') process.stdout.write('Docker-Content-Digest: ' + digest + '\\r\\nDocker-Content-Digest: ' + digest + '\\r\\n');
-    else if (scenario === 'missing-digest') process.stdout.write('HTTP/2 200\\r\\n');
-    else process.stdout.write('Docker-Content-Digest: ' + (scenario === 'mismatch-digest' ? 'sha256:' + '0'.repeat(64) : digest) + '\\r\\n');
+    const responseTypes = {
+      'oci-index': 'application/vnd.oci.image.index.v1+json',
+      'oci-manifest': 'application/vnd.oci.image.manifest.v1+json',
+      'docker-list': 'application/vnd.docker.distribution.manifest.list.v2+json',
+      'docker-manifest': 'application/vnd.docker.distribution.manifest.v2+json',
+      'unexpected-content-type': 'application/json',
+    };
+    const contentType = responseTypes[scenario] ?? responseTypes['docker-list'];
+    const typeHeader = scenario === 'missing-content-type' ? '' :
+      scenario === 'ambiguous-content-type' ?
+        'Content-Type: ' + responseTypes['oci-index'] + '\\r\\nContent-Type: ' + responseTypes['docker-list'] + '\\r\\n' :
+        'Content-Type: ' + contentType + '\\r\\n';
+    const digestHeader = scenario === 'missing-digest' ? '' :
+      scenario === 'duplicate-digest' ?
+        'Docker-Content-Digest: ' + digest + '\\r\\nDocker-Content-Digest: ' + digest + '\\r\\n' :
+        'Docker-Content-Digest: ' + (scenario === 'mismatch-digest' ? 'sha256:' + '0'.repeat(64) : digest) + '\\r\\n';
+    process.stdout.write('HTTP/2 200\\r\\n' + typeHeader + digestHeader);
   }
 }
 `
@@ -185,6 +206,20 @@ describe('reviewed scanner pin CLI', () => {
     expect(calls[3]!.args).toEqual(['api', 'repos/semgrep/semgrep/releases?per_page=100']);
     expect(calls[2]!.args).toContain('Authorization: Bearer secret-bearer-token');
   });
+
+  it.each(['oci-index', 'docker-list'])(
+    'negotiates the %s GHCR manifest while enforcing the pinned digest',
+    (scenario) => {
+      const f = fixture();
+      const { result, invoked } = f.run(['check', f.metadata], { scenario });
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout).toContain('runtime digest matches GHCR');
+      expect(invoked.map((call) => call.file)).toEqual(['gh', 'curl', 'curl', 'gh']);
+      expect(invoked[2]?.args.filter((arg) => arg.startsWith('Accept: '))).toEqual([
+        'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json',
+      ]);
+    }
+  );
 
   it('warns for mature new versions, and fails while still checking later pins', () => {
     const update = fixture();
@@ -326,6 +361,11 @@ describe('reviewed scanner pin CLI', () => {
     'missing-digest',
     'duplicate-digest',
     'manifest-fail',
+    'oci-manifest',
+    'docker-manifest',
+    'missing-content-type',
+    'ambiguous-content-type',
+    'unexpected-content-type',
   ])('keeps %s incomplete and excludes auth material from JSON', (scenario) => {
     const f = fixture();
     const { result, invoked } = f.run(['check', '--json', f.metadata], { scenario });
