@@ -11,7 +11,7 @@ const helper = '"$RUNNER_TEMP/trusted-helper/scripts/security/osv-workflow.ts"';
 describe('security workflow', () => {
   it('uses the reviewed Semgrep linux/amd64 image for scans and Alpine trust qualification', () => {
     const image =
-      'image: semgrep/semgrep:1.184.0@sha256:83b9e9ee3df8ab1482dd7680cc78f25f6d9619a0caab7a687cf9eed31e88e4a1';
+      'image: semgrep/semgrep:1.186.0@sha256:6e1b04340e60e910fbb4ddbf3c857ab0918f064417ad5ac530014ccb3cf8c8f1';
     expect(workflow).toContain(image);
     expect(ci).toContain(image);
   });
