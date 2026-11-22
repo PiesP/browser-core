@@ -108,8 +108,17 @@ Reusable consumer CI setup is documented separately in
 
 This project is developed with assistance from AI tools.
 
+## License
+
+PiesP licenses the PiesP-authored portions of `@piesp/browser-core` under the
+[MIT License](./LICENSE). This grant includes copies of
+[commit `3b7d18921cc3300851db8fd03353e0afa95fa7c0`](https://github.com/PiesP/browser-core/tree/3b7d18921cc3300851db8fd03353e0afa95fa7c0)
+already distributed to recipients. That snapshot predates the
+[first repository license file](https://github.com/PiesP/browser-core/blob/2c9f6acf86a72883cd145434ce6ade4f467e629f/LICENSE).
+Third-party materials, including the dependencies checked into `node_modules/`
+in that snapshot, retain their own licenses and copyright notices.
+
 ## Links
 
 - [Security policy](./.github/SECURITY.md)
 - [Issues](https://github.com/PiesP/browser-core/issues)
-- [License](./LICENSE)
